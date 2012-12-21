@@ -1,0 +1,28 @@
+ 
+
+Database plugin
+---------------
+
+* [C] Save trail searches in case of browser restart. 
+
+* Consider saving searches in database for later reference -> This is equivalent missions!!
+       
+* [C] API functions for trail search. Test with iframe. 
+
+* Implement mission support - Server side
+     STARTED
+
+* Activate and test GIST indexing for positions. Indexing for trail search. 
+     DONE.
+
+* Fix error where lat/long components are swapped. 
+     DONE.
+     
+* Implement search for positions through a given digipeater node.
+     DONE.
+     
+* Implement simple geo-objects (signs). 
+     STARTED.
+     
+* Heard via - upper and lower spatial limit in search? 
+

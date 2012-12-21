@@ -1,0 +1,81 @@
+QUERIES
+-------
+
+
+select src,time,ST_AsText(position) from "PosReport" 
+where position && ST_MakeEnvelope(18.5, 69.38, 20.0, 69.88, 4326);
+
+-------------------------------------------------
+
+
+select r.src, r.time, position 
+from "AprsPacket" p, "PosReport" r 
+where p.src=r.src and p.time=r.rtime and substring(p.path, '([^,\*]+).*\*.*')='LD9TT';
+
+-- May add limit on time span
+-- May add limit on geographical area and index on position
+-- Select distinct position
+
+select distinct ST_AsText(position) 
+from "AprsPacket" p, "PosReport" r 
+where  p.src=r.src 
+  and  p.time=r.rtime 
+  and  (substring(p.path, '([^,\*]+).*\*.*')='LD9TT' OR substring(p.ipath, 'qAR,([^,\*]+).*')='LD9TT')
+  AND  position && ST_MakeEnvelope(18.5, 69.38, 20.0, 69.88, 4326)
+  and  p.time > '2012-10-25 00:00:00';
+
+---------------------------------------------------
+create view igate as 
+select substring (ipath from '(q..),.*') as q, substring(ipath from 'q..,(.+),?.*') as igate, count(*)
+from "AprsPacket"
+group by q,igate;
+
+
+--------------------------------------------------- 
+create view firstdigi as 
+select src,substring(path from '([^,\*]+).*\*.*') as firstdigi, count(*) 
+from "AprsPacket" 
+group by src,firstdigi;
+
+-- May add limit on time span
+-- Last / first time heard? 
+
+
+
+
+
+
+
+INDEXES
+-------
+
+create index firstpath_idx on "AprsPacket" (substring(path, '([^,\*]+).*\*.*'));
+  -- Improvement 5-6 X
+  
+create index ipath_idx on "AprsPacket" (substring(ipath, 'qAR,([^,\*]+).*'));
+  -- Improvement > 20 X
+
+create index posreport_time_src_idx on "PosReport" (time,src);
+  -- Great improvement > 20X. Similar index because of primary key constraint doesn't seem to help. 
+
+create index posreport_rtime_idx on "PosReport" (rtime);
+  -- Improvement > 10X. 
+
+create index geoindex on "PosReport" USING GIST (position);
+  -- Works! 
+
+To maintain it: 
+
+VACUUM ANALYZE "PosReport" (position);
+
+
+
+FUNCTIONS
+---------
+
+ST_MakeEnvelope(xmin, ymin, xmax, ymax, SRID)
+
+
+
+
+

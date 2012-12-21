@@ -1,0 +1,56 @@
+ 
+Sette opp database med postgis
+------------------------------
+
+
+Installer postgresql (installerer v 9.1)
+apt get install postgresql postgresql-contrib postgresql-client
+
+Og postgis:
+apt-get install postgis postgresql-9.1-postgis libpostgis-java
+
+Opprett en database <dbname> og installer postgis:
+(foreslår databasenavn polaric og brukernavn polaric og passord polarichacker
+
+  # Become a postgresql superuser
+  su - postgres
+
+  # Create the user (allowed to log in and with password)
+  # FIXME/CHECK: CAN USER LOGIN VIA TCP?
+  createuser <username> -l -e -P
+
+  # Enter password: <type the user password>
+  # Shall the new role be a superuser? (y/n) n
+  # Shall the new role be allowed to create databases? (y/n) n
+  # Shall the new role be allowed to create more new roles? (y/n) n
+
+  # create database ownered by user 
+  createdb <databasename> --o <username>
+
+  # Need to enable plpgsql for the database before loading the functions  # DO THIS IN V. 9.1???
+  createlang plpgsql -d <databasename>
+
+  # Finally, load the functions and reference system tables
+  psql <databasename> -f /usr/share/postgresql/9.1/contrib/postgis-1.5/postgis.sql
+  psql <databasename> -f /usr/share/postgresql/9.1/contrib/postgis-1.5/spatial_ref_sys.sql
+  
+
+  # login in new database (still as superuser postgres)
+  psql <databasename>
+
+  # grant privilege on standard ogc tables to user
+  grant all on geometry_columns to <username>;
+  grant select on spatial_ref_sys to <username>;
+  
+  
+  
+FLYTTE DATABASE?
+----------------
+
+pg_dump -Fc polaric > polaric.dump
+
+..move file
+..create user and database like indicated above
+
+pg_restore -d polaric polaric.dump
+

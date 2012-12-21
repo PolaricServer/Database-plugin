@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e
+INIFILE=/etc/polaric-aprsd/server.ini
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+
+case "$1" in
+
+    configure|reconfigure)
+    ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+    *)
+        echo "$0 called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#

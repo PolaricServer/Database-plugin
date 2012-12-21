@@ -1,0 +1,11 @@
+polaric-db-plugin (1.0-alpha2) UNRELEASED; urgency=low
+
+  * More hacking 
+
+ -- Øyvind hanssen <ohanssen@acm.org>  Mon, 29 Oct 2012 21:48:58 +0100
+
+polaric-db-plugin (1.0-alpha1) unstable; urgency=low
+
+  * Initial testing, plugin architecture, etc.. 
+
+ -- Øyvind hanssen <ohanssen@acm.org>  Mon, 16 Jan 2012 22:50:48 +0100
