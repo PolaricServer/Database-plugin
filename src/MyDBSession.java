@@ -34,9 +34,9 @@ public class MyDBSession extends DBSession
    private ServerAPI _api; 
    
    
-   MyDBSession (DataSource dsrc, ServerAPI api)
+   MyDBSession (DataSource dsrc, ServerAPI api, boolean autocommit)
    {
-      super(dsrc); 
+      super(dsrc, autocommit); 
       _api = api; 
    }
    
@@ -126,8 +126,37 @@ public class MyDBSession extends DBSession
          stmt.setString(3, url);
          stmt.setString(4, descr);
          setRef(stmt, 5, pos);
-         
          stmt.executeUpdate();
+    }
+    
+    
+    public synchronized void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos)
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( "UPDATE \"Signs\" SET position=?, icon=?, url=?, description=? "+
+              "WHERE id=?" );
+        setRef(stmt, 1, pos);
+        stmt.setString(2, icon);
+        stmt.setString(3, url);
+        stmt.setString(4, descr);
+        stmt.setInt(5, id);
+        stmt.executeUpdate();
+    }  
+    
+    
+    public synchronized Signs.Item getSign(int id)
+          throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+              ( "SELECT * FROM \"Signs\"" + 
+                "WHERE id=?" );
+         stmt.setInt(1, id);
+         ResultSet rs = stmt.executeQuery();
+         if (rs.next()) 
+            return new Signs.Item(rs.getInt("id"), getRef(rs, "position"), rs.getLong("maxscale"), rs.getString("icon"),
+                 rs.getString("url"), rs.getString("description"));
+         return null;
     }
     
     
@@ -157,7 +186,7 @@ public class MyDBSession extends DBSession
                 public Signs.Item getElement(ResultSet rs) throws SQLException 
                 { 
                   // Item (Reference r, long sc, String ic, String url, String txt)
-                   return new Signs.Item(getRef(rs, "position"), 0, rs.getString("icon"),
+                   return new Signs.Item(rs.getInt("id"), getRef(rs, "position"), 0, rs.getString("icon"),
                            rs.getString("url"), rs.getString("description"));  
                 }
             });

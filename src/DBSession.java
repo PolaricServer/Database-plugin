@@ -15,6 +15,7 @@
 package no.polaric.aprsdb;
 import  java.sql.*;
 import  javax.sql.*;
+import  java.util.*;
 import  java.util.concurrent.locks.*; 
 import  org.apache.commons.dbcp.*; 
 
@@ -31,21 +32,67 @@ import  org.apache.commons.dbcp.*;
 public class DBSession
 {
      private Connection _con;
-     private ReentrantLock _lock = new ReentrantLock();
+     private static Map<String, TransInfo> _inProgress = new HashMap();
+     private static Timer _transTimer = new Timer("TransactionTimer");
+     
+     
+     protected static class TransInfo extends TimerTask {
+        public DBSession trans;
+        public String key;
+        
+        public void run() {
+           /* Abort and close the transaction */
+            trans.abort();
+            trans.close();
+            System.out.println("*** DB Transaction '"+key+"' aborted. Timeout.");
+           DBSession._inProgress.remove(key);
+        }
+        
+        public TransInfo(String k, DBSession t) {
+           key = k;
+           trans = t;
+        }
+     }
+     
+     
+     /**
+      * Store ongoing transaction for later conclusion. 
+      * If not restored after 5 minutes, it will be aborted and closed. 
+      */
+     public static void putTrans(String key, DBSession t)
+     {
+        TransInfo ti = new TransInfo(key, t);
+        _inProgress.put(key, ti);
+        _transTimer.schedule(ti, 1000 * 60 * 5);
+     }
+     
+     
+     /**
+      * Get transaction for further execution and commit.
+      */
+     public static DBSession getTrans(String key)
+     {
+        TransInfo ti = _inProgress.get(key);
+        ti.cancel();
+        _inProgress.remove(key);
+        return ti.trans;
+     }
+     
+     
+     
+     
      
      
      /**
       * Constructor. 
       * @param dsrc JDBC DataSource object. 
-      */
-     public DBSession(DataSource dsrc)
+      */ 
+     public DBSession(DataSource dsrc, boolean autocommit)
      {
           try { 
-   /*         System.out.println("*** "+Thread.currentThread().getName()+": LOCK");
-            _lock.lock();  */
             if (_con == null) { 
                _con = dsrc.getConnection(); 
-               _con.setAutoCommit(false);
+               _con.setAutoCommit(autocommit);
 
                /* PostGIS extensions */
                Connection dconn = ((DelegatingConnection) _con).getInnermostDelegate();
@@ -129,10 +176,6 @@ public class DBSession
             System.out.println("*** Warning[DBSession]: Try to close connection: "+e);
          }
          finally { 
-     /*        for (int i=0; i<_lock.getHoldCount(); i++) {
-                 System.out.println("*** "+Thread.currentThread().getName()+": UNLOCK");
-                 _lock.unlock();             
-             } */ 
          }   
      }
 }

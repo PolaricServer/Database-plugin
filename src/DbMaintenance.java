@@ -52,7 +52,7 @@ public class DbMaintenance implements Runnable
    }
    
    public MyDBSession getDB()
-     { return new MyDBSession(_dsrc, _api); }
+     { return new MyDBSession(_dsrc, _api, false); }
          
          
          

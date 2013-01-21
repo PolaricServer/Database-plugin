@@ -175,7 +175,9 @@ public class DbInstaller
                                "maxscale    integer, "+
                                "icon        text," +
                                "url         text," +
-                               "description text" );
+                               "description text," +
+                               "picture     boolean default false," +
+                               "approved    boolean default false ");
             addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */           
                                
                 

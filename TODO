@@ -3,9 +3,13 @@
 Database plugin
 ---------------
 
-* [C] Save trail searches in case of browser restart. 
+* [C] Save trail-searches in case of browser restart.
 
-* Consider saving searches in database for later reference -> This is equivalent missions!!
+* Use current alias with trail-searches??
+
+* Trail searches: Export to GPX?
+
+* Consider saving searches in database for later reference -> This is equivalent to missions!!
        
 * [C] API functions for trail search. Test with iframe. 
 
@@ -22,7 +26,15 @@ Database plugin
      DONE.
      
 * Implement simple geo-objects (signs). 
-     STARTED.
+     DONE.
+     
+* Signs: Edit 
+
+* Signs: Picture attribute
+
+* Approved attribute? 
+
+* Signs: Type table???
+
      
 * Heard via - upper and lower spatial limit in search? 
-

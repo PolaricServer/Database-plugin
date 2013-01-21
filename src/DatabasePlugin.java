@@ -89,13 +89,21 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       
       
      /**  Stop the plugin */ 
+      // FIXME
       public void deActivate() 
       {
          System.out.println("*** DatabasePlugin.deactivate");
       }
       
       
-      
+      // FIXME
+      public boolean isActive()
+       { return true; }
+
+       
+       
+       
+       
       private String[] _dep = {};
       
       
@@ -111,8 +119,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       }
       
       
-      public MyDBSession getDB()
-         { return new MyDBSession(_dsrc, _api); }
+      public MyDBSession getDB() 
+        { return getDB(false); }
+        
+      public MyDBSession getDB(boolean autocommit)
+         { return new MyDBSession(_dsrc, _api, autocommit); }
       
       
       
