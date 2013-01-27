@@ -5,6 +5,8 @@ import no.polaric.aprsd.http.*;
 import org.simpleframework.http.core.Container;
 import org.simpleframework.transport.connect.Connection;
 import org.simpleframework.transport.connect.SocketConnection;
+import org.simpleframework.http.Request;
+import org.simpleframework.http.Response;
 import org.simpleframework.http.*;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -41,11 +43,11 @@ public class XMLserver extends ServerBase
       throws IOException
    {         
         PrintWriter out = getWriter(res);
-        res.set("Content-Type", "text/xml; charset=utf-8");
+        res.setValue("Content-Type", "text/xml; charset=utf-8");
                 
         /* FIXME: Identical code in aprsd core */
         UTMRef uleft = null, lright = null;
-        Form parms = req.getForm();
+        Query parms = req.getQuery();
         if (parms.get("x1") != null) {
           long x1 = Long.parseLong( parms.get("x1") );
           long x2 = Long.parseLong( parms.get("x2") );
@@ -128,11 +130,11 @@ public class XMLserver extends ServerBase
       throws IOException
    {         
         PrintWriter out = getWriter(res);
-        res.set("Content-Type", "text/xml; charset=utf-8");
+        res.setValue("Content-Type", "text/xml; charset=utf-8");
                 
         /* FIXME: Identical code in aprsd core */
         UTMRef uleft = null, lright = null;
-        Form parms = req.getForm();
+        Query parms = req.getQuery();
         if (parms.get("x1") != null) {
           long x1 = Long.parseLong( parms.get("x1") );
           long x2 = Long.parseLong( parms.get("x2") );
