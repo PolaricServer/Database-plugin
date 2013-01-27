@@ -160,7 +160,19 @@ public class MyDBSession extends DBSession
     }
     
     
-
+        
+    public synchronized void deleteSign(int id)
+          throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+              ( "DELETE FROM \"Signs\"" + 
+                "WHERE id=?" );
+         stmt.setInt(1, id);
+         stmt.executeUpdate();
+    }
+    
+    
+    
     /**
      * Get trail for a given station and a given time span. 
      */

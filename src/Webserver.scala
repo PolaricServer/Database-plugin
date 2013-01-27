@@ -26,6 +26,42 @@ package no.polaric.aprsdb
    val _dbp = api.properties().get("aprsdb.plugin").asInstanceOf[DatabasePlugin];
 
      
+     
+     
+   def handle_deleteSign(req : Request, res : Response) =
+   {
+       val id = req.getParameter("objid")
+       val prefix = <h2>Slett objekt</h2>
+             
+       def fields(req : Request): NodeSeq =
+           <label for="objid" class="lleftlab">Objekt ID:</label>
+           <input id="objid" name="objid" type="text" size="9" maxlength="9"
+              value={if (id==null) "" else id.replaceFirst("@.*", "")} />;
+      
+      
+       def action(req : Request): NodeSeq =
+          if (id == null) {
+              <h3>Feil:</h3>
+              <p>må oppgi 'objid' som parameter</p>;
+          }
+          else {
+              val db = _dbp.getDB(true)
+              try {
+                  db.deleteSign(Integer.parseInt(id)) 
+                  System.out.println("*** DELETE SIGN: '"+id+"' by user '"+getAuthUser(req)+"'")
+                  <h3>Objekt slettet!</h3>
+              }
+              catch { case e: java.sql.SQLException => 
+                  <h2>SQL Feil</h2>
+                  <p>{e}</p>
+              }
+              finally { db.close() }
+          }  
+          
+       printHtml (res, htmlBody (req, null, htmlForm(req, prefix, fields, IF_AUTH(action) )))
+   }
+   
+   
              
    /**
     * add or edit APRS object.

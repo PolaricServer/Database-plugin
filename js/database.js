@@ -12,6 +12,24 @@ var hist_totime = null;
 var hist = [];
 
 
+ctxtMenu.addCallback("MAP", function (m)
+  {
+     m.add(null);
+     m.add("Nytt enkelt objekt", function()
+       { editSign(m.x, m.y); });
+  });
+  
+
+ctxtMenu.addCallback("SIGN", function (m)
+   {
+      if (m.ident.substring(0,6) == '__sign')
+        return;
+      m.add("Rediger enkelt objekt", function()
+        { editSign(m.x, m.y, m.ident); });
+      m.add("Slett enkelt objekt", function()
+        { deleteSign(m.ident); });
+   });
+
 
 ctxtMenu.addCallback("ITEM", function (m)
    {
@@ -59,6 +77,29 @@ function getPointsXmlData(stn, tfrom, tto)
 
 
 
+
+function editSign(x, y, ident)
+{
+   var id = null;
+   if (ident)
+      id = ident.substring(2);
+   var coord = myKaMap.pixToGeo(x, y);
+   fullPopupWindow('Enkelt objekt', server_url + 'srv/addSign' +
+      (x==null ? "" : '?x=' + coord[0] + '&y='+ coord[1]) +
+      (id == null? "" : '&edit=true&objid='+id),  550, 350);
+}
+
+
+function deleteSign(ident)
+{
+   var id = null;
+   if (ident)
+      id = ident.substring(2);
+   fullPopupWindow('Slett enkelt objekt', server_url + 'srv/deleteSign' +
+      (id == null? "" : '?objid='+id),  300, 200);
+   
+   
+}
 
 
 
