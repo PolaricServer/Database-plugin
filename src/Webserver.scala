@@ -3,7 +3,7 @@ import java.util._
 import java.io._
 import uk.me.jstott.jcoord._
 import scala.xml._
-import scala.collection.jcl.Conversions._
+import scala.collection.JavaConversions._
 import no.polaric.aprsd._
 import no.polaric.aprsd.http.ServerUtils
 import no.polaric.aprsd.http.ServerBase
@@ -94,11 +94,11 @@ package no.polaric.aprsdb
                      value={ if (edit) ""+obj.getScale() else "" } />
                   <br/>
                   <label for="url" class="lleftlab">URL:</label>
-                  <input id="url" name="url" type="text" size="30" maxlength="40"
+                  <input id="url" name="url" type="text" size="30" maxlength="60"
                      value={ if (edit) obj.getUrl() else "" } />
                   <br/>
                   <label for="descr" class="lleftlab">Beskrivelse:</label>
-                  <input id="descr" name="descr" type="text" size="30" maxlength="40"
+                  <input id="descr" name="descr" type="text" size="30" maxlength="60"
                       value={ if (edit) obj.getDescr() else "" } />   
                   <br/>
                   <label for="utmz" class="lleftlab">Pos (UTM): </label>

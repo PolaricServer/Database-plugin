@@ -14,7 +14,7 @@
   CLASSDIR = classes
  CLASSPATH = polaric-aprsd.jar:jcoord.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis.jar:simple.jar
 INSTALLDIR = /etc/polaric-aprsd/plugins
-     JAVAC = javac -target 1.6
+     JAVAC = javac -target 1.7
        JAR = jar
 
 # Review (and if necessary) change these if you are going to 
