@@ -134,13 +134,14 @@ public class MyDBSession extends DBSession
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-            ( "UPDATE \"Signs\" SET position=?, icon=?, url=?, description=? "+
+            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=? "+
               "WHERE id=?" );
-        setRef(stmt, 1, pos);
-        stmt.setString(2, icon);
-        stmt.setString(3, url);
-        stmt.setString(4, descr);
-        stmt.setInt(5, id);
+        stmt.setLong(1, maxscale);
+        setRef(stmt, 2, pos);
+        stmt.setString(3, icon);
+        stmt.setString(4, url);
+        stmt.setString(5, descr);
+        stmt.setInt(6, id);
         stmt.executeUpdate();
     }  
     

@@ -13,7 +13,9 @@ var hist = [];
 
 
 ctxtMenu.addCallback("MAP", function (m)
-  {
+{    
+     if (!(isAdmin() || canUpdate()))
+        return;
      m.add(null);
      m.add("Nytt enkelt objekt", function()
        { editSign(m.x, m.y); });
@@ -22,7 +24,7 @@ ctxtMenu.addCallback("MAP", function (m)
 
 ctxtMenu.addCallback("SIGN", function (m)
    {
-      if (m.ident.substring(0,6) == '__sign')
+     if (m.ident.substring(0,6) == '__sign' || !(isAdmin() || canUpdate()))
         return;
       m.add("Rediger enkelt objekt", function()
         { editSign(m.x, m.y, m.ident); });
@@ -84,7 +86,7 @@ function editSign(x, y, ident)
    if (ident)
       id = ident.substring(2);
    var coord = myKaMap.pixToGeo(x, y);
-   fullPopupWindow('Enkelt objekt', server_url + 'srv/addSign' +
+   fullPopupWindow('Enkelt_objekt', server_url + 'srv/addSign' +
       (x==null ? "" : '?x=' + coord[0] + '&y='+ coord[1]) +
       (id == null? "" : '&edit=true&objid='+id),  550, 350);
 }
@@ -95,7 +97,7 @@ function deleteSign(ident)
    var id = null;
    if (ident)
       id = ident.substring(2);
-   fullPopupWindow('Slett enkelt objekt', server_url + 'srv/deleteSign' +
+   fullPopupWindow('Slett_enkelt_objekt', server_url + 'srv/deleteSign' +
       (id == null? "" : '?objid='+id),  300, 200);
    
    

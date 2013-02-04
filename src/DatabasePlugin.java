@@ -38,7 +38,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            _api.setAprsHandler(this);
            _filter_chan = api.getProperty("db.filter.chan", ".*");
            _filter_src = api.getProperty("db.filter.src", ".*");
-           boolean signs = api.getBoolProperty("db.signs.on", false);
+           boolean signs = api.getBoolProperty("db.signs.on", true);
            
            
            api.properties().put("aprsdb.plugin", this); 
@@ -64,7 +64,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                         return x; 
                      }
                      catch (SQLException e) 
-                        { db.abort(); return null;}
+                        { System.out.println("*** Sign search:"+e); db.abort(); return null;}
                   }
                   
                   public void close() {
