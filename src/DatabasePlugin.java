@@ -34,22 +34,29 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            _dsrc.setPassword(api.getConfig().getProperty("db.passwd"));
            _dsrc.setUrl(api.getConfig().getProperty("db.url")); 
            _dsrc.setValidationQuery("select true");
-           _api = api;
-           _api.setAprsHandler(this);
+
            _filter_chan = api.getProperty("db.filter.chan", ".*");
            _filter_src = api.getProperty("db.filter.src", ".*");
-           boolean signs = api.getBoolProperty("db.signs.on", true);
-           
-           
+           boolean signs = api.getBoolProperty("db.signs.on", true);  
            api.properties().put("aprsdb.plugin", this); 
            api.addHttpHandlerCls("no.polaric.aprsdb.XMLserver", null);
            api.addHttpHandlerCls("no.polaric.aprsdb.Webserver", null);
-            
+           boolean isowner = api.getBoolProperty("db.isowner", true);
+           _api = api;
+           
+           /*
+            * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
+            * done by more than one concurrent client (the owner of the database). 
+            */
+           if (isowner) {
+              _api.setAprsHandler(this);
+              _maint = new DbMaintenance(_dsrc, _api);
+           }
            StationDBImp dbi = (StationDBImp) api.getDB();
            dbi.setHistDB(this);
-           _maint = new DbMaintenance(_dsrc, _api);
            
-           if (signs) 
+           if (signs)                                   
+           
               /* 
                * Create a anonymous class to offer search and close methods. 
                * FIXME: Consider to make a superclass to represent this pattern. Transaction?
