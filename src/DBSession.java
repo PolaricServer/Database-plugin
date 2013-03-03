@@ -100,7 +100,9 @@ public class DBSession
                ((org.postgresql.PGConnection)dconn).addDataType("box3d","org.postgis.PGbox3d");
             }
          }
-         catch (Exception e) {}   
+         catch (Exception e) {
+             System.out.println("*** Warning[DBSession]: Cannot open db connection: "+e);
+         }   
      }
 
                    

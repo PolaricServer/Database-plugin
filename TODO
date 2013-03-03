@@ -38,3 +38,5 @@ Database plugin
 
      
 * Heard via - upper and lower spatial limit in search? 
+
+* Add libpostgis-java and libpostgresql-jdbc-java to dependencies
