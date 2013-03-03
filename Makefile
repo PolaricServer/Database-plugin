@@ -21,7 +21,7 @@ INSTALLDIR = /etc/polaric-aprsd/plugins
 # install by using this makefile
 
    INSTALL_JAR = $(DESTDIR)/etc/polaric-aprsd/plugins
-   INSTALL_WWW = $(DESTDIR)/etc/polaric-webapp/www
+   INSTALL_WWW = $(DESTDIR)/etc/polaric-webapp/www/auto
    INSTALL_BIN = $(DESTDIR)/usr/bin
 INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd
    INSTALL_LOG = $(DESTDIR)/var/log/polaric
