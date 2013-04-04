@@ -175,8 +175,9 @@ public class XMLserver extends ServerBase
               UTMRef ref = toUTM(s.getPosition()); 
               String title = s.getDescr() == null ? "" 
                       : "title=\"[" + fixText(s.getIdent()) + "] " + fixText(s.getDescr()) + "\"";
-              String icon = _wfiledir + "/icons/"+ (s.getIcon() != null ? s.getIcon() : _icon);    
-         
+                       
+              String icon = _wfiledir + "/icons/"+ (s.getIcon(showSarInfo) != null ? s.getIcon(showSarInfo) : _icon);   
+          
               out.println("<point id=\""+fixText(s.getIdent())+"\" x=\""
                         + (int) Math.round(ref.getEasting()) + "\" y=\"" 
                         + (int) Math.round(ref.getNorthing())+ "\" " 
