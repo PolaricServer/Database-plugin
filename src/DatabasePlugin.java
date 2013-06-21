@@ -18,6 +18,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      private DbMaintenance _maint; 
      private String _filter_chan;
      private String _filter_src;
+     private boolean _isActive = false;
      
      
      /** Start the plugin  */
@@ -78,6 +79,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                     { if (db != null) db.close(); db=null; } 
                  }    
               });
+              _isActive = true;
         }
         catch (ClassCastException e) {
             System.out.println("*** Cannot activate DatabasePlugin: unsupported impl. of StationDB");
@@ -131,6 +133,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
         
       public MyDBSession getDB(boolean autocommit)
          { return new MyDBSession(_dsrc, _api, autocommit); }
+      
       
       
       

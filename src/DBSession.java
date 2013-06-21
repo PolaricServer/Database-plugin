@@ -101,6 +101,7 @@ public class DBSession
             }
          }
          catch (Exception e) {
+             // FIXME: Re-throw exception here. 
              System.out.println("*** Warning[DBSession]: Cannot open db connection: "+e);
          }   
      }

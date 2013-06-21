@@ -5,11 +5,11 @@ Database plugin
 
 * [C] Save trail-searches in case of browser restart.
 
-* Use current alias with trail-searches??
+* Save alias/icon changes to database. Use in searches. 
 
 * Trail searches: Export to GPX?
 
-* Consider saving searches in database for later reference -> This is equivalent to missions!!
+* Consider saving searches in database for later reference -> This is equivalent to missions!!?
        
 * [C] API functions for trail search. Test with iframe. 
 
@@ -32,11 +32,12 @@ Database plugin
 
 * Signs: Picture attribute
 
-* Approved attribute? 
+* Signs: Approved attribute? 
 
 * Signs: Type table???
 
-     
-* Heard via - upper and lower spatial limit in search? 
-
 * Add libpostgis-java and libpostgresql-jdbc-java to dependencies
+
+* Fault tolerance. 
+
+* Alias/icon change table. Use for trail searches. 
