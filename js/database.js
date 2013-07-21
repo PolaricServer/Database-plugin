@@ -12,6 +12,8 @@ var hist_totime = null;
 var hist = [];
 
 
+
+
 ctxtMenu.addCallback("MAP", function (m)
 {    
      if (!(isAdmin() || canUpdate()))
@@ -140,16 +142,20 @@ function searchHistData(call)
         ' <input id="searchbutton" type="button"' +
         ' value="Søk" />'+ 
         
-        ' <input id="addbutton" type="button"' +
+        ' <input id="addbutton" title="Legg spor til liste" type="button"' +
         ' value="Legg til" />'+
         
-        ' <input id="showallbutton" type="button"' +
+        ' <input id="showallbutton" title="Vis alle spor i liste" type="button"' +
         ' value="Vis alle" />'+
         
-        ' <input id="clearbutton" type="button"' +
+	' <input id="exportbutton" title="Eksporter spor (i liste) til GPX format" type="button"' +
+        ' value="Eksport" />'+
+	
+        ' <input id="clearbutton" title="Nullstill liste" type="button"' +
         ' value="Nullstill" />'+
         
-        '</form><br>', 50, 70, null);
+        '</form><br>' +
+	'<iframe id="downloadframe" style="display:none"></iframe>', 50, 70, null) 
         
         displayList(); 
         
@@ -176,6 +182,12 @@ function searchHistData(call)
           showAll();
         });
         
+	$('#exportbutton').click( function() {
+          exportGpx();
+        });
+	
+		
+		
         $('#clearbutton').click( function() {
           hist = [];
           displayList(); 
@@ -276,6 +288,18 @@ function getHistXmlData(stn, tfrom, tto)
       myOverlay.removePoint(); 
    myOverlay.loadXml('srv/htrail?'+extentQuery() + '&scale='+currentScale+
      '&station=' + stn + '&tfrom='+ tfrom + '&tto='+tto+ (clientses!=null? '&clientses='+clientses : ""));
+}
+
+
+
+function exportGpx()
+{
+    parms = 'ntracks='+hist.length;
+    for (i=0; i<hist.length; i++)
+       parms += '&station' + i + '=' + hist[i].call + '&tfrom' + i + '=' + hist[i].fromdate+"/"+hist[i].fromtime +  
+                '&tto' + i + '='+  hist[i].todate+"/"+hist[i].totime;
+	
+    document.getElementById("downloadframe").src ='srv/gpx?' + parms; 
 }
 
 

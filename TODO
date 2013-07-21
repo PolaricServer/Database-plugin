@@ -8,6 +8,10 @@ Database plugin
 * Save alias/icon changes to database. Use in searches. 
 
 * Trail searches: Export to GPX?
+     DONE.
+
+* Trail searches: Remove subsequent items with identical position?
+     DONE - only in GPX export. 
 
 * Consider saving searches in database for later reference -> This is equivalent to missions!!?
        

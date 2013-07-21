@@ -27,6 +27,91 @@ package no.polaric.aprsdb
 
      
      
+   /**
+    * Webservice to export a set of tracks in GPX format. 
+    * Request parameters tell what stations and time-periods to show: 
+    *    @param ntracks number of tracks to show. 
+    *    @param stationN ident (callsign) of station.
+    *    @param dfromN   Time of start of track in yyy-MM-dd/HH:mm format
+    *    @param dtoN     Time of end of track in yyy-MM-dd/HH:mm format
+    * N is index from 0 to ntracks-1
+    */
+    
+   def handle_gpx(req : Request, res : Response) = 
+   {         
+       val db = _dbp.getDB(true) 
+       val xdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+       val df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm")
+       xdf.setTimeZone(TimeZone.getTimeZone("GMT"))
+
+
+       def do_trail(src:String, dfrom:Date, dto:Date) = 
+       {
+            val s = db.getItem(src, dto)
+            val h = db.getTrail(src, dfrom, dto)
+            
+            <trk>
+                <name> {s.getIdent} </name>
+                <trkseg>
+                {
+                   var pos:LatLng = null;
+                   for (pt <- h.iterator; if pos==null || !pt.getPosition().toLatLng().equalPos(pos)) yield {
+                      pos = pt.getPosition().toLatLng();                    
+                      <trkpt lat={""+pos.getLatitude} lon={""+pos.getLongitude}>
+                         <time> {xdf.format(pt.getTS)} </time>  
+                      </trkpt>
+                   }
+                }
+                </trkseg>
+            </trk>
+       }
+   
+
+        /* Get request parameters 
+         * FIXME: Deal with parse errors (input parameters) !!!!!
+         */         
+
+        val ntracks = req.getParameter("ntracks").toInt
+        var tracks = new Array [Tuple3[String, Date, Date]] (ntracks)
+        
+        for (i <- 0 to ntracks-1) { 
+           val src = req.getParameter("station"+i)
+           val dfrom = req.getParameter("tfrom"+i)
+           val dto = req.getParameter("tto"+i)
+           tracks(i) = (  src, 
+                          if (dfrom == null) null else df.parse(dfrom),
+                          if (dto == null || dto.equals("-/-"))
+                             new Date(); 
+                          else
+                             df.parse(dto) 
+                       )
+        }
+        
+           
+        res.setValue("Content-Type", "text/gpx+xml; charset=utf-8")
+        res.setValue("Content-Disposition", "attachment; filename=\"tracks.gpx\"")
+        
+        val gpx = 
+           <gpx xmlns="http://www.topografix.com/GPX/1/1" creator="Polaric Server" version="1.1" 
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+                xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+             <metadata>
+                <name>APRS Tracks</name>
+                <time> {xdf.format(new Date()) } </time>
+             </metadata>
+             {
+                for (i <- 0 to ntracks-1) yield 
+                    do_trail(tracks(i)._1, tracks(i)._2, tracks(i)._3)
+             }
+           </gpx>
+           ; 
+        
+        printXml(res, gpx)
+   }
+   
+   
+   
+   
      
    def handle_deleteSign(req : Request, res : Response) =
    {
