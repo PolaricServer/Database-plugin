@@ -71,7 +71,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                         db.commit();
                         return x; 
                      }
-                     catch (SQLException e) 
+                     catch (Exception e) 
                         { System.out.println("*** Sign search:"+e); db.abort(); return null;}
                   }
                   
@@ -181,9 +181,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            if ( x == null ||
                (descr != null && !descr.equals("") && !x.getDescr().equals(descr) ))
               comment = "'"+descr+"'";
-           else
+           else {
               comment = "NULL"; 
-       
+              /* Add here: if position has not changed, return if time since previous save is less than a certain threshold.*/
+           }
+           
            PreparedStatement stmt = db.getCon().prepareStatement
              ( "INSERT INTO \"PosReport\" (channel, src, time, rtime, speed, course, position, symbol, symtab, comment, nopkt)" + 
                " VALUES (?, ?, ?, ?, ?, ?, ?, "+qChar(pd.symbol)+", "+qChar(pd.symtab)+", ?, ?)" );
@@ -202,7 +204,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            stmt.executeUpdate(); 
            db.commit();
        }
-       catch (SQLException e)
+       catch (Exception e)
        {
            System.out.println("*** WARNING (handlePosReport): "+e);  
            db.abort();
@@ -260,7 +262,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            stmt.executeUpdate();
            db.commit();
        }
-       catch (SQLException e) {
+       catch (Exception e) {
            System.out.println("*** WARNING (logAprsPacket): "+e);  
            db.abort();
        }
@@ -280,7 +282,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
              db.commit();
              return x; 
        }
-       catch (SQLException e) {
+       catch (Exception e) {
            System.out.println("*** WARNING (getItem): "+e);  
            db.abort(); 
            return null;
@@ -298,7 +300,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            db.commit();
            return x; 
        }
-       catch (SQLException e) {
+       catch (Exception e) {
            System.out.println("*** WARNING (getTrailPoint): "+e);  
            db.abort(); 
            return null;
