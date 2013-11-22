@@ -191,7 +191,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                */
                if (!x.isChanging() && 
                       x.getLastChanged() != null &&
-                      (new Date()).getTime() > x.getLastChanged().getTime() + 1000*60*60*3 ) 
+                      (new java.util.Date()).getTime() > x.getLastChanged().getTime() + 1000*60*60*3 )  
                   return;
            }
            

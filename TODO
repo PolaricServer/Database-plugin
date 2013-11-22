@@ -11,10 +11,13 @@ Database plugin
      DONE.
 
 * Trail searches: Remove subsequent items with identical position?
-     DONE - only in GPX export. 
-
+     DONE.
+     
 * Consider saving searches in database for later reference -> This is equivalent to missions!!?
-       
+
+* Time threshold for saving trails if no movement/change. To save space in database. 
+     DONE.
+   
 * [C] API functions for trail search. Test with iframe. 
 
 * Implement mission support - Server side
@@ -32,6 +35,10 @@ Database plugin
 * Implement simple geo-objects (signs). 
      DONE.
      
+* Add trail-search to Javascript API
+
+* Publish source code to Github. 
+
 * Signs: Edit 
 
 * Signs: Picture attribute
