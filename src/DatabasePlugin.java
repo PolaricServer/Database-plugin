@@ -183,7 +183,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
               comment = "'"+descr+"'";
            else {
               comment = "NULL"; 
-              /* Add here: if position has not changed, return if time since previous save is less than a certain threshold.*/
+              /* If position has not changed more than 10 meters, return.
+               * Important: We must assume that this method is called before the in-memory AprsPoint object is updated. *
+               */
+               if (x.distance(pd.pos) < 10)
+                  return;
            }
            
            PreparedStatement stmt = db.getCon().prepareStatement
