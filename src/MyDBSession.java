@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2012 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2013 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -317,8 +317,13 @@ public class MyDBSession extends DBSession
      * on id or alias (regular expressions). If the 'at' argument is null this means now.
      * If the until argument is non-null and after 'at', this means we search for missions
      * active in the time span from 'at' to 'until'. 
+     *
+     * @param at the given time
+     * @param until the end of the time interval to search for. May be null. 
+     * @param src   Regular expression to filter for callsigns/identifier. May be null.
+     * @param alias Regular expression to filter for alias. May be null.
      */
-    public DbList<Mission> searchMissions(java.util.Date at, java.util.Date until, String src, String alias )
+    public synchronized DbList<Mission> searchMissions(java.util.Date at, java.util.Date until, String src, String alias )
     { 
       /* TBD */
       return null;
@@ -327,15 +332,18 @@ public class MyDBSession extends DBSession
     
     
     /**
-     * Return the mission that was (or will be) active for a station at a 
+     * Return the mission that was (or is going to be) active for a station at a 
      * given time. 
      * If time is null, return the mission currently active. 
+     *
+     * @param src Source callsign (or identifier)
+     * @param at  Time when the mission (that we search for) is active. 
      */
     public synchronized Mission getMission(String src, java.util.Date at)
        throws java.sql.SQLException
     {
        PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT (src,alias,icon,start,end,descr FROM \"Mission\"" +
+           ( " SELECT src,alias,icon,start,end,descr FROM \"Mission\"" +
              " WHERE src=? AND time = ?", 
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
        stmt.setString(1, src);
@@ -346,22 +354,64 @@ public class MyDBSession extends DBSession
     }
     
     
+    
+    /**
+     * Set end time for a mission. 
+     * If argument at is null or is missing, use time now. 
+     */
 
+    public synchronized void endMission(String src, java.util.Date at) throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+           ( "UPDATE \"Mission\" SET end=? WHERE src=?" );
+         stmt.setString(1, src);  
+         if (at == null)
+            stmt.setTimestamp(2, new Timestamp(System.currentTimeMillis() ) );
+         else
+            stmt.setTimestamp(2, date2ts(at));
+            
+    }
+    
+    public synchronized void endMission(String src) throws java.sql.SQLException
+      { endMission(src, null); }
+      
+      
     /**
      * Assign a mission to a station.
      * A mission has a start and an end time. If end-time is not set (null),
      * or in the future, the mission is active. An active mission may
      * set the alias and the icon of the station (if defined). 
+     *
+     * @param st  Station to whom we assign the mission
+     * @param alias Alias to be used with the station during the mission
+     * @param icon Icon to be used with the station during the mission
+     * @param start Time when mission starts
+     * @param end   Time when mission ends. May be null (open).
+     * @param descr Text that describes the mission
      */
-    public Mission assignMission(Station st, String alias, String icon, 
+    public synchronized Mission assignMission(Station st, String alias, String icon, 
             java.util.Date start,  java.util.Date end, String descr)
+            throws java.sql.SQLException
     {
-       return null;
+       addMission(st.getIdent(), alias, icon, start, end, descr);
+       return new Mission(st.getIdent(), alias, icon, start, end, descr);  
+       
     }
     
     
     
-    public synchronized void _addMission(String src, String alias, String icon,  
+    /**
+     * Add a mission to the database.
+     *
+     * @param src Source callsign (or identifier)
+     * @param alias Alias to be used with the callsign during the mission
+     * @param icon Icon to be used with the callsign during the mission
+     * @param start Time when mission starts
+     * @param end   Time when mission ends. May be null (open).
+     * @param descr Text that describes the mission
+     * 
+     */
+    public synchronized void addMission(String src, String alias, String icon,  
             java.util.Date start,  java.util.Date end, String descr)
             throws java.sql.SQLException
     {
