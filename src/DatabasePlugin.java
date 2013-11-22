@@ -167,6 +167,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       
      /**
       * Log APRS position report to database.
+      * FIXME: We should consider making this an asynchronous event handler
       */
      public synchronized void handlePosReport(Source chan, String sender, java.util.Date ts, PosData pd,
             String descr, String pathinfo)
@@ -179,14 +180,18 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            AprsPoint x = _api.getDB().getItem(sender, null);
            String comment;
            if ( x == null ||
-               (descr != null && !descr.equals("") && !x.getDescr().equals(descr) ))
+               (descr != null && !descr.equals("") && !x.getDescr().equals(descr) )) 
               comment = "'"+descr+"'";
            else {
               comment = "NULL"; 
-              /* If position has not changed more than 10 meters, return.
-               * Important: We must assume that this method is called before the in-memory AprsPoint object is updated. *
+              /* 
+               * If item has not changed its position and the time since last 
+               * update is less than 3 hours, return. Important: We assume that this 
+               * method is called AFTER the in-memory AprsPoint object is updated. 
                */
-               if (x.distance(pd.pos) < 10)
+               if (!x.isChanging() && 
+                      x.getLastChanged() != null &&
+                      (new Date()).getTime() > x.getLastChanged().getTime() + 1000*60*60*3 ) 
                   return;
            }
            

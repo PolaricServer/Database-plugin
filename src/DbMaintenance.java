@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2012 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2013 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,7 +11,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * $Id: DBSession.java,v 1.3 2005/03/20 20:13:01 oivindh Exp $
  */
 
 package no.polaric.aprsdb;
@@ -60,18 +59,29 @@ public class DbMaintenance implements Runnable
     {
         DBSession db = getDB();
         try {
+           /* Delete old data */
            PreparedStatement stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsPacket\" " + 
                 "WHERE time + INTERVAL '"+_maxage_raw+" days' < 'now'" );
-           stmt.executeUpdate();
+           long deleted = stmt.executeUpdate();
+           System.out.println("DbMaintenance: Deleted "+deleted+" old records from AprsPacket table"); 
+           
            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsMessage\" " + 
                 "WHERE (time + INTERVAL '"+_maxage_report+" days' < 'now') OR"+ 
                      " (time + INTERVAL '"+_maxage_limited+" days' < 'now' AND ("+_maxage_limited_filter+"))" );
-           stmt.executeUpdate();
+           deleted =  stmt.executeUpdate();
+           System.out.println("DbMaintenance: Deleted "+deleted+" old records from AprsMesssage table");
+           
+           /* Also delete data where time is in the future (because of bugs) */
+           db.getCon().prepareStatement
+              ( "DELETE FROM \"AprsMessage\" " + 
+                "WHERE time > 'now + INTERVAL 2 hours'" );
+           deleted = stmt.executeUpdate();
+           System.out.println("DbMaintenance: Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
            db.commit();
        }
-       catch (SQLException e)
+       catch (Exception e)
        {
            System.out.println("*** WARNING (deleteOldData): "+e);  
            db.abort();
@@ -84,7 +94,7 @@ public class DbMaintenance implements Runnable
    
    public void run()
    {   
-        long period = 1000 * 60 * 60 * 2;     // 2 hours
+        long period = 1000 * 60 * 60 * 3;     // 3 hours
         System.out.println("*** Starting database maintenance task...");
         while(true) {
            try { Thread.sleep(period); } catch (Exception e) {} 
