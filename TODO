@@ -5,50 +5,21 @@ Database plugin
 
 * [C] Save trail-searches in case of browser restart.
 
+* [C] Add trail-search to Javascript API   
+
 * Save alias/icon changes to database. Use in searches. 
 
-* Trail searches: Export to GPX?
-     DONE.
-
-* Trail searches: Remove subsequent items with identical position?
-     DONE.
-     
 * Consider saving searches in database for later reference -> This is equivalent to missions!!?
-
-* Time threshold for saving trails if no movement/change. To save space in database. 
-     DONE.
-   
-* [C] API functions for trail search. Test with iframe. 
 
 * Implement mission support - Server side
      STARTED
-
-* Activate and test GIST indexing for positions. Indexing for trail search. 
-     DONE.
-
-* Fix error where lat/long components are swapped. 
-     DONE.
      
-* Implement search for positions through a given digipeater node.
-     DONE.
-     
-* Implement simple geo-objects (signs). 
-     DONE.
-     
-* Add trail-search to Javascript API
-
-* Publish source code to Github. 
-
-* Signs: Edit 
-
-* Signs: Picture attribute
-
-* Signs: Approved attribute? 
-
-* Signs: Type table???
-
 * Add libpostgis-java and libpostgresql-jdbc-java to dependencies
 
-* Fault tolerance. 
+* Fault tolerance?
+ 
+* Signs: Approved and picture attribute? 
+     
+* Signs: Types (categories) and automatic selection of icon
 
-* Alias/icon change table. Use for trail searches. 
+* Signs: Export to file

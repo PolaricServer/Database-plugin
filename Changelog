@@ -1,0 +1,17 @@
+ 
+CHANGES
+-------
+
+1.3.0
+-----
+
+...
+* Trail searches: Export to GPX?
+* Trail searches: Remove subsequent items with identical position?
+* Time threshold for saving trails if no movement/change. To save space in database. 
+* Activate and test GIST indexing for positions. Indexing for trail search. 
+* Fix error where lat/long components are swapped. 
+* Implement search for positions through a given digipeater node.
+* Implement simple geo-objects (signs). 
+* Publish source code to Github. 
+* Signs: Edit 
