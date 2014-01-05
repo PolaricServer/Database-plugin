@@ -189,7 +189,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                * update is less than 3 hours, return. Important: We assume that this 
                * method is called AFTER the in-memory AprsPoint object is updated. 
                */
-               boolean recentUpdate = (new java.util.Date()).getTime() > x.getLastChanged().getTime() + 1000*60*60*3; 
+               boolean recentUpdate = (new java.util.Date()).getTime() < x.getLastChanged().getTime() + 1000*60*60*3; 
                if (!x.isChanging() && recentUpdate) 
                    return;
                if (!recentUpdate)
