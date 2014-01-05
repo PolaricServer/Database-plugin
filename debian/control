@@ -17,4 +17,5 @@ Description: Polaric Server: APRS daemon part.
  and rescue service in Norway. It consists of a web application and a server 
  program (APRS daemon). 
  .
- This is a plugin that adds database storage. Mainly historical data. 
+ This is a plugin that adds database storage. Mainly historical data. It is still
+ in an experimental stage. 
