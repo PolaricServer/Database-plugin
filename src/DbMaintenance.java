@@ -45,7 +45,7 @@ public class DbMaintenance implements Runnable
       _maxage_raw = Integer.parseInt(api.getConfig().getProperty("db.maxage.raw", "30").trim()); 
       _maxage_report = Integer.parseInt(api.getConfig().getProperty("db.maxage.report", "90").trim());
       _maxage_limited = Integer.parseInt(api.getConfig().getProperty("db.maxage.limited", "30").trim());
-      _maxage_limited_filter = api.getConfig().getProperty("db.maxage.limited.filter", "src ~ 'LD.*'");
+      _maxage_limited_filter = api.getConfig().getProperty("db.maxage.limited.filter", "src ~ '^LD.*'");
       _thread = new Thread(this, "db_maintenance");
       _thread.start();
    }
