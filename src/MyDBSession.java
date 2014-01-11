@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2013 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -115,38 +115,40 @@ public class MyDBSession extends DBSession
 
     
     
-    public synchronized void addSign(long maxscale, String icon, String url, String descr, Reference pos)
+    public synchronized void addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-              ( "INSERT INTO \"Signs\" (maxscale, icon, url, description, position)" + 
-                "VALUES (?, ?, ?, ?, ?)" );
+              ( "INSERT INTO \"Signs\" (maxscale, icon, url, description, position, class)" + 
+                "VALUES (?, ?, ?, ?, ?, ?)" );
          stmt.setLong(1, maxscale);
          stmt.setString(2, icon);
          stmt.setString(3, url);
          stmt.setString(4, descr);
          setRef(stmt, 5, pos);
+         stmt.setInt(6, cls);
          stmt.executeUpdate();
     }
     
     
-    public synchronized void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos)
+    public synchronized void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=? "+
+            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
               "WHERE id=?" );
         stmt.setLong(1, maxscale);
         setRef(stmt, 2, pos);
         stmt.setString(3, icon);
         stmt.setString(4, url);
         stmt.setString(5, descr);
-        stmt.setInt(6, id);
+        stmt.setInt(6, cls);
+        stmt.setInt(7, id);
         stmt.executeUpdate();
     }  
     
     
-    public synchronized Signs.Item getSign(int id)
+    public synchronized Sign getSign(int id)
           throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
@@ -155,8 +157,8 @@ public class MyDBSession extends DBSession
          stmt.setInt(1, id);
          ResultSet rs = stmt.executeQuery();
          if (rs.next()) 
-            return new Signs.Item(rs.getInt("id"), getRef(rs, "position"), rs.getLong("maxscale"), rs.getString("icon"),
-                 rs.getString("url"), rs.getString("description"));
+            return new Sign(rs.getInt("id"), getRef(rs, "position"), rs.getLong("maxscale"), rs.getString("icon"),
+                 rs.getString("url"), rs.getString("description"), rs.getInt("class"));
          return null;
     }
     
@@ -175,13 +177,14 @@ public class MyDBSession extends DBSession
     
     
     /**
-     * Get trail for a given station and a given time span. 
+     * Get list of signs in a specified geographic area and above a specified scale 
      */
     public synchronized DbList<Signs.Item> getSigns(long scale, UTMRef uleft, UTMRef lright)
        throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT * FROM \"Signs\"" +
+           ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name, s.icon AS sicon, cl.icon AS cicon " +
+             " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id" +
              " WHERE maxscale>=? AND position && ST_MakeEnvelope(?, ?, ?, ?, 4326) "+
              " LIMIT 200",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
@@ -198,13 +201,35 @@ public class MyDBSession extends DBSession
          {
                 public Signs.Item getElement(ResultSet rs) throws SQLException 
                 { 
+                   String icon = rs.getString("sicon");
+                   if (icon == null)
+                      icon = rs.getString("cicon");
+
                   // Item (Reference r, long sc, String ic, String url, String txt)
-                   return new Signs.Item(rs.getInt("id"), getRef(rs, "position"), 0, rs.getString("icon"),
+                   return new Signs.Item(rs.getInt("sid"), getRef(rs, "position"), 0, icon,
                            rs.getString("url"), rs.getString("description"));  
                 }
             });
          return list;
     }
+    
+    
+    
+    public synchronized DbList<Sign.Category> getCategories()
+        throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT * from \"SignClass\" ORDER BY name ASC ");
+         ResultSet rs = stmt.executeQuery();
+         DbList<Sign.Category> list = new DbList(rs, new DbList.Factory() 
+         {
+              public Sign.Category getElement(ResultSet rs) throws SQLException { 
+                 return new Sign.Category(rs.getInt("id"), rs.getString("name"), rs.getString("icon"));  
+              }
+         });
+         return list;   
+    }
+    
     
     
                                                                            

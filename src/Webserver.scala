@@ -162,9 +162,8 @@ package no.polaric.aprsdb
         /* Fields to be filled in */
         def fields(req : Request): NodeSeq =
             {
-               val db = if (edit && id != null) _dbp.getDB()
-                        else null;
-               val obj = if (db != null) db.getSign(Integer.parseInt(id)) 
+               val db = _dbp.getDB()
+               val obj = if (edit && db != null) db.getSign(Integer.parseInt(id)) 
                         else null;
                if (id==null)
                    <h2>Feil: parameter 'objid' mangler i redigeringsforespørsel</h2>
@@ -182,10 +181,16 @@ package no.polaric.aprsdb
                   <input id="url" name="url" type="text" size="30" maxlength="60"
                      value={ if (edit) obj.getUrl() else "" } />
                   <br/>
+                  
                   <label for="descr" class="lleftlab">Beskrivelse:</label>
                   <input id="descr" name="descr" type="text" size="30" maxlength="60"
                       value={ if (edit) obj.getDescr() else "" } />   
                   <br/>
+                  
+                  <label for="cls" class="lleftlab">Kategori:</label>
+                  { classList(db, "cls", obj) }
+                  <br/>
+                  
                   <label for="utmz" class="lleftlab">Pos (UTM): </label>
                   {  if (pos==null)
                         utmForm('W', 34)
@@ -200,13 +205,28 @@ package no.polaric.aprsdb
              
              
              
+        def classList(db: MyDBSession, id: String, obj: Sign) = 
+             <select id={id} name={id} class="symChoice">
+             {
+                 for (opt <- db.getCategories().iterator) yield {
+                    <option value={"\""+opt.id+"\""} style={"background-image:url(../aprsd/icons/"+ opt.icon + ")"}
+                      selected={if (obj != null && obj.getCategory() == opt.id) "selected" else null} >{opt.name}
+                    </option>
+                 }
+             }
+             </select>
+             ;
+             
+             
+             
         /* Action. To be executed when user hits 'submit' button */
         def action(request : Request): NodeSeq =
            {
                val scale = java.lang.Long.parseLong(req.getParameter("scale"))
                val url = req.getParameter("url")
+               val cls = req.getParameter("cls")
                val descr = req.getParameter("descr")
-               val icon = req.getParameter("iconselect")
+               var icon = req.getParameter("iconselect")
                
                /* Try to get existing transaction and if not successful
                 * or if not in edit mode, create a new one
@@ -215,14 +235,20 @@ package no.polaric.aprsdb
                         else null;
                if (db==null) db = _dbp.getDB()
                
+               val cls_n = if (cls==null) 0 
+                           else Integer.parseInt(cls.substring(1,cls.length-1))
+                           
+               icon = if (icon == null || icon.equals("system")) null 
+                      else "signs/"+icon
+               
                try {
                   if (edit && id !=null) { 
-                     db.updateSign(Integer.parseInt(id), scale, "signs/"+icon, url, descr, pos.toLatLng())
+                     db.updateSign(Integer.parseInt(id), scale, icon, url, descr, pos.toLatLng(), cls_n)
                      db.commit()
                      <h2>Objekt {id} oppdatert</h2>
                   }
                   else {
-                     db.addSign(scale, "signs/"+icon, url, descr, pos.toLatLng());
+                     db.addSign(scale, icon, url, descr, pos.toLatLng(), cls_n);
                      db.commit()
                      <h2>Objekt registrert</h2>
                      <p>pos={showUTM(pos) }</p>

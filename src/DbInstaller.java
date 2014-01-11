@@ -169,9 +169,15 @@ public class DbInstaller
                 /* Assume that you cannot be assigned to more than one mission at a given time */
                 
                 
-                
+            
+            createClass("SignClass", null, 
+                               "id          SERIAL PRIMARY KEY, "+
+                               "name        text, "+
+                               "icon        text ");
+                               
             createClass("Signs", null,
                                "id          SERIAL PRIMARY KEY, "+
+                               "class       integer REFERENCES \"SignClass\" (id) ON DELETE SET NULL, "+
                                "maxscale    integer, "+
                                "icon        text," +
                                "url         text," +
@@ -181,6 +187,7 @@ public class DbInstaller
             addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */           
                                
                 
+            
             updateQuery("CREATE INDEX geoindex ON \"PosReport\" USING GIST (position);");
             updateQuery("CREATE INDEX geoindex_s ON \"Signs\" USING GIST (position);");
             updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");

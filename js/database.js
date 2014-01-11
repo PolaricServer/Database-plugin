@@ -54,6 +54,9 @@ ctxtMenu.addCallback("ITEM", function (m)
 ctxtMenu.addCallback("TOOLBAR", function (m)
    {
       m.add(null);
+      if (isAdmin() || canUpdate())
+         m.add("Nytt enkelt objekt", function()
+           { editSign(null, null); });
       m.add("Historikk...", function() 
         { setTimeout('searchHistData(null);', 100); });
    });
@@ -68,6 +71,7 @@ function searchPointsVia(call, days)
    from.setTime(from.getTime() - (24*60*60*1000) * days);
    getPointsXmlData(call, formatDate(from)+"/"+formatTime(from), formatDate(to)+"/"+formatTime(to));
 }
+
 
 
 function getPointsXmlData(stn, tfrom, tto)
@@ -90,8 +94,9 @@ function editSign(x, y, ident)
    var coord = myKaMap.pixToGeo(x, y);
    fullPopupWindow('Enkelt_objekt', server_url + 'srv/addSign' +
       (x==null ? "" : '?x=' + coord[0] + '&y='+ coord[1]) +
-      (id == null? "" : '&edit=true&objid='+id),  550, 350);
+      (id == null? "" : '&edit=true&objid='+id),  570, (x==null ? 390 : 380));
 }
+
 
 
 function deleteSign(ident)
