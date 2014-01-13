@@ -19,7 +19,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      private String _filter_chan;
      private String _filter_src;
      private boolean _isActive = false;
-     
+     private boolean _isOwner = false; 
      
      /** Start the plugin  */
       public void activate(ServerAPI api)
@@ -42,15 +42,15 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            api.properties().put("aprsdb.plugin", this); 
            api.addHttpHandlerCls("no.polaric.aprsdb.XMLserver", null);
            api.addHttpHandlerCls("no.polaric.aprsdb.Webserver", null);
-           boolean isowner = api.getBoolProperty("db.isowner", true);
+           _isOwner = api.getBoolProperty("db.isowner", true);
            _api = api;
            
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
             * done by more than one concurrent client (the owner of the database). 
             */
-           if (isowner) {
-              _api.setAprsHandler(this);
+           if (_isOwner) {
+              _api.getAprsParser().subscribe(this);
               _maint = new DbMaintenance(_dsrc, _api);
            }
            StationDBImp dbi = (StationDBImp) api.getDB();
@@ -102,6 +102,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       public void deActivate() 
       {
          System.out.println("*** DatabasePlugin.deactivate");
+         if (_isOwner)
+            _api.getAprsParser().subscribe(this);
       }
       
       
