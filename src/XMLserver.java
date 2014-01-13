@@ -36,6 +36,13 @@ public class XMLserver extends ServerBase
    private int _seq = 0;
    
    
+  
+   
+   
+   
+   
+   
+   
    /**
     * Produces XML (Ka-map overlay spec.) for plotting station/symbols/labels on map.   
     */
@@ -72,7 +79,7 @@ public class XMLserver extends ServerBase
 
         MyDBSession db = _dbp.getDB();
         try {    
-          String src = parms.get("station");   
+          String src = parms.get("station").toUpperCase();   
           java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
 
           Date dfrom = df.parse(parms.get("tfrom"));

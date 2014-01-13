@@ -173,11 +173,12 @@ function searchHistData(call)
         
         $('#searchbutton').click( function() {
            getItem();
-           getHistXmlData( hist_call, hist_fromdate+"/"+hist_fromtime, hist_todate+"/"+hist_totime ); 
+           getHistXmlData( hist_call.toUpperCase(), hist_fromdate+"/"+hist_fromtime, hist_todate+"/"+hist_totime ); 
         });
         
         $('#addbutton').click( function() {
 	  getItem();
+          hist_call = hist_call.toUpperCase();
           hist.push({ call:hist_call, fromdate:hist_fromdate, todate:hist_todate, 
                       fromtime: hist_fromtime, totime: hist_totime});
           displayList(); 
