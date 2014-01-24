@@ -53,6 +53,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
               _api.getAprsParser().subscribe(this);
               _maint = new DbMaintenance(_dsrc, _api);
            }
+           else 
+              System.out.println("*** DatabasePlugin: Using remote database");
+              
            StationDBImp dbi = (StationDBImp) api.getDB();
            dbi.setHistDB(this);
            
