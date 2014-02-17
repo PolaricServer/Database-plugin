@@ -74,7 +74,7 @@ public class XMLserver extends ServerBase
                 
         /* XML header with meta information */      
         out.println("<overlay seq=\"-1\">");
-        printXmlMetaTags(out, req);
+        printXmlMetaTags(out, req, false);
         out.println("<meta name=\"clientses\" value=\""+ client + "\"/>");
 
         MyDBSession db = _dbp.getDB();
@@ -161,7 +161,7 @@ public class XMLserver extends ServerBase
                 
         /* XML header with meta information */      
         out.println("<overlay seq=\"-1\">");
-        printXmlMetaTags(out, req);
+        printXmlMetaTags(out, req, false);
         out.println("<meta name=\"clientses\" value=\""+ client + "\"/>");
 
         MyDBSession db = _dbp.getDB();
