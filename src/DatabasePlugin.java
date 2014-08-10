@@ -72,10 +72,14 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                      try {
                         Iterable<Signs.Item> x = db.getSigns(scale, uleft, lright);
                         db.commit();
+                        if (x==null)
+                          return new ArrayList<Signs.Item>(1); 
                         return x; 
                      }
                      catch (Exception e) 
-                        { System.out.println("*** Sign search:"+e); db.abort(); return null;}
+                        { System.out.println("*** Sign search:"+e); db.abort(); 
+                          return new ArrayList<Signs.Item>(1);
+                        }
                   }
                   
                   public void close() {
