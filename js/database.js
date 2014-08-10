@@ -13,7 +13,7 @@ var hist = [];
 
 
 
-
+/* Add items to click-on-map menu */
 ctxtMenu.addCallback("MAP", function (m)
 {    
      if (!(isAdmin() || canUpdate()))
@@ -24,6 +24,7 @@ ctxtMenu.addCallback("MAP", function (m)
   });
   
 
+/* Add items to sign menu */
 ctxtMenu.addCallback("SIGN", function (m)
    {
      if (m.ident.substring(0,6) == '__sign' || !(isAdmin() || canUpdate()))
@@ -35,6 +36,7 @@ ctxtMenu.addCallback("SIGN", function (m)
    });
 
 
+/* Add items to APRS item menu */
 ctxtMenu.addCallback("ITEM", function (m)
    {
       var p = myOverlay.getPointObject(m.ident);
@@ -51,7 +53,8 @@ ctxtMenu.addCallback("ITEM", function (m)
    });
 
 
-ctxtMenu.addCallback("TOOLBAR", function (m)
+/* Add items to main menu */
+ctxtMenu.addCallback("MAIN", function (m)
    {
       m.add(null);
       if (isAdmin() || canUpdate())
