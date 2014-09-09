@@ -114,9 +114,9 @@ public class XMLserver extends ServerBase
           db.commit();
         }
         catch(java.text.ParseException e)
-          { System.out.println("*** WARNING: Cannot parse timestring"); db.abort(); }
+          { _dbp.log(" WARNING (handle_htrail): Cannot parse timestring"); db.abort(); }
         catch(java.sql.SQLException e)
-          { System.out.println("*** WARNING: SQL error:"+e.getMessage()); db.abort(); }
+          { _dbp.log(" WARNING (handle_htrail): SQL error:"+e.getMessage()); db.abort(); }
         finally { db.close(); }
         
         out.println("</overlay>");
@@ -202,9 +202,9 @@ public class XMLserver extends ServerBase
           db.commit();
         }
         catch(java.text.ParseException e)
-          { System.out.println("*** WARNING: Cannot parse timestring"); db.abort(); }
+          { _dbp.log(" WARNING (handle_hpoints): Cannot parse timestring"); db.abort(); }
         catch(java.sql.SQLException e)
-          { System.out.println("*** WARNING: SQL error:"+e.getMessage()); db.abort(); }
+          { _dbp.log(" WARNING (handle_hpoints): SQL error:"+e.getMessage()); db.abort(); }
         finally { db.close(); }
         
         out.println("</overlay>");

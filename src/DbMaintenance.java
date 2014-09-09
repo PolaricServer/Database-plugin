@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2013 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,13 +35,15 @@ public class DbMaintenance implements Runnable
    private int _maxage_raw, _maxage_report, _maxage_limited;
    private String _maxage_limited_filter;
    private Thread _thread;
+   private Logfile _log; 
    
    
-   DbMaintenance (DataSource dsrc, ServerAPI api)
+   DbMaintenance (DataSource dsrc, ServerAPI api, Logfile log)
    { 
       _dsrc = dsrc;
       _api = api; 
       
+      _log = log; 
       _maxage_raw = Integer.parseInt(api.getConfig().getProperty("db.maxage.raw", "30").trim()); 
       _maxage_report = Integer.parseInt(api.getConfig().getProperty("db.maxage.report", "90").trim());
       _maxage_limited = Integer.parseInt(api.getConfig().getProperty("db.maxage.limited", "30").trim());
@@ -51,7 +53,7 @@ public class DbMaintenance implements Runnable
    }
    
    public MyDBSession getDB()
-     { return new MyDBSession(_dsrc, _api, false); }
+     { return new MyDBSession(_dsrc, _api, false, _log); }
          
          
          
@@ -64,26 +66,29 @@ public class DbMaintenance implements Runnable
               ( "DELETE FROM \"AprsPacket\" " + 
                 "WHERE time + INTERVAL '"+_maxage_raw+" days' < 'now'" );
            long deleted = stmt.executeUpdate();
-           System.out.println("DbMaintenance: Deleted "+deleted+" old records from AprsPacket table"); 
+           if (deleted > 0) 
+              _log.log(" DbMaintenance: Deleted "+deleted+" old records from AprsPacket table"); 
            
            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsMessage\" " + 
                 "WHERE (time + INTERVAL '"+_maxage_report+" days' < 'now') OR"+ 
                      " (time + INTERVAL '"+_maxage_limited+" days' < 'now' AND ("+_maxage_limited_filter+"))" );
            deleted =  stmt.executeUpdate();
-           System.out.println("DbMaintenance: Deleted "+deleted+" old records from AprsMesssage table");
+           if (deleted > 0) 
+               _log.log(" DbMaintenance: Deleted "+deleted+" old records from AprsMesssage table");
            
            /* Also delete data where time is in the future (because of bugs) */
            db.getCon().prepareStatement
               ( "DELETE FROM \"AprsMessage\" " + 
                 "WHERE time > 'now + INTERVAL 2 hours'" );
            deleted = stmt.executeUpdate();
-           System.out.println("DbMaintenance: Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
+           if (deleted > 0) 
+               _log.log(" DbMaintenance: Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
            db.commit();
        }
        catch (Exception e)
        {
-           System.out.println("*** WARNING (deleteOldData): "+e);  
+           _log.log(" DbMaintenance: WARNING (deleteOldData): "+e);  
            db.abort();
        }
        finally { db.close(); }
@@ -94,11 +99,11 @@ public class DbMaintenance implements Runnable
    
    public void run()
    {   
-        long period = 1000 * 60 * 60 * 3;     // 3 hours
-        System.out.println("*** Starting database maintenance task...");
+        long period = 1000 * 60 * 60 * 4;     // 4 hours
+        _log.log(" DbMaintenance:Starting database maintenance task...");
         while(true) {
            try { Thread.sleep(period); } catch (Exception e) {} 
-           System.out.println("*** Database maintenance...");
+           _log.log(" DbMaintenance: Doing data cleaning...");
            deleteOldData();     
         }  
 

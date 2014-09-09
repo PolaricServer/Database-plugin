@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2012 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@ import  javax.sql.*;
 import  java.util.*;
 import  java.util.concurrent.locks.*; 
 import  org.apache.commons.dbcp.*; 
+import  no.polaric.aprsd.Logfile;
+
 
 /* OBS: "lånt" fra CMSComp */
 
@@ -34,7 +36,7 @@ public class DBSession
      private Connection _con;
      private static Map<String, TransInfo> _inProgress = new HashMap();
      private static Timer _transTimer = new Timer("TransactionTimer");
-     
+     protected Logfile _log; 
      
      protected static class TransInfo extends TimerTask {
         public DBSession trans;
@@ -44,7 +46,7 @@ public class DBSession
            /* Abort and close the transaction */
             trans.abort();
             trans.close();
-            System.out.println("*** DB Transaction '"+key+"' aborted. Timeout.");
+            trans._log.log(" DB Transaction '"+key+"' aborted. Timeout.");
            DBSession._inProgress.remove(key);
         }
         
@@ -87,12 +89,13 @@ public class DBSession
       * Constructor. 
       * @param dsrc JDBC DataSource object. 
       */ 
-     public DBSession(DataSource dsrc, boolean autocommit)
+     public DBSession(DataSource dsrc, boolean autocommit, Logfile log)
      {
           try { 
             if (_con == null) { 
                _con = dsrc.getConnection(); 
                _con.setAutoCommit(autocommit);
+               _log = log;
 
                /* PostGIS extensions */
                Connection dconn = ((DelegatingConnection) _con).getInnermostDelegate();
@@ -102,7 +105,7 @@ public class DBSession
          }
          catch (Exception e) {
              // FIXME: Re-throw exception here. 
-             System.out.println("*** Warning[DBSession]: Cannot open db connection: "+e);
+             _log.log(" Warning[DBSession]: Cannot open db connection: "+e);
          }   
      }
 
@@ -138,7 +141,7 @@ public class DBSession
              _con.commit();
          }
          else 
-             System.out.println("*** Warning[DBSession]: Tried to commit a non-existing transaction");
+             _log.log(" Warning[DBSession]: Tried to commit a non-existing transaction");
      }
      
      
@@ -153,7 +156,7 @@ public class DBSession
              _con.rollback();
            } 
            else
-               System.out.println("*** Warning[DBSession]: Tried to abort a non-existing transaction");
+               _log.log(" Warning[DBSession]: Tried to abort a non-existing transaction");
          }
          catch (SQLException e) {}
      }
@@ -176,7 +179,7 @@ public class DBSession
              _con = null; 
          }
          catch (Exception e) {
-            System.out.println("*** Warning[DBSession]: Try to close connection: "+e);
+            _log.log(" Warning[DBSession]: Try to close connection: "+e);
          }
          finally { 
          }   
