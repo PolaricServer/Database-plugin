@@ -48,17 +48,17 @@ package no.polaric.aprsdb
        def do_trail(src:String, dfrom:Date, dto:Date) = 
        {
             val s = db.getItem(src, dto)
-            val h = db.getTrail(src, dfrom, dto)
+            val h = db.getTrail(src, dfrom, dto, false)
             
             <trk>
-                <name> {s.getIdent} </name>
+                <name>{s.getIdent}</name>
                 <trkseg>
                 {
                    var pos:LatLng = null;
                    for (pt <- h.iterator; if pos==null || !pt.getPosition().toLatLng().equalPos(pos)) yield {
                       pos = pt.getPosition().toLatLng();                    
                       <trkpt lat={""+pos.getLatitude} lon={""+pos.getLongitude}>
-                         <time> {xdf.format(pt.getTS)} </time>  
+                         <time>{xdf.format(pt.getTS)}</time>  
                       </trkpt>
                    }
                 }
@@ -97,7 +97,7 @@ package no.polaric.aprsdb
                 xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
              <metadata>
                 <name>APRS Tracks</name>
-                <time> {xdf.format(new Date()) } </time>
+                <time>{xdf.format(new Date()) }</time>
              </metadata>
              {
                 for (i <- 0 to ntracks-1) yield 
@@ -133,7 +133,7 @@ package no.polaric.aprsdb
               val db = _dbp.getDB(true)
               try {
                   db.deleteSign(Integer.parseInt(id)) 
-                  System.out.println("*** DELETE SIGN: '"+id+"' by user '"+getAuthUser(req)+"'")
+                  _dbp.log(" DELETE SIGN: '"+id+"' by user '"+getAuthUser(req)+"'")
                   <h3>Objekt slettet!</h3>
               }
               catch { case e: java.sql.SQLException => 

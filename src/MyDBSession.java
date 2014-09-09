@@ -34,9 +34,9 @@ public class MyDBSession extends DBSession
    private ServerAPI _api; 
    
    
-   MyDBSession (DataSource dsrc, ServerAPI api, boolean autocommit)
+   MyDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
    {
-      super(dsrc, autocommit); 
+      super(dsrc, autocommit, log); 
       _api = api; 
    }
    
@@ -78,6 +78,7 @@ public class MyDBSession extends DBSession
     public synchronized DbList<TPoint> getPointsVia(String digi, UTMRef uleft, UTMRef lright, java.util.Date from, java.util.Date to)
        throws java.sql.SQLException
     {
+        _log.log(" getPointsVia: "+digi);
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT DISTINCT position "+ 
              " FROM \"AprsPacket\" p, \"PosReport\" r " +
@@ -118,6 +119,7 @@ public class MyDBSession extends DBSession
     public synchronized void addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
+         _log.log(" addSign: "+descr);
          PreparedStatement stmt = getCon().prepareStatement
               ( "INSERT INTO \"Signs\" (maxscale, icon, url, description, position, class)" + 
                 "VALUES (?, ?, ?, ?, ?, ?)" );
@@ -134,6 +136,7 @@ public class MyDBSession extends DBSession
     public synchronized void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
+        _log.log(" updateSign: "+id+", "+descr);
         PreparedStatement stmt = getCon().prepareStatement
             ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
               "WHERE id=?" );
@@ -151,6 +154,7 @@ public class MyDBSession extends DBSession
     public synchronized Sign getSign(int id)
           throws java.sql.SQLException
     {
+         _log.log(" getSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( "SELECT * FROM \"Signs\"" + 
                 "WHERE id=?" );
@@ -167,6 +171,7 @@ public class MyDBSession extends DBSession
     public synchronized void deleteSign(int id)
           throws java.sql.SQLException
     {
+         _log.log(" deleteSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( "DELETE FROM \"Signs\"" + 
                 "WHERE id=?" );
@@ -232,17 +237,22 @@ public class MyDBSession extends DBSession
     
     
     
+    /* FIXME: should true be default? */
+    public DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to)
+          throws java.sql.SQLException
+       { return getTrail(src,from,to,true); }
                                                                            
     /**
      * Get trail for a given station and a given time span. 
      */
-    public synchronized DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to)
+    public synchronized DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to, boolean rev)
        throws java.sql.SQLException
     {
+        _log.log(" getTrail: "+src);
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"PosReport\"" +
              " WHERE src=? AND time >= ? AND time <= ?" + 
-             " ORDER BY time DESC LIMIT 500",
+             " ORDER BY time "+(rev? "DESC" : "ASC")+" LIMIT 500",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, src);
          stmt.setTimestamp(2, date2ts(from));
@@ -268,6 +278,7 @@ public class MyDBSession extends DBSession
     public synchronized Trail.Item getTrailPoint(String src, java.util.Date t)
        throws java.sql.SQLException
     { 
+       _log.log(" getTrailPoint: "+src);
        /* Left outer join with AprsPacket to get path where available */
        PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT pr.time, position, speed, course, path, ipath, nopkt FROM \"PosReport\" AS pr" +
@@ -309,6 +320,7 @@ public class MyDBSession extends DBSession
     public synchronized AprsPoint getItem(String src, java.util.Date at)
        throws java.sql.SQLException
     {
+        _log.log(" getItem: "+src);
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"PosReport\"" +
              " WHERE src=? AND time <= ?" + 
@@ -318,6 +330,7 @@ public class MyDBSession extends DBSession
         stmt.setTimestamp(2, new Timestamp(at.getTime()));
         ResultSet rs = stmt.executeQuery();
         
+                
         String name[] = src.split("@",2);
         AprsPoint x = null;
         if (name.length>1) {
@@ -325,11 +338,12 @@ public class MyDBSession extends DBSession
             x = new AprsObject(owner, name[0]);
         } else
             x = new Station(src);
-        rs.next();
-        x.update(rs.getDate("time"), 
-           new AprsHandler.PosData(getRef(rs, "position"), rs.getInt("course"), rs.getInt("speed"), 
+        
+        if (rs.next()) 
+           x.update(rs.getDate("time"), 
+             new AprsHandler.PosData(getRef(rs, "position"), rs.getInt("course"), rs.getInt("speed"), 
                  rs.getString("symbol").charAt(0), rs.getString("symtab").charAt(0) ),
-           null, null);  
+             null, null);  
         return x; 
     } 
 
