@@ -93,9 +93,9 @@ public class DBSession
      {
           try { 
             if (_con == null) { 
+               _log = log;
                _con = dsrc.getConnection(); 
                _con.setAutoCommit(autocommit);
-               _log = log;
 
                /* PostGIS extensions */
                Connection dconn = ((DelegatingConnection) _con).getInnermostDelegate();

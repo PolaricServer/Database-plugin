@@ -79,8 +79,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                         return x; 
                      }
                      catch (Exception e) 
-                        { log(" Sign search:"+e); db.abort(); 
-                          return new ArrayList<Signs.Item>(1);
+                        { 
+                           log(" WARNING (Sign search): "+e); 
+                           db.abort(); 
+                           return new ArrayList<Signs.Item>(1);
                         }
                   }
                   

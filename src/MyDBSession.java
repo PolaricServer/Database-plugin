@@ -14,6 +14,7 @@
  */
 
 package no.polaric.aprsdb;
+import  java.text.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
@@ -32,7 +33,7 @@ public class MyDBSession extends DBSession
 {
    
    private ServerAPI _api; 
-   
+   private DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
    
    MyDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
    {
@@ -78,7 +79,7 @@ public class MyDBSession extends DBSession
     public synchronized DbList<TPoint> getPointsVia(String digi, UTMRef uleft, UTMRef lright, java.util.Date from, java.util.Date to)
        throws java.sql.SQLException
     {
-        _log.log(" getPointsVia: "+digi);
+        _log.log(" getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT DISTINCT position "+ 
              " FROM \"AprsPacket\" p, \"PosReport\" r " +
@@ -119,7 +120,7 @@ public class MyDBSession extends DBSession
     public synchronized void addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
-         _log.log(" addSign: "+descr);
+         _log.log(" addSign: "+descr+", class="+cls);
          PreparedStatement stmt = getCon().prepareStatement
               ( "INSERT INTO \"Signs\" (maxscale, icon, url, description, position, class)" + 
                 "VALUES (?, ?, ?, ?, ?, ?)" );
@@ -248,7 +249,7 @@ public class MyDBSession extends DBSession
     public synchronized DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to, boolean rev)
        throws java.sql.SQLException
     {
-        _log.log(" getTrail: "+src);
+        _log.log(" getTrail: "+src+ ", "+df.format(from)+" - "+df.format(to));
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"PosReport\"" +
              " WHERE src=? AND time >= ? AND time <= ?" + 
@@ -278,7 +279,7 @@ public class MyDBSession extends DBSession
     public synchronized Trail.Item getTrailPoint(String src, java.util.Date t)
        throws java.sql.SQLException
     { 
-       _log.log(" getTrailPoint: "+src);
+       _log.log(" getTrailPoint: "+src+", "+df.format(t));
        /* Left outer join with AprsPacket to get path where available */
        PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT pr.time, position, speed, course, path, ipath, nopkt FROM \"PosReport\" AS pr" +
@@ -320,7 +321,7 @@ public class MyDBSession extends DBSession
     public synchronized AprsPoint getItem(String src, java.util.Date at)
        throws java.sql.SQLException
     {
-        _log.log(" getItem: "+src);
+        _log.log(" getItem:  "+src+", "+df.format(at));
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"PosReport\"" +
              " WHERE src=? AND time <= ?" + 
@@ -387,9 +388,12 @@ public class MyDBSession extends DBSession
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
        stmt.setString(1, src);
        stmt.setTimestamp(2, date2ts(at));
-       ResultSet rs = stmt.executeQuery();       
-       return new Mission(rs.getString("src"), rs.getString("alias"), rs.getString("icon"), 
-                      rs.getTimestamp("start"), rs.getTimestamp("end"), rs.getString("descr"));  
+       ResultSet rs = stmt.executeQuery();  
+       if (rs.next())
+          return new Mission(rs.getString("src"), rs.getString("alias"), rs.getString("icon"), 
+                      rs.getTimestamp("start"), rs.getTimestamp("end"), rs.getString("descr")); 
+       else
+          return null;
     }
     
     

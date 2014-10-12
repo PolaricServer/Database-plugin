@@ -100,6 +100,7 @@ package no.polaric.aprsdb
                 <time>{xdf.format(new Date()) }</time>
              </metadata>
              {
+                _dbp.log(" GPX file export")
                 for (i <- 0 to ntracks-1) yield 
                     do_trail(tracks(i)._1, tracks(i)._2, tracks(i)._3)
              }

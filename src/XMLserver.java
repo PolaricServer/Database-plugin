@@ -110,7 +110,9 @@ public class XMLserver extends ServerBase
               printTrailXml(out, s.getTrailColor(), h.next().getPosition(), h, uleft, lright);
               
               out.println("</point>");   
-          }        
+          }
+          else
+              _dbp.log(" Htrail search returned empty result: "+src);
           db.commit();
         }
         catch(java.text.ParseException e)
@@ -199,6 +201,8 @@ public class XMLserver extends ServerBase
               
               out.println("</point>");   
           }        
+          else
+              _dbp.log(" Hpoints search returned empty result: "+src);
           db.commit();
         }
         catch(java.text.ParseException e)
