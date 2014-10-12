@@ -55,13 +55,18 @@ public class XMLserver extends ServerBase
         /* FIXME: Identical code in aprsd core */
         UTMRef uleft = null, lright = null;
         Query parms = req.getQuery();
+        
+        int utmz = _utmzone;
+        if (parms.get("utmz") != null) 
+           utmz = Integer.parseInt(parms.get("utmz"));
+           
         if (parms.get("x1") != null) {
           long x1 = Long.parseLong( parms.get("x1") );
           long x2 = Long.parseLong( parms.get("x2") );
           long x3 = Long.parseLong( parms.get("x3") );    
           long x4 = Long.parseLong( parms.get("x4") );
-          uleft = new UTMRef((double) x1, (double) x2, _utmlatzone, _utmzone); 
-          lright = new UTMRef((double) x3, (double) x4, _utmlatzone, _utmzone);
+          uleft = new UTMRef((double) x1, (double) x2, 'W', utmz); 
+          lright = new UTMRef((double) x3, (double) x4, 'W', utmz);
         }
         long scale = 0;
         if (parms.get("scale") != null)
@@ -94,7 +99,7 @@ public class XMLserver extends ServerBase
           
           TPoint first = h.next();
           if (first != null) {    
-              UTMRef ref = toUTM(first.getPosition()); 
+              UTMRef ref = toUTM(first.getPosition(), utmz);
               String title = s.getDescr() == null ? "" 
                       : "title=\"[" + fixText(s.getIdent()) + "] " + fixText(s.getDescr()) + "\"";
               String icon = _wfiledir + "/icons/"+ (s.getIcon() != null ? s.getIcon() : _icon);    
@@ -144,13 +149,18 @@ public class XMLserver extends ServerBase
         /* FIXME: Identical code in aprsd core */
         UTMRef uleft = null, lright = null;
         Query parms = req.getQuery();
+               
+        int utmz = _utmzone;
+        if (parms.get("utmz") != null) 
+           utmz = Integer.parseInt(parms.get("utmz"));
+           
         if (parms.get("x1") != null) {
           long x1 = Long.parseLong( parms.get("x1") );
           long x2 = Long.parseLong( parms.get("x2") );
           long x3 = Long.parseLong( parms.get("x3") );    
           long x4 = Long.parseLong( parms.get("x4") );
-          uleft = new UTMRef((double) x1, (double) x2, _utmlatzone, _utmzone); 
-          lright = new UTMRef((double) x3, (double) x4, _utmlatzone, _utmzone);
+          uleft = new UTMRef((double) x1, (double) x2, 'W', utmz); 
+          lright = new UTMRef((double) x3, (double) x4, 'W', utmz);
         }
         long scale = 0;
         if (parms.get("scale") != null)
@@ -181,7 +191,7 @@ public class XMLserver extends ServerBase
           Station s = (Station) db.getItem(src, dto);
           if (s != null) {    
               DbList<TPoint> h = db.getPointsVia(src, uleft, lright, dfrom, dto);
-              UTMRef ref = toUTM(s.getPosition()); 
+              UTMRef ref = toUTM(s.getPosition(), utmz); 
               String title = s.getDescr() == null ? "" 
                       : "title=\"[" + fixText(s.getIdent()) + "] " + fixText(s.getDescr()) + "\"";
                        

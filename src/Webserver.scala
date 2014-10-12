@@ -24,7 +24,7 @@ package no.polaric.aprsdb
      
      
    val _dbp = api.properties().get("aprsdb.plugin").asInstanceOf[DatabasePlugin];
-
+   val dateformat = "[0-9]{4}\\-[01][0-9]\\-[0-3][0-9]\\/[0-2][0-9]:[0-5][0-9]"
      
      
    /**
@@ -78,13 +78,16 @@ package no.polaric.aprsdb
            val src = req.getParameter("station"+i)
            val dfrom = req.getParameter("tfrom"+i)
            val dto = req.getParameter("tto"+i)
-           tracks(i) = (  src, 
+           if (dfrom.matches(dateformat) && dto.matches(dateformat))
+               tracks(i) = (  src, 
                           if (dfrom == null) null else df.parse(dfrom),
                           if (dto == null || dto.equals("-/-"))
                              new Date(); 
                           else
                              df.parse(dto) 
                        )
+           else
+              _dbp.log("  WARNING (handle_gpx): Error in timestring format")
         }
         
            
@@ -154,7 +157,8 @@ package no.polaric.aprsdb
     */
    def handle_addSign(req : Request, res : Response) =
    {
-        val pos = getUtmCoord(req, 'W', _utmzone)
+   
+        val pos = getUtmCoord(req, _utmzone)
         val id = req.getParameter("objid")
         val edit = ( "true".equals(req.getParameter("edit")))
         val prefix = if (edit) <h2>Redigere enkelt objekt</h2>
