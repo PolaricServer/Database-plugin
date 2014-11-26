@@ -213,7 +213,7 @@ function displayList()
    var txt = "";
    for (i=0; i<hist.length; i++)  
      txt += '<img title="remove" src="images/edit-delete.png" height="14" onclick="deleteItem('+i+');"> '+
-            '<img title="edit" src="config/edit.png" height="14" onclick="editItem('+i+');"> '+
+            '<img title="edit" src="images/edit.png" height="14" onclick="editItem('+i+');"> '+
             hist[i].call + ' : ' + hist[i].fromdate+" "+ hist[i].fromtime + ' - ' +
             hist[i].todate + ' ' + hist[i].totime + '<br>'
    document.getElementById("searchlist").innerHTML = txt; 
