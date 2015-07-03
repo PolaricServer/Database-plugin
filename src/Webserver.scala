@@ -158,7 +158,7 @@ package no.polaric.aprsdb
    def handle_addSign(req : Request, res : Response) =
    {
    
-        val pos = getUtmCoord(req, _utmzone)
+        val pos = getCoord(req)
         val id = req.getParameter("objid")
         val edit = ( "true".equals(req.getParameter("edit")))
         val prefix = if (edit) <h2>Redigere enkelt objekt</h2>
@@ -200,11 +200,11 @@ package no.polaric.aprsdb
                   {  if (pos==null)
                         utmForm('W', 34)
                      else
-                        showUTM(pos)
+                        showUTM(req, pos)
                   }
                   <br/>
                   <br/>
-                  { iconSelect(obj, fprefix(req), "/icons/signs/") }
+                  { iconSelect(req, obj, fprefix(req), "/icons/signs/") }
                   </xml:group>
            }  
              
@@ -256,7 +256,7 @@ package no.polaric.aprsdb
                      db.addSign(scale, icon, url, descr, pos.toLatLng(), cls_n);
                      db.commit()
                      <h2>Objekt registrert</h2>
-                     <p>pos={showUTM(pos) }</p>
+                     <p>pos={showUTM(req, pos) }</p>
                   }
                }
                catch { case e: java.sql.SQLException => 

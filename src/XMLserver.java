@@ -53,21 +53,18 @@ public class XMLserver extends ServerBase
         res.setValue("Content-Type", "text/xml; charset=utf-8");
                 
         /* FIXME: Identical code in aprsd core */
-        UTMRef uleft = null, lright = null;
         Query parms = req.getQuery();
         
-        int utmz = _utmzone;
-        if (parms.get("utmz") != null) 
-           utmz = Integer.parseInt(parms.get("utmz"));
-           
+        LatLng uleft = null, lright = null;
         if (parms.get("x1") != null) {
-          long x1 = Long.parseLong( parms.get("x1") );
-          long x2 = Long.parseLong( parms.get("x2") );
-          long x3 = Long.parseLong( parms.get("x3") );    
-          long x4 = Long.parseLong( parms.get("x4") );
-          uleft = new UTMRef((double) x1, (double) x2, 'W', utmz); 
-          lright = new UTMRef((double) x3, (double) x4, 'W', utmz);
+           Double x1 = Double.parseDouble( parms.get("x1") );
+           Double x2 = Double.parseDouble( parms.get("x2") );
+           Double x3 = Double.parseDouble( parms.get("x3") );    
+           Double x4 = Double.parseDouble( parms.get("x4") );
+           uleft  = new LatLng((double) x4, (double) x1); 
+           lright = new LatLng((double) x2, (double) x3);
         }
+
         long scale = 0;
         if (parms.get("scale") != null)
            scale = Long.parseLong(parms.get("scale"));
@@ -99,13 +96,13 @@ public class XMLserver extends ServerBase
           
           TPoint first = h.next();
           if (first != null) {    
-              UTMRef ref = toUTM(first.getPosition(), utmz);
+              LatLng ref = first.getPosition().toLatLng();
               String title = s.getDescr() == null ? "" 
                       : "title=\"[" + fixText(s.getIdent()) + "] " + fixText(s.getDescr()) + "\"";
               String icon = _wfiledir + "/icons/"+ (s.getIcon() != null ? s.getIcon() : _icon);    
          
               out.println("<point id=\""+fixText(s.getIdent())+"\" x=\""
-                        + (int) Math.round(ref.getEasting()) + "\" y=\"" + (int) Math.round(ref.getNorthing())+ "\" " 
+                        + roundDeg(ref.getLng()) + "\" y=\"" + roundDeg(ref.getLat()) + "\" " 
                         + title + (s.isChanging() ? " redraw=\"true\"" : "") + ">");
               out.println("   <icon src=\""+icon+"\" w=\"22\" h=\"22\" ></icon>");     
               out.println("   <label style=\"lmoving\">");
@@ -113,7 +110,6 @@ public class XMLserver extends ServerBase
               out.println("   </label>");  
               h.reset();    
               printTrailXml(out, s.getTrailColor(), h.next().getPosition(), h, uleft, lright);
-              
               out.println("</point>");   
           }
           else
@@ -147,29 +143,23 @@ public class XMLserver extends ServerBase
         res.setValue("Content-Type", "text/xml; charset=utf-8");
                 
         /* FIXME: Identical code in aprsd core */
-        UTMRef uleft = null, lright = null;
         Query parms = req.getQuery();
-               
-        int utmz = _utmzone;
-        if (parms.get("utmz") != null) 
-           utmz = Integer.parseInt(parms.get("utmz"));
-           
+        LatLng uleft = null, lright = null;
         if (parms.get("x1") != null) {
-          long x1 = Long.parseLong( parms.get("x1") );
-          long x2 = Long.parseLong( parms.get("x2") );
-          long x3 = Long.parseLong( parms.get("x3") );    
-          long x4 = Long.parseLong( parms.get("x4") );
-          uleft = new UTMRef((double) x1, (double) x2, 'W', utmz); 
-          lright = new UTMRef((double) x3, (double) x4, 'W', utmz);
-        }
+           Double x1 = Double.parseDouble( parms.get("x1") );
+           Double x2 = Double.parseDouble( parms.get("x2") );
+           Double x3 = Double.parseDouble( parms.get("x3") );    
+           Double x4 = Double.parseDouble( parms.get("x4") );
+           uleft  = new LatLng((double) x4, (double) x1); 
+           lright = new LatLng((double) x2, (double) x3);
+        }        
+
         long scale = 0;
         if (parms.get("scale") != null)
            scale = Long.parseLong(parms.get("scale"));
         
-
         boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);
-        long client = getSession(req);
-                
+        long client = getSession(req);        
                 
         /* XML header with meta information */      
         out.println("<overlay seq=\"-1\">");
@@ -191,15 +181,15 @@ public class XMLserver extends ServerBase
           Station s = (Station) db.getItem(src, dto);
           if (s != null) {    
               DbList<TPoint> h = db.getPointsVia(src, uleft, lright, dfrom, dto);
-              UTMRef ref = toUTM(s.getPosition(), utmz); 
+              LatLng ref = s.getPosition().toLatLng(); 
               String title = s.getDescr() == null ? "" 
                       : "title=\"[" + fixText(s.getIdent()) + "] " + fixText(s.getDescr()) + "\"";
                        
               String icon = _wfiledir + "/icons/"+ (s.getIcon(showSarInfo) != null ? s.getIcon(showSarInfo) : _icon);   
           
               out.println("<point id=\""+fixText(s.getIdent())+"\" x=\""
-                        + (int) Math.round(ref.getEasting()) + "\" y=\"" 
-                        + (int) Math.round(ref.getNorthing())+ "\" " 
+                        + roundDeg(ref.getLng()) + "\" y=\"" 
+                        + roundDeg(ref.getLat()) + "\" " 
                         + title + (s.isChanging() ? " redraw=\"true\"" : "") + ">");
               out.println("   <icon src=\""+icon+"\" w=\"22\" h=\"22\" ></icon>");     
               out.println("   <label style=\"lmoving\">");

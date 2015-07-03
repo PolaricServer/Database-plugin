@@ -76,7 +76,7 @@ public class MyDBSession extends DBSession
     /**
      * Get points that were transmitted via a certain digipeater during a certain time span. 
      */
-    public synchronized DbList<TPoint> getPointsVia(String digi, UTMRef uleft, UTMRef lright, java.util.Date from, java.util.Date to)
+    public synchronized DbList<TPoint> getPointsVia(String digi, Reference uleft, Reference lright, java.util.Date from, java.util.Date to)
        throws java.sql.SQLException
     {
         _log.log(" getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
@@ -185,7 +185,7 @@ public class MyDBSession extends DBSession
     /**
      * Get list of signs in a specified geographic area and above a specified scale 
      */
-    public synchronized DbList<Signs.Item> getSigns(long scale, UTMRef uleft, UTMRef lright)
+    public synchronized DbList<Signs.Item> getSigns(long scale, Reference uleft, Reference lright)
        throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement

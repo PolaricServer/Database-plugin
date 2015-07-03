@@ -69,7 +69,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                */
               Signs.setExtDb(new Signs.ExtDb() {
                   MyDBSession db = null; 
-                  public Iterable<Signs.Item> search(long scale, UTMRef uleft, UTMRef lright) {
+                  public Iterable<Signs.Item> search(long scale, Reference uleft, Reference lright) {
                      db = getDB();
                      try {
                         Iterable<Signs.Item> x = db.getSigns(scale, uleft, lright);
@@ -100,13 +100,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             _log.log(" Activate DatabasePlugin: "+e);}  
       }
       
-      
-      
-      
-      
-      
-      
-      
+    
       
       
      /**  Stop the plugin */ 
