@@ -32,7 +32,7 @@ public class DbMaintenance implements Runnable
    
    private ServerAPI _api; 
    private DataSource _dsrc; 
-   private int _maxage_raw, _maxage_report, _maxage_limited;
+   private int _maxage_raw, _maxage_report, _maxage_limited, _maxage_limited_raw;
    private String _maxage_limited_filter;
    private Thread _thread;
    private Logfile _log; 
@@ -47,6 +47,7 @@ public class DbMaintenance implements Runnable
       _maxage_raw = Integer.parseInt(api.getConfig().getProperty("db.maxage.raw", "30").trim()); 
       _maxage_report = Integer.parseInt(api.getConfig().getProperty("db.maxage.report", "90").trim());
       _maxage_limited = Integer.parseInt(api.getConfig().getProperty("db.maxage.limited", "30").trim());
+      _maxage_limited_raw = Integer.parseInt(api.getConfig().getProperty("db.maxage.limited.raw", "14").trim());
       _maxage_limited_filter = api.getConfig().getProperty("db.maxage.limited.filter", "src ~ '^LD.*'");
       _thread = new Thread(this, "db_maintenance");
       _thread.start();
@@ -64,7 +65,8 @@ public class DbMaintenance implements Runnable
            /* Delete old data */
            PreparedStatement stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsPacket\" " + 
-                "WHERE time + INTERVAL '"+_maxage_raw+" days' < 'now'" );
+                "WHERE time + INTERVAL '"+_maxage_raw+" days' < 'now' OR" +
+                     " (time + INTERVAL '"+_maxage_limited_raw+" days < 'now' AND ("+_maxage_limited_filter+"))" );
            long deleted = stmt.executeUpdate();
            if (deleted > 0) 
               _log.log(" DbMaintenance: Deleted "+deleted+" old records from AprsPacket table"); 
