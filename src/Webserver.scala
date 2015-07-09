@@ -116,6 +116,41 @@ package no.polaric.aprsdb
    
    
    
+   def handle_rawAprsPackets(req : Request, res : Response) =
+   {
+       val df = new java.text.SimpleDateFormat("HH:mm:ss")
+       val id = req.getParameter("ident")
+       val db = _dbp.getDB(true) 
+       val result: NodeSeq = 
+       try {
+          val list = db.getAprsPackets(id, 25)   
+          
+          <h1>Siste APRS pakker fra {id}</h1>
+          <table>
+          <tr><th>Kanal</th><th>Tid</th><th>Dest</th><th>Via</th><th>Innhold</th></tr>
+          {
+              for (it <- list.iterator) yield
+                 <tr>
+                     <td>{it.source.getIdent()}</td>
+                     <td>{df.format(it.time)}</td>
+                     <td>{it.to}</td>
+                     <td>{it.via}</td>
+                     <td>{it.report}</td>
+                 </tr>      
+          }
+          </table>
+       }
+       catch { case e: java.sql.SQLException => 
+          <h1>SQL Feil</h1>
+          <p>{e}</p>
+       }
+       finally { db.close() }
+       
+       printHtml(res, htmlBody(req, null, result))
+   }
+   
+   
+   
      
    def handle_deleteSign(req : Request, res : Response) =
    {

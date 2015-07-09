@@ -22,7 +22,9 @@ ctxtMenu.addCallback("MAP", function (m)
      m.add("Nytt enkelt objekt", function()
        { editSign(m.x, m.y); });
   });
-  
+
+
+
 
 /* Add items to sign menu */
 ctxtMenu.addCallback("SIGN", function (m)
@@ -36,21 +38,28 @@ ctxtMenu.addCallback("SIGN", function (m)
    });
 
 
+
+
 /* Add items to APRS item menu */
 ctxtMenu.addCallback("ITEM", function (m)
    {
       var p = myOverlay.getPointObject(m.ident);
       m.add(null);
+ 
       m.add("Historikk...", function() 
-        { setTimeout('searchHistData("'+m.ident+'");', 100); });
-      
+         { setTimeout('searchHistData("'+m.ident+'");', 100); });  
       if (p != null && p.flags != null && p.flags.match("i")) {
           m.add("Hørt siste uke...", function() 
             { setTimeout('searchPointsVia("'+m.ident+'", 7);', 100); });
           m.add("Hørt siste måned...", function() 
             { setTimeout('searchPointsVia("'+m.ident+'", 30);', 100); });
       }
+      m.add("APRS pakker", function()
+         { rawAprsPackets(m.ident); });
    });
+
+
+
 
 
 /* Add items to main menu */
@@ -63,6 +72,16 @@ ctxtMenu.addCallback("MAIN", function (m)
       m.add("Historikk...", function() 
         { setTimeout('searchHistData(null);', 100); });
    });
+
+
+
+
+
+
+function rawAprsPackets(ident)
+{
+   remotepopupwindow(document.getElementById("anchor"), server_url + 'srv/rawAprsPackets?ident='+ident, 50, 70, "aprspackets");
+}
 
 
 

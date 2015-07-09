@@ -242,6 +242,8 @@ public class MyDBSession extends DBSession
     public DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to)
           throws java.sql.SQLException
        { return getTrail(src,from,to,true); }
+       
+       
                                                                            
     /**
      * Get trail for a given station and a given time span. 
@@ -348,6 +350,44 @@ public class MyDBSession extends DBSession
         return x; 
     } 
 
+    
+    
+    /** 
+     *  Return a list of the last n APRS packets from a given call.
+     *
+     * @param src from callsign
+     * @param n   number of elements of list
+     */
+    public synchronized DbList<AprsPacket> getAprsPackets(String src, int n)
+       throws java.sql.SQLException
+    {    
+        _log.log(" getAprsPackets:  "+src);
+        PreparedStatement stmt = getCon().prepareStatement
+           ( " SELECT * FROM \"AprsPacket\"" +
+             " WHERE src=?"  + 
+             " ORDER BY time DESC LIMIT ?",
+             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+       
+        stmt.setString(1, src);
+        stmt.setInt(2, n);
+        ResultSet rs = stmt.executeQuery();
+            
+        DbList<AprsPacket> list = new DbList(rs, new DbList.Factory() 
+        {
+            public AprsPacket getElement(ResultSet rs) throws SQLException 
+            {
+                AprsPacket p =  new AprsPacket();
+                p.source = _api.getChanManager().get( rs.getString("channel") );
+                p.from = rs.getString("src");
+                p.to = rs.getString("dest");
+                p.via = rs.getString("path");
+                p.report = rs.getString("info");
+                p.time = rs.getTimestamp("time");
+                return p;
+             }
+         });
+        return list;
+    }
     
     
     
