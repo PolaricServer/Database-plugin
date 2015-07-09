@@ -172,7 +172,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       */
      private String qChar(char x)
      {
-        if (x=='\'') return "'\\''"; 
+        if (x=='\'') return "'\\\''"; 
         else return "'" + x + "'";
      }
               
@@ -256,11 +256,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      /**
       * Log APRS packet to database.
       */
-     public synchronized void handlePacket(Source chan, java.util.Date ts, String src, String dest, String path, String txt)
+     public synchronized void handlePacket(AprsPacket p)
      {
-       if (!chan.getIdent().matches(_filter_chan) || !src.matches(_filter_src))
+       if (!p.source.getIdent().matches(_filter_chan) || !p.source.getIdent().matches(_filter_src))
           return;
        DBSession db = getDB();
+       String path = p.via;
        String[] pp = path.split(",q",2);
        String ipath = null;
        if (pp.length > 1) {
@@ -277,13 +278,13 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
              ( "INSERT INTO \"AprsPacket\" (channel, src, dest, time, path, ipath, info)" + 
                "VALUES (?, ?, ?, ?, ?, ?,  ?)" );
              
-           stmt.setString(1, chan.getIdent());
-           stmt.setString(2, src);
-           stmt.setString(3, dest);
-           stmt.setTimestamp(4, DBSession.date2ts(ts));
+           stmt.setString(1, p.source.getIdent());
+           stmt.setString(2, p.from);
+           stmt.setString(3, p.to);
+           stmt.setTimestamp(4, DBSession.date2ts(p.time));
            stmt.setString(5, path);
            stmt.setString(6, ipath);
-           stmt.setString(7, txt); 
+           stmt.setString(7, p.report); 
            stmt.executeUpdate();
            db.commit();
        }
