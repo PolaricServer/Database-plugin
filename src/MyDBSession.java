@@ -377,10 +377,13 @@ public class MyDBSession extends DBSession
             public AprsPacket getElement(ResultSet rs) throws SQLException 
             {
                 AprsPacket p =  new AprsPacket();
+                String path = rs.getString("path");
+                String ipath = rs.getString("ipath");
+                
                 p.source = _api.getChanManager().get( rs.getString("channel") );
                 p.from = rs.getString("src");
                 p.to = rs.getString("dest");
-                p.via = rs.getString("path");
+                p.via = (path==null ? "" : rs.getString("path") + ", ") + rs.getString("ipath");
                 p.report = rs.getString("info");
                 p.time = rs.getTimestamp("time");
                 return p;

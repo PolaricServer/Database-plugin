@@ -191,7 +191,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
        DBSession db = getDB();   
        try {
            /* If change to comment, save it in database. */
-           AprsPoint x = _api.getDB().getItem(sender, null);
+           AprsPoint x = (AprsPoint) _api.getDB().getItem(sender, null);
            String comment;
            if ( x == null ||
                (descr != null && !descr.equals("") && !x.getDescr().equals(descr) )) 
@@ -258,8 +258,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       */
      public synchronized void handlePacket(AprsPacket p)
      {
-       if (!p.source.getIdent().matches(_filter_chan) || !p.source.getIdent().matches(_filter_src))
+       if (!p.source.getIdent().matches(_filter_chan) || !p.from.matches(_filter_src)) 
           return;
+       
        DBSession db = getDB();
        String path = p.via;
        String[] pp = path.split(",q",2);
