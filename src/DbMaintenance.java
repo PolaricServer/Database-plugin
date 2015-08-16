@@ -66,7 +66,7 @@ public class DbMaintenance implements Runnable
            PreparedStatement stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsPacket\" " + 
                 "WHERE time + INTERVAL '"+_maxage_raw+" days' < 'now' OR" +
-                     " (time + INTERVAL '"+_maxage_limited_raw+" days < 'now' AND ("+_maxage_limited_filter+"))" );
+                     " (time + INTERVAL '"+_maxage_limited_raw+" days' < 'now' AND ("+_maxage_limited_filter+"))" );
            long deleted = stmt.executeUpdate();
            if (deleted > 0) 
               _log.log(" DbMaintenance: Deleted "+deleted+" old records from AprsPacket table"); 

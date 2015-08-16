@@ -7,15 +7,13 @@ Database plugin
 
 * [C] Add trail-search to Javascript API   
 
-* Save alias/icon changes to database. Use in searches. 
+* Save alias/icon changes to database. Use in searches. Missions?
 
 * Consider saving searches in database for later reference -> This is equivalent to missions!!?
 
 * Implement mission support - Server side
      STARTED
      
-* Add libpostgis-java and libpostgresql-jdbc-java to dependencies
-
 * Fault tolerance?
  
 * Signs: Approved and picture attribute? 
@@ -24,3 +22,8 @@ Database plugin
      DONE
 
 * Signs: Export to file
+
+* Signs: Consider to support XML calls in this plugin, to allow sharing. 
+  Can this be cached by clients? 
+  
+* Signs: Consider doing this in a separate plugin and maybe separate database. 
