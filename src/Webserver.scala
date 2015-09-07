@@ -105,7 +105,9 @@ package no.polaric.aprsdb
              {
                 _dbp.log(" GPX file export")
                 for (i <- 0 to ntracks-1) yield 
-                    do_trail(tracks(i)._1, tracks(i)._2, tracks(i)._3)
+                    if (tracks(i) != null)
+                       do_trail(tracks(i)._1, tracks(i)._2, tracks(i)._3)
+                    else EMPTY
              }
            </gpx>
            ; 
@@ -262,7 +264,8 @@ package no.polaric.aprsdb
         /* Action. To be executed when user hits 'submit' button */
         def action(request : Request): NodeSeq =
            {
-               val scale = java.lang.Long.parseLong(req.getParameter("scale"))
+               val tscale = req.getParameter("scale")
+               val scale = if (tscale==null) 1000000 else java.lang.Long.parseLong(tscale)
                val url = req.getParameter("url")
                val cls = req.getParameter("cls")
                val descr = req.getParameter("descr")

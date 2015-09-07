@@ -44,6 +44,8 @@ ctxtMenu.addCallback("SIGN", function (m)
 ctxtMenu.addCallback("ITEM", function (m)
    {
       var p = myOverlay.getPointObject(m.ident);
+      if (p.flags == null || !p.flags.match("a"))
+         return;
       m.add(null);
  
       m.add("Historikk...", function() 
@@ -253,7 +255,7 @@ function getItem()
     hist_call     = $('#findcall').val();
     hist_fromdate = $('#tfrom').val();
     hist_fromtime = $('#tfromt').val();
-    if ($('#ttoopen').attr('checked')) 
+    if ($('#ttoopen').is(':checked')) 
        hist_todate = hist_totime = '-';
     else
     {
