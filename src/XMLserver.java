@@ -113,13 +113,13 @@ public class XMLserver extends ServerBase
               out.println("</point>");   
           }
           else
-              _dbp.log(" Htrail search returned empty result: "+src);
+              _dbp.log().info("XMLserver", "Htrail search returned empty result: "+src);
           db.commit();
         }
         catch(java.text.ParseException e)
-          { _dbp.log(" WARNING (handle_htrail): Cannot parse timestring"); db.abort(); }
+          { _dbp.log().warn("XMLserver", "handle_htrail: Cannot parse timestring"); db.abort(); }
         catch(java.sql.SQLException e)
-          { _dbp.log(" WARNING (handle_htrail): SQL error:"+e.getMessage()); db.abort(); }
+          { _dbp.log().warn("XMLserver", "handle_htrail: SQL error:"+e.getMessage()); db.abort(); }
         finally { db.close(); }
         
         out.println("</overlay>");
@@ -202,13 +202,13 @@ public class XMLserver extends ServerBase
               out.println("</point>");   
           }        
           else
-              _dbp.log(" Hpoints search returned empty result: "+src);
+              _dbp.log().info("XMLserver", "Hpoints search returned empty result: "+src);
           db.commit();
         }
         catch(java.text.ParseException e)
-          { _dbp.log(" WARNING (handle_hpoints): Cannot parse timestring"); db.abort(); }
+          { _dbp.log().warn("XMLserver", "handle_hpoints: Cannot parse timestring"); db.abort(); }
         catch(java.sql.SQLException e)
-          { _dbp.log(" WARNING (handle_hpoints): SQL error:"+e.getMessage()); db.abort(); }
+          { _dbp.log().warn("XMLserver",  "handle_hpoints: SQL error:"+e.getMessage()); db.abort(); }
         finally { db.close(); }
         
         out.println("</overlay>");

@@ -46,7 +46,7 @@ public class DBSession
            /* Abort and close the transaction */
             trans.abort();
             trans.close();
-            trans._log.log(" DB Transaction '"+key+"' aborted. Timeout.");
+            trans._log.info(null, "DB Transaction '"+key+"' aborted. Timeout.");
            DBSession._inProgress.remove(key);
         }
         
@@ -105,7 +105,7 @@ public class DBSession
          }
          catch (Exception e) {
              // FIXME: Re-throw exception here. 
-             _log.log(" Warning[DBSession]: Cannot open db connection: "+e);
+             _log.warn("DbSession", "Cannot open db connection: "+e);
          }   
      }
 
@@ -141,7 +141,7 @@ public class DBSession
              _con.commit();
          }
          else 
-             _log.log(" Warning[DBSession]: Tried to commit a non-existing transaction");
+             _log.warn("DbSession", "Tried to commit a non-existing transaction");
      }
      
      
@@ -156,7 +156,7 @@ public class DBSession
              _con.rollback();
            } 
            else
-               _log.log(" Warning[DBSession]: Tried to abort a non-existing transaction");
+               _log.warn("DbSession", "Tried to abort a non-existing transaction");
          }
          catch (SQLException e) {}
      }
@@ -179,7 +179,7 @@ public class DBSession
              _con = null; 
          }
          catch (Exception e) {
-            _log.log(" Warning[DBSession]: Try to close connection: "+e);
+            _log.warn("DbSession", "Try to close connection: "+e);
          }
          finally { 
          }   

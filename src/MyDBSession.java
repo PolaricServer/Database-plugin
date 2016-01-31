@@ -79,7 +79,7 @@ public class MyDBSession extends DBSession
     public synchronized DbList<TPoint> getPointsVia(String digi, Reference uleft, Reference lright, java.util.Date from, java.util.Date to)
        throws java.sql.SQLException
     {
-        _log.log(" getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
+        _log.debug("MyDbSession", "getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT DISTINCT position "+ 
              " FROM \"AprsPacket\" p, \"PosReport\" r " +
@@ -120,7 +120,7 @@ public class MyDBSession extends DBSession
     public synchronized void addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
-         _log.log(" addSign: "+descr+", class="+cls);
+         _log.debug("MyDbSession", "addSign: "+descr+", class="+cls);
          PreparedStatement stmt = getCon().prepareStatement
               ( "INSERT INTO \"Signs\" (maxscale, icon, url, description, position, class)" + 
                 "VALUES (?, ?, ?, ?, ?, ?)" );
@@ -137,7 +137,7 @@ public class MyDBSession extends DBSession
     public synchronized void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
-        _log.log(" updateSign: "+id+", "+descr);
+        _log.debug("MyDbSession", "updateSign: "+id+", "+descr);
         PreparedStatement stmt = getCon().prepareStatement
             ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
               "WHERE id=?" );
@@ -155,7 +155,7 @@ public class MyDBSession extends DBSession
     public synchronized Sign getSign(int id)
           throws java.sql.SQLException
     {
-         _log.log(" getSign: "+id);
+         _log.debug("MyDbSession", "getSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( "SELECT * FROM \"Signs\"" + 
                 "WHERE id=?" );
@@ -172,7 +172,7 @@ public class MyDBSession extends DBSession
     public synchronized void deleteSign(int id)
           throws java.sql.SQLException
     {
-         _log.log(" deleteSign: "+id);
+         _log.debug("MyDbSession", "deleteSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( "DELETE FROM \"Signs\"" + 
                 "WHERE id=?" );
@@ -251,7 +251,7 @@ public class MyDBSession extends DBSession
     public synchronized DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to, boolean rev)
        throws java.sql.SQLException
     {
-        _log.log(" getTrail: "+src+ ", "+df.format(from)+" - "+df.format(to));
+        _log.debug("MyDbSession", "getTrail: "+src+ ", "+df.format(from)+" - "+df.format(to));
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"PosReport\"" +
              " WHERE src=? AND time >= ? AND time <= ?" + 
@@ -281,7 +281,7 @@ public class MyDBSession extends DBSession
     public synchronized Trail.Item getTrailPoint(String src, java.util.Date t)
        throws java.sql.SQLException
     { 
-       _log.log(" getTrailPoint: "+src+", "+df.format(t));
+       _log.debug("MyDbSession", "getTrailPoint: "+src+", "+df.format(t));
        /* Left outer join with AprsPacket to get path where available */
        PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT pr.time, position, speed, course, path, ipath, nopkt FROM \"PosReport\" AS pr" +
@@ -323,7 +323,7 @@ public class MyDBSession extends DBSession
     public synchronized AprsPoint getItem(String src, java.util.Date at)
        throws java.sql.SQLException
     {
-        _log.log(" getItem:  "+src+", "+df.format(at));
+        _log.debug("MyDbSession", "getItem:  "+src+", "+df.format(at));
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"PosReport\"" +
              " WHERE src=? AND time <= ?" + 
@@ -361,7 +361,7 @@ public class MyDBSession extends DBSession
     public synchronized DbList<AprsPacket> getAprsPackets(String src, int n)
        throws java.sql.SQLException
     {    
-        _log.log(" getAprsPackets:  "+src);
+        _log.debug("MyDbSession", "getAprsPackets:  "+src);
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"AprsPacket\"" +
              " WHERE src=?"  + 

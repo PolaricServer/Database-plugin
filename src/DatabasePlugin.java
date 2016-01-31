@@ -25,8 +25,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      /** Start the plugin  */
       public void activate(ServerAPI api)
       {
+         _api = api;
          try {
-           System.out.println("*** DatabasePlugin.activate");
+           _api.log().info("DatabasePlugin", "Activate...");
            Properties p = new Properties();
            p.put("accessToUnderlyingConnectionAllowed", "true");
            BasicDataSourceFactory dsf = new BasicDataSourceFactory();
@@ -45,7 +46,6 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            api.addHttpHandlerCls("no.polaric.aprsdb.Webserver", null);
            _isOwner = api.getBoolProperty("db.isowner", true);
            _log = new Logfile(api, "database", "database.log");
-           _api = api;
            
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
@@ -56,7 +56,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
               _maint = new DbMaintenance(_dsrc, _api, _log);
            }
            else 
-              log(" Using remote database server");
+              _api.log().info("DatabasePlugin", "Using remote database server");
               
            StationDBImp dbi = (StationDBImp) api.getDB();
            dbi.setHistDB(this);
@@ -80,7 +80,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                      }
                      catch (Exception e) 
                         { 
-                           log(" WARNING (Sign search): "+e); 
+                           _api.log().warn(null, "Sign search: "+e); 
                            db.abort(); 
                            return new ArrayList<Signs.Item>(1);
                         }
@@ -91,13 +91,13 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                  }    
               });
               _isActive = true;
-              log(" DatabasePlugin activated");
+              _log.info(null, "DatabasePlugin activated");
         }
         catch (ClassCastException e) {
-            log(" Cannot activate DatabasePlugin: unsupported impl. of StationDB");
+            _api.log().error("DatabasePlugin", "Cannot activate DatabasePlugin: unsupported impl. of StationDB");
         }
         catch (Exception e) {
-            _log.log(" Activate DatabasePlugin: "+e);}  
+            _api.log().error("DatabasePlugin", "Activate DatabasePlugin: "+e);}  
       }
       
     
@@ -107,8 +107,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       // FIXME
       public void deActivate() 
       {
-         System.out.println("*** DatabasePlugin.deactivate");
-         log(" DatabasePlugin deactivated");
+         _api.log().info("DatabasePlugin", "Deactivate");
+         _log.info(null, "DatabasePlugin deactivated");
          if (_isOwner)
             _api.getAprsParser().subscribe(this);
       }
@@ -119,7 +119,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
        { return true; }
 
        
-       
+      public Logfile log() 
+       { return _log; }
        
        
       private String[] _dep = {};
@@ -135,12 +136,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
          u = u.replaceFirst("jdbc:postgresql://", "");
          return "DatabasePlugin ("+u+")"; 
       }
-      
-      
-      
-      public void log(String txt) 
-        { _log.log(txt); }
-        
+
         
       public MyDBSession getDB() 
         { return getDB(false); }
@@ -231,7 +227,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
        }
        catch (Exception e)
        {
-           log(" WARNING (handlePosReport): "+e);  
+           _log.warn(null, "handlePosReport: "+e);  
            db.abort();
        }
        finally { db.close(); }
@@ -290,7 +286,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            db.commit();
        }
        catch (Exception e) {
-           log(" WARNING (logAprsPacket): "+e);  
+           _log.warn(null, "logAprsPacket): "+e);  
            db.abort();
        }
        finally { db.close(); }
@@ -310,7 +306,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
              return x; 
        }
        catch (Exception e) {
-           log(" WARNING (getItem): "+e);  
+           _log.warn(null, "getItem: "+e);  
            db.abort(); 
            return null;
        }   
@@ -328,7 +324,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            return x; 
        }
        catch (Exception e) {
-           log(" WARNING (getTrailPoint): "+e);  
+           _log.warn(null, "getTrailPoint: "+e);  
            db.abort(); 
            return null;
        }   

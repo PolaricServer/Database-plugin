@@ -87,7 +87,7 @@ package no.polaric.aprsdb
                              df.parse(dto) 
                        )
            else
-              _dbp.log("  WARNING (handle_gpx): Error in timestring format")
+              _dbp.log().warn("Webserver", "handle_gpx: Error in timestring format")
         }
         
            
@@ -103,7 +103,7 @@ package no.polaric.aprsdb
                 <time>{xdf.format(new Date()) }</time>
              </metadata>
              {
-                _dbp.log(" GPX file export")
+                _dbp.log().debug("Webserver", "GPX file export")
                 for (i <- 0 to ntracks-1) yield 
                     if (tracks(i) != null)
                        do_trail(tracks(i)._1, tracks(i)._2, tracks(i)._3)
@@ -174,7 +174,7 @@ package no.polaric.aprsdb
               val db = _dbp.getDB(true)
               try {
                   db.deleteSign(Integer.parseInt(id)) 
-                  _dbp.log(" DELETE SIGN: '"+id+"' by user '"+getAuthUser(req)+"'")
+                  _dbp.log().info("Webserver", "Delete sign: '"+id+"' by user '"+getAuthUser(req)+"'")
                   <h3>Objekt slettet!</h3>
               }
               catch { case e: java.sql.SQLException => 
