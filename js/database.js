@@ -101,6 +101,7 @@ function searchPointsVia(call, days)
 function getPointsXmlData(stn, tfrom, tto)
 { 
   abortCall(lastXmlCall);
+  mapupdate_suspend(120*1000);
   if (myOverlay != null) 
     myOverlay.removePoint(); 
   myOverlay.loadXml('srv/hpoints?'+extentQuery() + 
@@ -297,9 +298,22 @@ function editItem(idx)
 
 
 
+function extentQuery()
+{
+   var ext = myKaMap.getGeoExtents();
+   var flt = "";
+   if (filterProfiles.selectedProf() != null)
+       flt = "&filter="+filterProfiles.selectedProf();
+   return "x1="  + roundDeg(ext[0]) + "&x2="+ roundDeg(ext[1]) +
+       "&x3=" + roundDeg(ext[2]) + "&x4="+ roundDeg(ext[3]) + flt ;
+}
+  
+
+  
 function showAll()
 {
   abortCall(lastXmlCall);
+  mapupdate_suspend(120*1000);
   if (myOverlay != null) 
     myOverlay.removePoint(); 
   
@@ -314,6 +328,7 @@ function showAll()
 function getHistXmlData(stn, tfrom, tto)
 { 
    abortCall(lastXmlCall);
+   mapupdate_suspend(120*1000);
    if (myOverlay != null) 
       myOverlay.removePoint(); 
    myOverlay.loadXml('srv/htrail?'+extentQuery() + '&scale='+currentScale+
