@@ -52,32 +52,26 @@ public class XMLserver extends ServerBase
         PrintWriter out = getWriter(res);
         res.setValue("Content-Type", "text/xml; charset=utf-8");
                 
-        /* FIXME: Identical code in aprsd core */
         Query parms = req.getQuery();
+
+        if (parms.get("x1") == null) 
+           return;
         
-        LatLng uleft = null, lright = null;
-        if (parms.get("x1") != null) {
-           Double x1 = Double.parseDouble( parms.get("x1") );
-           Double x2 = Double.parseDouble( parms.get("x2") );
-           Double x3 = Double.parseDouble( parms.get("x3") );    
-           Double x4 = Double.parseDouble( parms.get("x4") );
-           uleft  = new LatLng((double) x4, (double) x1); 
-           lright = new LatLng((double) x2, (double) x3);
-        }
+        Double x1 = Double.parseDouble( parms.get("x1") );
+        Double x2 = Double.parseDouble( parms.get("x2") );
+        Double x3 = Double.parseDouble( parms.get("x3") );    
+        Double x4 = Double.parseDouble( parms.get("x4") );
+        final LatLng uleft  = new LatLng((double) x4, (double) x1); 
+        final LatLng lright = new LatLng((double) x2, (double) x3);
 
         long scale = 0;
         if (parms.get("scale") != null)
            scale = Long.parseLong(parms.get("scale"));
         
-
         boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);
         long client = getSession(req);
-                
-                
-        /* XML header with meta information */      
+                    
         out.println("<overlay seq=\"-1\">");
-        printXmlMetaTags(out, req, false);
-        out.println("<meta name=\"clientses\" value=\""+ client + "\"/>");
 
         MyDBSession db = _dbp.getDB();
         try {    
@@ -109,7 +103,8 @@ public class XMLserver extends ServerBase
               out.println("       "+fixText(s.getDisplayId(showSarInfo)));
               out.println("   </label>");  
               h.reset();    
-              printTrailXml(out, s.getTrailColor(), h.next().getPosition(), h, uleft, lright);
+              printTrailXml(out, s.getTrailColor(), h.next().getPosition(), 
+                    new Seq.Wrapper<TPoint>(h, tp -> tp.isInside(uleft, lright, 0.7, 0.7)));
               out.println("</point>");   
           }
           else
@@ -142,17 +137,16 @@ public class XMLserver extends ServerBase
         PrintWriter out = getWriter(res);
         res.setValue("Content-Type", "text/xml; charset=utf-8");
                 
-        /* FIXME: Identical code in aprsd core */
         Query parms = req.getQuery();
-        LatLng uleft = null, lright = null;
-        if (parms.get("x1") != null) {
-           Double x1 = Double.parseDouble( parms.get("x1") );
-           Double x2 = Double.parseDouble( parms.get("x2") );
-           Double x3 = Double.parseDouble( parms.get("x3") );    
-           Double x4 = Double.parseDouble( parms.get("x4") );
-           uleft  = new LatLng((double) x4, (double) x1); 
-           lright = new LatLng((double) x2, (double) x3);
-        }        
+
+        if (parms.get("x1") == null) 
+            return;
+        Double x1 = Double.parseDouble( parms.get("x1") );
+        Double x2 = Double.parseDouble( parms.get("x2") );
+        Double x3 = Double.parseDouble( parms.get("x3") );    
+        Double x4 = Double.parseDouble( parms.get("x4") );
+        final LatLng uleft  = new LatLng((double) x4, (double) x1); 
+        final LatLng lright = new LatLng((double) x2, (double) x3);
 
         long scale = 0;
         if (parms.get("scale") != null)
@@ -160,11 +154,8 @@ public class XMLserver extends ServerBase
         
         boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);
         long client = getSession(req);        
-                
-        /* XML header with meta information */      
+                   
         out.println("<overlay seq=\"-1\">");
-        printXmlMetaTags(out, req, false);
-        out.println("<meta name=\"clientses\" value=\""+ client + "\"/>");
 
         MyDBSession db = _dbp.getDB();
         try {    
@@ -179,27 +170,30 @@ public class XMLserver extends ServerBase
              dto = df.parse(parms.get("tto"));
              
           Station s = (Station) db.getItem(src, dto);
-          if (s != null) {    
-              DbList<TPoint> h = db.getPointsVia(src, uleft, lright, dfrom, dto);
-              LatLng ref = s.getPosition().toLatLng(); 
-              String title = s.getDescr() == null ? "" 
+          if (s != null) {  
+              if (s.getPosition() != null) {
+                 LatLng ref = s.getPosition().toLatLng(); 
+                 DbList<TPoint> h = db.getPointsVia(src, uleft, lright, dfrom, dto);        
+                 String title = s.getDescr() == null ? "" 
                       : "title=\"[" + fixText(s.getIdent()) + "] " + fixText(s.getDescr()) + "\"";
                        
-              String icon = _wfiledir + "/icons/"+ (s.getIcon(showSarInfo) != null ? s.getIcon(showSarInfo) : _icon);   
+                 String icon = _wfiledir + "/icons/"+ (s.getIcon(showSarInfo) != null ? s.getIcon(showSarInfo) : _icon);   
           
-              out.println("<point id=\""+fixText(s.getIdent())+"\" x=\""
+                 out.println("<point id=\""+fixText(s.getIdent())+"\" x=\""
                         + roundDeg(ref.getLng()) + "\" y=\"" 
                         + roundDeg(ref.getLat()) + "\" " 
                         + title + (s.isChanging() ? " redraw=\"true\"" : "") + ">");
-              out.println("   <icon src=\""+icon+"\" w=\"22\" h=\"22\" ></icon>");     
-              out.println("   <label style=\"lmoving\">");
-              out.println("       "+fixText(s.getDisplayId(showSarInfo)));
-              out.println("   </label>");  
-              h.reset();    
+                 out.println("   <icon src=\""+icon+"\" w=\"22\" h=\"22\" ></icon>");     
+                 out.println("   <label style=\"lmoving\">");
+                 out.println("       "+fixText(s.getDisplayId(showSarInfo)));
+                 out.println("   </label>");  
+                 h.reset();    
                            
-              printPointCloud(out, "1100ee", h, uleft, lright);
-              
-              out.println("</point>");   
+                 printPointCloud(out, "1100ee", new Seq.Wrapper<TPoint>(h, tp -> tp.isInside(uleft, lright, 0.7, 0.7)));
+                 out.println("</point>");   
+              }
+              else
+                 _dbp.log().warn("XMLserver", "handle_hpoints: Point has no position: "+src);
           }        
           else
               _dbp.log().info("XMLserver", "Hpoints search returned empty result: "+src);

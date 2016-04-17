@@ -97,7 +97,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             _api.log().error("DatabasePlugin", "Cannot activate DatabasePlugin: unsupported impl. of StationDB");
         }
         catch (Exception e) {
-            _api.log().error("DatabasePlugin", "Activate DatabasePlugin: "+e);}  
+            _api.log().error("DatabasePlugin", "Activate DatabasePlugin: "+e);
+            e.printStackTrace(System.out);
+        }  
       }
       
     
@@ -225,6 +227,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            stmt.executeUpdate(); 
            db.commit();
        }
+       catch (NullPointerException e)
+       {
+           _api.log().error(null, "handlePosReport: "+e);
+           e.printStackTrace(System.out);
+           db.abort();
+       }
        catch (Exception e)
        {
            _log.warn(null, "handlePosReport: "+e);  
@@ -284,6 +292,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            stmt.setString(7, p.report); 
            stmt.executeUpdate();
            db.commit();
+       }
+       catch (NullPointerException e)
+       {
+           _api.log().error(null, "handlePosReport: "+e);
+           e.printStackTrace(System.out);
+           db.abort();
        }
        catch (Exception e) {
            _log.warn(null, "logAprsPacket): "+e);  
