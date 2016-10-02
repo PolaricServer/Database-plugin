@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2014 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2016 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@ package no.polaric.aprsdb;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.*;
+import java.util.function.*;
 import  java.util.concurrent.locks.*; 
 import  org.apache.commons.dbcp.*; 
 import  no.polaric.aprsd.Logfile;
@@ -55,6 +56,12 @@ public class DBSession
            trans = t;
         }
      }
+     
+          
+     public interface Transaction {
+         Object accept(DBSession t) throws SQLException;
+     }
+     
      
      
      /**
@@ -184,5 +191,24 @@ public class DBSession
          finally { 
          }   
      }
+     
+
+
+     public synchronized Object simpleTrans(String name, Transaction f)
+     {
+         try {
+             Object ret = f.accept(this);
+             commit();
+             return ret;
+         }
+         catch (Exception e) {
+            _log.warn("DbSession", "Aborted transaction, "+name+": "+e);  
+            abort(); 
+            return null;
+         }   
+         finally { close(); } 
+     }
+     
+     
 }
 

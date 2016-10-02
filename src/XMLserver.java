@@ -149,9 +149,13 @@ public class XMLserver extends ServerBase
         final LatLng lright = new LatLng((double) x2, (double) x3);
 
         long scale = 0;
+        String color = "1100ee";
+        
         if (parms.get("scale") != null)
            scale = Long.parseLong(parms.get("scale"));
-        
+        if (parms.get("color") != null)
+           color = parms.get("color");
+           
         boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);
         long client = getSession(req);        
                    
@@ -160,11 +164,11 @@ public class XMLserver extends ServerBase
         MyDBSession db = _dbp.getDB();
         try {    
           String src = parms.get("station");   
-          java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
+          java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd");
 
           Date dfrom = df.parse(parms.get("tfrom"));
           Date dto = null; 
-          if (parms.get("tto").equals("-/-"))
+          if (parms.get("tto").equals("-"))
              dto = new Date(); 
           else
              dto = df.parse(parms.get("tto"));
@@ -189,7 +193,7 @@ public class XMLserver extends ServerBase
                  out.println("   </label>");  
                  h.reset();    
                            
-                 printPointCloud(out, "1100ee", new Seq.Wrapper<TPoint>(h, tp -> tp.isInside(uleft, lright, 0.7, 0.7)));
+                 printPointCloud(out, color, new Seq.Wrapper<TPoint>(h, tp -> tp.isInside(uleft, lright, 0.7, 0.7)));
                  out.println("</point>");   
               }
               else

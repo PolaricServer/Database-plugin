@@ -14,6 +14,7 @@
  */
 
 package no.polaric.aprsdb;
+import  no.polaric.aprsd.*;
 import  java.text.*;
 import  java.sql.*;
 import  javax.sql.*;
@@ -191,7 +192,7 @@ public class MyDBSession extends DBSession
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name, s.icon AS sicon, cl.icon AS cicon " +
              " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id" +
-             " WHERE maxscale>=? AND position && ST_MakeEnvelope(?, ?, ?, ?, 4326) "+
+             " WHERE maxscale>=? AND position && ST_MakeEnvelope(?, ?, ?, ?, 4326) AND NOT s.hidden"+
              " LIMIT 200",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
          stmt.setLong(1, scale);
@@ -502,8 +503,8 @@ public class MyDBSession extends DBSession
             throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-              ( "INSERT INTO \"Mission\" (src, alias, icon, start, end, descr)" + 
-                "VALUES (?, ?, ?, ?, ?)" );
+              ( " INSERT INTO \"Mission\" (src, alias, icon, start, end, descr)" + 
+                " VALUES (?, ?, ?, ?, ?)" );
          stmt.setString(1, src);
          stmt.setString(2, alias);
          stmt.setString(3, icon);
@@ -516,7 +517,94 @@ public class MyDBSession extends DBSession
          stmt.executeUpdate();
     }
      
-     
-     
+ 
+    /**
+     * Add managed tracker to the database.
+     */
+    public synchronized void addTracker(String id, String user, String alias, String icon)  
+            throws java.sql.SQLException
+    {
+         _log.debug("MyDbSession", "addTracker: "+id+", user="+user);
+         PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"Tracker\" (id, alias, icon)" + 
+                " VALUES (?, ?, ?);" + 
+                " INSERT INTO \"User_Tracker\" (trackerid, userid) "+
+                " VALUES (?, ?) " );
+         stmt.setString(1, id);
+         stmt.setString(2, alias);
+         stmt.setString(3, icon);
+         stmt.setString(4, id);
+         stmt.setString(5, user);
+         stmt.executeUpdate();
+    }
+    
+    
+    public synchronized void updateTracker(String id, String alias, String icon)
+            throws java.sql.SQLException
+    {
+        _log.debug("MyDbSession", "updateTracker: "+id);
+        PreparedStatement stmt = getCon().prepareStatement
+            ( "UPDATE \"Tracker\" SET alias=?, icon=?"+
+              "WHERE id=?" );
+        stmt.setString(1, alias);
+        stmt.setString(2, icon);
+        stmt.setString(3, id);
+        stmt.executeUpdate();
+    }  
+    
+    
+    
+    public synchronized void deleteTracker(String id, String user)
+            throws java.sql.SQLException
+    {
+        _log.debug("MyDbSession", "deleteTracker: "+id+", user="+user);
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " DELETE FROM \"Tracker\" "+
+              " WHERE id=?; " +
+              " DELETE FROM \"User_Tracker\" " +
+              " WHERE userid=? AND trackerid=? ");
+        stmt.setString(1, id);
+        stmt.setString(2, user);
+        stmt.setString(3, id);
+        stmt.executeUpdate();
+    }
+         
+    
+    
+    public synchronized Tracker getTracker(String id)
+        throws java.sql.SQLException
+    {        
+         _log.debug("MyDbSession", "getTracker: "+id);
+         PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT * from \"Tracker\" "  +
+              " WHERE id=?", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+         stmt.setString(1, id);
+         ResultSet rs = stmt.executeQuery();
+         if (rs.next()) 
+            return new Tracker(_api.getDB(), rs.getString("id"), rs.getString("alias"), rs.getString("icon"));  
+         return null;
+    }
+    
+    
+
+    public synchronized DbList<Tracker> getTrackers(String user)
+        throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT id, alias, icon FROM \"Tracker\" t, \"User_Tracker\" u" +
+              " WHERE u.userid=? AND t.id = u.trackerid ORDER BY id ASC", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+         stmt.setString(1, user);
+         ResultSet rs = stmt.executeQuery();
+         DbList<Tracker> list = new DbList(rs, new DbList.Factory() 
+         {
+              public Tracker getElement(ResultSet rs) throws SQLException { 
+                 return new Tracker(_api.getDB(), rs.getString("id"), rs.getString("alias"), rs.getString("icon"));  
+              }
+         });
+         return list;   
+    }
+    
 }
 

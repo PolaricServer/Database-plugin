@@ -35,6 +35,7 @@ public class Sign extends Signs.Item
       }
   }
   private int cls; 
+  private String group;
   
   public int getCategory() 
     { return cls; }

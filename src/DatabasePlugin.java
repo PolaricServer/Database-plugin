@@ -3,6 +3,7 @@ package no.polaric.aprsdb;
 import no.polaric.aprsd.*;
 import no.polaric.aprsd.http.*;
 import java.util.*;
+import java.util.function.*;
 import org.apache.commons.dbcp.*; 
 import uk.me.jstott.jcoord.*;
 import java.sql.*;
@@ -307,42 +308,62 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
     }
      
 
+    
+    
+    /**
+     * Save item info to database. 
+     * @param tp Item to update
+     */
+    public void saveItem(TrackerPoint tp) 
+    {
+        getDB().simpleTrans("saveItem", x -> {
+            MyDBSession ses = (MyDBSession) x;
+            Tracker t = ses.getTracker(tp.getIdent()); 
+            String icon = (tp.iconOverride() ? tp.getIcon() : null);
+            if (t==null)
+               ses.addTracker(tp.getIdent(), tp.getUser(), tp.getAlias(), icon);
+            else
+               ses.updateTracker(tp.getIdent(), tp.getAlias(),icon);
+            return null; 
+        });
+    } 
      
+     
+    /**
+     * Update item from database. 
+     * @param tp Item to update
+     */
+    public void updateItem(TrackerPoint tp) 
+    {
+         getDB().simpleTrans("updateItem", x -> {
+            Tracker t = ((MyDBSession)x).getTracker(tp.getIdent());
+            if (t != null){ 
+               if (t.alias != null) 
+                  tp.setAlias(t.alias);
+               if (t.icon != null) 
+                  tp.setIcon(t.icon);
+            }
+            return null;
+         });
+    }
+        
+        
+        
    /**
      * Get an APRS item at a given point in time.
      */    
     public synchronized AprsPoint getItem(String src, java.util.Date at)
     {
-       MyDBSession db = getDB();
-       try {
-             AprsPoint x = db.getItem(src, at);
-             db.commit();
-             return x; 
-       }
-       catch (Exception e) {
-           _log.warn(null, "getItem: "+e);  
-           db.abort(); 
-           return null;
-       }   
-       finally { db.close(); } 
+       return (AprsPoint) getDB().simpleTrans("getItem", x->
+          { return ((MyDBSession)x).getItem(src, at); });
     } 
      
      
      
     public synchronized Trail.Item getTrailPoint(String src, java.util.Date at)
     {
-       MyDBSession db = getDB();
-       try {
-           Trail.Item x = db.getTrailPoint(src, at);
-           db.commit();
-           return x; 
-       }
-       catch (Exception e) {
-           _log.warn(null, "getTrailPoint: "+e);  
-           db.abort(); 
-           return null;
-       }   
-       finally { db.close(); } 
+       return (Trail.Item) getDB().simpleTrans("getTrailPoint", x->
+          { return ((MyDBSession)x).getTrailPoint(src, at); });
     }
     
     

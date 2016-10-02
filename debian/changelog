@@ -1,3 +1,9 @@
+polaric-db-plugin (1.9.0+) UNRELEASED; urgency=medium
+
+  * Hacking 
+
+ -- Øyvind Hanssen <ohanssen@acm.org>  Sun, 31 Jan 2016 21:40:26 +0100
+
 polaric-db-plugin (1.8.0) unstable; urgency=low
 
   * Release (not in public repository yet) along with PS 1.8 

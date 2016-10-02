@@ -16,6 +16,9 @@ package no.polaric.aprsdb;
 import  java.sql.*;
 import java.util.*;
 import java.lang.reflect.*;  
+import java.util.function.*;
+
+
 
 /* Denne er eksperimentell - just testing */
 
@@ -40,16 +43,24 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
         _fieldname = fn;
         _fact = f; 
          try { reset(); } 
-         catch (Exception e) {} 
+         catch (Exception ex) {
+            System.out.println("DbList._init: "+ex);
+         } 
     }
     
 
     public DbList (ResultSet rs, Factory<T> f)
        { _init(rs, null, f); }
        
+       
     public DbList (ResultSet rs, String fn)
        { _init(rs, fn, null); } 
 
+       
+    public boolean isEmpty() 
+       {return _empty; }
+    
+       
     public void reset() throws SQLException
     {
         _empty = !_rs.first(); 
@@ -66,6 +77,7 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
         return this; 
     }
  
+          
           
     /*
      * Interface Iterator<T>
@@ -94,7 +106,7 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
        catch (SQLException ex) 
           { System.out.println("DbList.next: "+ex); return null; }  
     }
-    
+
     
     public void remove() 
        { }  

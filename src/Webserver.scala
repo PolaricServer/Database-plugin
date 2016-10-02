@@ -24,8 +24,8 @@ package no.polaric.aprsdb
      
      
    val _dbp = api.properties().get("aprsdb.plugin").asInstanceOf[DatabasePlugin];
-   val dateformat = "[0-9]{4}\\-[01][0-9]\\-[0-3][0-9]\\/[0-2][0-9]:[0-5][0-9]"
-     
+   val dateformat = "(\\-\\/\\-)|([0-9]{4}\\-[01][0-9]\\-[0-3][0-9]\\/[0-2][0-9]:[0-5][0-9])"
+   val sdf = new java.text.SimpleDateFormat("HH:mm")  
      
    /**
     * Webservice to export a set of tracks in GPX format. 
@@ -78,10 +78,12 @@ package no.polaric.aprsdb
            val src = req.getParameter("station"+i)
            val dfrom = req.getParameter("tfrom"+i)
            val dto = req.getParameter("tto"+i)
+           _dbp.log().debug("Db.Webserver", "GPX: dto = '"+dto+"'")
+           
            if (dfrom.matches(dateformat) && dto.matches(dateformat))
                tracks(i) = (  src, 
                           if (dfrom == null) null else df.parse(dfrom),
-                          if (dto == null || dto.equals("-/-"))
+                          if (dto == null || dto.equals("-/-") || dto.equals("-"))
                              new Date(); 
                           else
                              df.parse(dto) 
@@ -103,7 +105,7 @@ package no.polaric.aprsdb
                 <time>{xdf.format(new Date()) }</time>
              </metadata>
              {
-                _dbp.log().debug("Webserver", "GPX file export")
+                _dbp.log().debug("Db.Webserver", "GPX file export")
                 for (i <- 0 to ntracks-1) yield 
                     if (tracks(i) != null)
                        do_trail(tracks(i)._1, tracks(i)._2, tracks(i)._3)
@@ -174,7 +176,7 @@ package no.polaric.aprsdb
               val db = _dbp.getDB(true)
               try {
                   db.deleteSign(Integer.parseInt(id)) 
-                  _dbp.log().info("Webserver", "Delete sign: '"+id+"' by user '"+getAuthUser(req)+"'")
+                  _dbp.log().info("Db.Webserver", "Delete sign: '"+id+"' by user '"+getAuthUser(req)+"'")
                   <h3>Objekt slettet!</h3>
               }
               catch { case e: java.sql.SQLException => 
@@ -310,7 +312,48 @@ package no.polaric.aprsdb
 
      
      
-     
+    def handle_listTrackers(req : Request, res : Response) =
+    {
+        val db = _dbp.getDB(true) 
+        val user = getAuthUser(req)
+        val result: NodeSeq = 
+        try {
+           val list = db.getTrackers(user)   
+           <h2>Mine trackere</h2>
+           <table>
+           <tr><th>Kallesignal</th><th>Alias</th><th>Ikon</th><th>Aktiv</th><th>Sist hørt</th><th>Beskr.</th></tr>
+           {  
+             if (!list.isEmpty)
+              for (it <- list.iterator; if it != null) yield {
+                 val alias = if (it.isActive()) it.getStation().getAlias()
+                             else it.alias
+                 <tr>
+                     <td>{ if (it.isActive()) 
+                             <a href={"station_sec?edit=true&id="+it.id}>{it.id}</a> 
+                           else it.id } 
+                     </td>
+                     <td>{it.getAlias()}</td>
+                     <td>{showIcon(req, it.getIcon(), "16")}</td>
+                     <td>{if (it.isActive()) showIcon(req, "signs/ok.png", "16") else EMPTY}</td>
+                     <td>{if (it.isActive()) sdf.format(it.getStation().getLastChanged())}</td> 
+                     <td>{if (it.isActive()) it.getStation().getDescr()}</td>
+                 </tr>      
+              }
+           }
+           </table>
+        }
+        catch { case e: java.sql.SQLException => 
+           <h1>SQL Feil</h1>
+           <p>{e}</p>
+        }
+        finally { db.close() }
+       
+        printHtml(res, htmlBody(req, null, result))
+    } 
+    
+    
+    
+    
      
   }
 

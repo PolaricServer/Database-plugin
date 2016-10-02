@@ -169,6 +169,15 @@ public class DbInstaller
                 /* Assume that you cannot be assigned to more than one mission at a given time */
                 
                 
+            createClass("Tracker", null, 
+                               "id      varchar(20) not null PRIMARY KEY, " +
+                               "alias   varchar(30), " +
+                               "icon    varchar " );
+                               
+            createClass("User_Tracker", null,
+                               "userid    varchar(20) not null, " + 
+                               "trackerid varchar(20) not null ");
+            
             
             createClass("SignClass", null, 
                                "id          SERIAL PRIMARY KEY, "+
