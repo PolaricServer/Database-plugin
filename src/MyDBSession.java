@@ -526,15 +526,12 @@ public class MyDBSession extends DBSession
     {
          _log.debug("MyDbSession", "addTracker: "+id+", user="+user);
          PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"Tracker\" (id, alias, icon)" + 
-                " VALUES (?, ?, ?);" + 
-                " INSERT INTO \"User_Tracker\" (trackerid, userid) "+
-                " VALUES (?, ?) " );
+              ( " INSERT INTO \"Tracker\" (id, userid, alias, icon)" + 
+                " VALUES (?, ?, ?, ?)" );
          stmt.setString(1, id);
-         stmt.setString(2, alias);
-         stmt.setString(3, icon);
-         stmt.setString(4, id);
-         stmt.setString(5, user);
+         stmt.setString(2, user);
+         stmt.setString(3, alias);
+         stmt.setString(4, icon);
          stmt.executeUpdate();
     }
     
@@ -554,18 +551,14 @@ public class MyDBSession extends DBSession
     
     
     
-    public synchronized void deleteTracker(String id, String user)
+    public synchronized void deleteTracker(String id)
             throws java.sql.SQLException
     {
-        _log.debug("MyDbSession", "deleteTracker: "+id+", user="+user);
+        _log.debug("MyDbSession", "deleteTracker: "+id);
         PreparedStatement stmt = getCon().prepareStatement
             ( " DELETE FROM \"Tracker\" "+
-              " WHERE id=?; " +
-              " DELETE FROM \"User_Tracker\" " +
-              " WHERE userid=? AND trackerid=? ");
+              " WHERE id=?; ");
         stmt.setString(1, id);
-        stmt.setString(2, user);
-        stmt.setString(3, id);
         stmt.executeUpdate();
     }
          
@@ -574,7 +567,6 @@ public class MyDBSession extends DBSession
     public synchronized Tracker getTracker(String id)
         throws java.sql.SQLException
     {        
-         _log.debug("MyDbSession", "getTracker: "+id);
          PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT * from \"Tracker\" "  +
               " WHERE id=?", 
@@ -582,7 +574,7 @@ public class MyDBSession extends DBSession
          stmt.setString(1, id);
          ResultSet rs = stmt.executeQuery();
          if (rs.next()) 
-            return new Tracker(_api.getDB(), rs.getString("id"), rs.getString("alias"), rs.getString("icon"));  
+            return new Tracker(_api.getDB(), rs.getString("id"), rs.getString("userid"), rs.getString("alias"), rs.getString("icon"));  
          return null;
     }
     
@@ -592,15 +584,15 @@ public class MyDBSession extends DBSession
         throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT id, alias, icon FROM \"Tracker\" t, \"User_Tracker\" u" +
-              " WHERE u.userid=? AND t.id = u.trackerid ORDER BY id ASC", 
+            ( " SELECT id, alias, icon FROM \"Tracker\"" +
+              " WHERE userid=? ORDER BY id ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, user);
          ResultSet rs = stmt.executeQuery();
          DbList<Tracker> list = new DbList(rs, new DbList.Factory() 
          {
               public Tracker getElement(ResultSet rs) throws SQLException { 
-                 return new Tracker(_api.getDB(), rs.getString("id"), rs.getString("alias"), rs.getString("icon"));  
+                 return new Tracker(_api.getDB(), rs.getString("id"), user, rs.getString("alias"), rs.getString("icon"));  
               }
          });
          return list;   

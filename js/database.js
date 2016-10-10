@@ -30,12 +30,14 @@ ctxtMenu.addCallback("SIGN", function (m)
 ctxtMenu.addCallback("ITEM", function (m)
    {
       var p = myOverlay.getPointObject(m.ident);
+      
       if (p.flags == null || !p.flags.match("a"))
          return;
       m.add(null);
  
       m.add("Historikk...", function() 
          { setTimeout('searchHistData("'+m.ident+'");', 100); });  
+      
       if (p != null && p.flags != null && p.flags.match("i")) {
         
           m.add("Hørte punkter via...", function() 
@@ -43,6 +45,10 @@ ctxtMenu.addCallback("ITEM", function (m)
       }
       m.add("APRS pakker", function()
          { rawAprsPackets(m.ident); });
+      
+     if (isAdmin() || canUpdate())
+       m.add("Legg til i 'mine trackere'", function()
+          { listTrackers(m.ident); });
    });
 
 
@@ -57,7 +63,7 @@ ctxtMenu.addCallback("MAIN", function (m)
          m.add("Nytt enkelt objekt", function()
            { editSign(null, null); });
          m.add("Mine trackere..", function()
-           { listTrackers(); });
+           { listTrackers(null); });
       }
       m.add("Historikk...", function() 
         { setTimeout('searchHistData(null);', 100); });
@@ -112,6 +118,9 @@ function deleteSign(ident)
 }
 
 function listTrackers(ident)
-{
-  fullPopupWindow('Mine_trackere', server_url + 'srv/listTrackers',  300, 200);
+{   
+    var param = "";
+    if (ident != null)
+        param = "?addTracker="+ident; 
+    fullPopupWindow('Mine_trackere', server_url + 'srv/listTrackers'+param,  810, 600);
 }

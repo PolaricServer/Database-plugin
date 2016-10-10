@@ -7,6 +7,8 @@ import scala.collection.JavaConversions._
 import no.polaric.aprsd._
 import no.polaric.aprsd.http.ServerUtils
 import no.polaric.aprsd.http.ServerBase
+import no.polaric.aprsd.http.PointView
+import no.polaric.aprsd.http.TrackerPointView
 import org.simpleframework.http.core.Container
 import org.simpleframework.transport.connect.Connection
 import org.simpleframework.transport.connect.SocketConnection
@@ -145,7 +147,7 @@ package no.polaric.aprsdb
           </table>
        }
        catch { case e: java.sql.SQLException => 
-          <h1>SQL Feil</h1>
+          <h3>Det oppsto en feil</h3>
           <p>{e}</p>
        }
        finally { db.close() }
@@ -180,7 +182,7 @@ package no.polaric.aprsdb
                   <h3>Objekt slettet!</h3>
               }
               catch { case e: java.sql.SQLException => 
-                  <h2>SQL Feil</h2>
+                  <h3>Kunne ikke slette</h3>
                   <p>{e}</p>
               }
               finally { db.close() }
@@ -314,46 +316,158 @@ package no.polaric.aprsdb
      
     def handle_listTrackers(req : Request, res : Response) =
     {
-        val db = _dbp.getDB(true) 
+        val prefix = <h2>Mine trackere</h2>
+        val db = _dbp.getDB(true)     
         val user = getAuthUser(req)
-        val result: NodeSeq = 
-        try {
+        val addTracker = req.getParameter("addTracker")
+                  
+        def fields(req : Request): NodeSeq = 
+        {
+           val user = getAuthUser(req)
            val list = db.getTrackers(user)   
-           <h2>Mine trackere</h2>
            <table>
-           <tr><th>Kallesignal</th><th>Alias</th><th>Ikon</th><th>Aktiv</th><th>Sist hørt</th><th>Beskr.</th></tr>
+           <tr><th></th><th>Ident</th><th>Alias</th><th>Ikon</th><th>Aktiv</th><th>Sist hørt</th><th>Beskr.</th></tr>
            {  
-             if (!list.isEmpty)
-              for (it <- list.iterator; if it != null) yield {
-                 val alias = if (it.isActive()) it.getStation().getAlias()
-                             else it.alias
-                 <tr>
-                     <td>{ if (it.isActive()) 
-                             <a href={"station_sec?edit=true&id="+it.id}>{it.id}</a> 
-                           else it.id } 
-                     </td>
-                     <td>{it.getAlias()}</td>
-                     <td>{showIcon(req, it.getIcon(), "16")}</td>
-                     <td>{if (it.isActive()) showIcon(req, "signs/ok.png", "16") else EMPTY}</td>
-                     <td>{if (it.isActive()) sdf.format(it.getStation().getLastChanged())}</td> 
-                     <td>{if (it.isActive()) it.getStation().getDescr()}</td>
-                 </tr>      
-              }
+              if (!list.isEmpty)
+                 for (it <- list.iterator; if it != null) yield {
+                    val alias = if (it.isActive()) it.getStation().getAlias()
+                                else it.alias
+                    <tr>
+                        <td><a href={"removeTracker?id="+it.id}>
+                                <img title="remove" src="../images/edit-delete.png" height="14" id={"rmtracker_"+it.id} />
+                            </a>&nbsp; 
+                            <a href={"editTracker?edit=true&id="+it.id}>
+                                <img title="edit" src="../images/edit.png" height="14" id={"editItem_"+it.id} />
+                            </a>
+                        </td>
+                        <td>{ if (it.isActive()) 
+                               <a href={"javascript:polaric.findItem('"+it.id+"', false);"}>{it.id}</a> 
+                              else it.id } 
+                        </td>
+                        <td>{it.getAlias()}</td>
+                        <td>{showIcon(req, it.getIcon(), "18")}</td>
+                        <td>{if (it.isActive()) showIcon(req, "signs/ok.png", "18") else EMPTY}</td>
+                        <td>{if (it.isActive()) sdf.format(it.getStation().getLastChanged())}</td> 
+                        <td>{if (it.isActive()) it.getStation().getDescr()}</td>
+                    </tr>
+                 }
            }
-           </table>
+           </table> 
+           <script type="text/javascript">{"init_polaric('_PARENT_', '*);"}</script>
+           <script type="text/javascript" src="../Aprs/iframeApi.js"></script>
         }
-        catch { case e: java.sql.SQLException => 
-           <h1>SQL Feil</h1>
-           <p>{e}</p>
+               
+               
+        def action(req : Request): NodeSeq =
+        {        
+           val ident = req.getParameter("addTracker")
+           try {
+              db.addTracker(ident, user, null, null)
+              _dbp.log().info("Db.Webserver", "Add tracker: '"+ident+"' by user '"+getAuthUser(req)+"'")
+              <h3>Tracker '{ident}' lagt til</h3>
+           }
+           catch { case e: java.sql.SQLException => 
+              _dbp.log().warn("Db.Webserver", "listTrackers: '"+e)
+              <h3>Kunne ikke oppdatere</h3>
+              <p>{e}</p>
+           }
         }
-        finally { db.close() }
        
-        printHtml(res, htmlBody(req, null, result))
+       
+       
+        def _submit(req: Request): NodeSeq = {
+           { textInput("addTracker", 10, 30, addTracker) } ++
+           <button type="submit" 
+                   name="update" id="update">Add tracker</button>
+           <button onclick="window.close(); return false" 
+                   id="cancel"> Close </button>        
+       }
+       
+       
+       
+       try {
+          printHtml (res, htmlBody ( req, null, 
+              htmlForm(req, prefix, IF_AUTH(fields), IF_AUTH(action),
+                  false, -1, _submit)))
+       }
+       catch { case e: java.sql.SQLException => 
+          _dbp.log().warn("Db.Webserver", "listTrackers: '"+e)
+          val msg = 
+            <h2>Det oppsto en feil</h2>
+            <p>{e}</p>
+            ;
+          printHtml(res, htmlBody(req, null, msg))
+       }
+       finally { db.close() }
     } 
     
     
     
     
+    def handle_removeTracker(req:Request, res : Response) = {
+        val id = req.getParameter("id")
+        val user = getAuthUser(req)
+        val db = _dbp.getDB(true)
+        
+        val result: NodeSeq = try {
+           db.deleteTracker(id) 
+           _dbp.log().info("Db.Webserver", "Delete tracker: '"+id+"' by user '"+getAuthUser(req)+"'")
+            <script source="javascript">setTimeout('window.history.go(-1)', 1000);</script>
+           <h3>Tracker fjernet fra lista</h3>
+        }
+        catch { case e: java.sql.SQLException => 
+           <h3>Det oppsto en feil</h3>
+           <p>{e}</p>
+        }
+        finally { db.close() }
+        
+        printHtml(res, htmlBody(req, null, result))
+    }
+    
+    
+    
+          
+
+      
+      
+      
+   def handle_editTracker(req : Request, res : Response) =
+   {
+       val id = req.getParameter("id")
+       var x:TrackerPoint = _api.getDB().getItem(id, null)
+       var view:PointView = null
+       if (x==null) {
+          x = new Station(id)       
+          try { 
+             val t = _dbp.getDB(true).getTracker(id)
+             x.setAlias(t.alias);
+             x.setIcon(t.icon);
+          }
+          catch { case e: java.sql.SQLException => EMPTY }
+          
+          view = new TrackerView(api, x, true, req)
+       }
+       else
+          view = PointView.getViewFor(x, api, true, req)
+       
+       
+       def tracker_submit(req: Request): NodeSeq = {
+           <button onclick="window.history.back(); return false" 
+                   id="cancel"> Back </button>
+           <button type="submit" 
+                   name="update" id="update"> Update </button>
+       }
+       
+       
+       printHtml (res, htmlBody ( req, null, 
+              htmlForm(req, null, view.fields, IF_AUTH((req: Request) => 
+                      { view.action(req);
+                        _dbp.saveItem(x);
+                        _dbp.log().info("Db.Webserver", "Edit tracker: '"+id+"' by user '"+getAuthUser(req)+"'")
+                        <h3>Updated</h3> } ),
+                  false, tracker_submit)))
+   }
+   
      
   }
 

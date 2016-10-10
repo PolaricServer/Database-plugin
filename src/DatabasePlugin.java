@@ -338,6 +338,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
          getDB().simpleTrans("updateItem", x -> {
             Tracker t = ((MyDBSession)x).getTracker(tp.getIdent());
             if (t != null){ 
+               tp.setPersistent(true, t.user, false); 
                if (t.alias != null) 
                   tp.setAlias(t.alias);
                if (t.icon != null) 

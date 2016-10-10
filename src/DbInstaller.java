@@ -171,13 +171,10 @@ public class DbInstaller
                 
             createClass("Tracker", null, 
                                "id      varchar(20) not null PRIMARY KEY, " +
+                               "userid  varchar(20), " +
                                "alias   varchar(30), " +
                                "icon    varchar " );
-                               
-            createClass("User_Tracker", null,
-                               "userid    varchar(20) not null, " + 
-                               "trackerid varchar(20) not null ");
-            
+
             
             createClass("SignClass", null, 
                                "id          SERIAL PRIMARY KEY, "+
