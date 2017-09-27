@@ -2,12 +2,6 @@
 package no.polaric.aprsdb;
 import no.polaric.aprsd.*;
 import no.polaric.aprsd.http.*;
-import org.simpleframework.http.core.Container;
-import org.simpleframework.transport.connect.Connection;
-import org.simpleframework.transport.connect.SocketConnection;
-import org.simpleframework.http.Request;
-import org.simpleframework.http.Response;
-import org.simpleframework.http.*;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.io.PrintStream;
@@ -18,6 +12,11 @@ import java.io.*;
 import java.text.*;
 import com.mindprod.base64.Base64;
 import java.util.concurrent.locks.*; 
+import spark.Request;
+import spark.Response;
+import spark.QueryParamsMap;
+
+
 
 
 public class XMLserver extends ServerBase
@@ -35,55 +34,52 @@ public class XMLserver extends ServerBase
 
    private int _seq = 0;
    
-   
-  
-   
-   
-   
+    
    
    
    
    /**
     * Produces XML (Ka-map overlay spec.) for plotting station/symbols/labels on map.   
     */
-   public void handle_htrail(Request req, Response res) 
+   public String handle_htrail(Request req, Response res) 
       throws IOException
    {         
-        PrintWriter out = getWriter(res);
-        res.setValue("Content-Type", "text/xml; charset=utf-8");
-                
-        Query parms = req.getQuery();
+        StringWriter outs = new StringWriter();
+        PrintWriter out = new PrintWriter(outs, false);
 
-        if (parms.get("x1") == null) 
-           return;
+        res.header("Content-Type", "text/xml; charset=utf-8");
+                
+        QueryParamsMap parms = req.queryMap();
+
+        if (parms.value("x1") == null) 
+           return "";
         
-        Double x1 = Double.parseDouble( parms.get("x1") );
-        Double x2 = Double.parseDouble( parms.get("x2") );
-        Double x3 = Double.parseDouble( parms.get("x3") );    
-        Double x4 = Double.parseDouble( parms.get("x4") );
+        Double x1 = Double.parseDouble( parms.value("x1") );
+        Double x2 = Double.parseDouble( parms.value("x2") );
+        Double x3 = Double.parseDouble( parms.value("x3") );    
+        Double x4 = Double.parseDouble( parms.value("x4") );
         final LatLng uleft  = new LatLng((double) x4, (double) x1); 
         final LatLng lright = new LatLng((double) x2, (double) x3);
 
         long scale = 0;
-        if (parms.get("scale") != null)
-           scale = Long.parseLong(parms.get("scale"));
+        if (parms.value("scale") != null)
+           scale = Long.parseLong(parms.value("scale"));
         
         boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);
-        long client = getSession(req);
                     
         out.println("<overlay seq=\"-1\">");
 
         MyDBSession db = _dbp.getDB();
         try {    
-          String src = parms.get("station").toUpperCase();   
+          String src = parms.value("station").toUpperCase();   
           java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
 
-          Date dfrom = df.parse(parms.get("tfrom"));
+          Date dfrom = df.parse(parms.value("tfrom"));
           Date dto = null; 
-          if (parms.get("tto").equals("-/-"))
+          if (parms.value("tto").equals("-/-"))
              dto = new Date(); 
           else
-             dto = df.parse(parms.get("tto"));
+             dto = df.parse(parms.value("tto"));
              
           Station s = (Station) db.getItem(src, dto);
           DbList<TPoint> h = db.getTrail(src, dfrom, dto);
@@ -119,6 +115,7 @@ public class XMLserver extends ServerBase
         
         out.println("</overlay>");
         out.close();
+        return outs.toString();
    }
 
    
@@ -131,47 +128,48 @@ public class XMLserver extends ServerBase
    
    /* FIXME: This has many similarities with handle_htrail  */
   
-   public void handle_hpoints(Request req, Response res) 
+   public String handle_hpoints(Request req, Response res) 
       throws IOException
    {         
-        PrintWriter out = getWriter(res);
-        res.setValue("Content-Type", "text/xml; charset=utf-8");
+        StringWriter outs = new StringWriter();
+        PrintWriter out = new PrintWriter(outs, false);
+        
+        res.header("Content-Type", "text/xml; charset=utf-8");
                 
-        Query parms = req.getQuery();
+        QueryParamsMap parms = req.queryMap();
 
-        if (parms.get("x1") == null) 
-            return;
-        Double x1 = Double.parseDouble( parms.get("x1") );
-        Double x2 = Double.parseDouble( parms.get("x2") );
-        Double x3 = Double.parseDouble( parms.get("x3") );    
-        Double x4 = Double.parseDouble( parms.get("x4") );
+        if (parms.value("x1") == null) 
+            return "";
+        Double x1 = Double.parseDouble( parms.value("x1") );
+        Double x2 = Double.parseDouble( parms.value("x2") );
+        Double x3 = Double.parseDouble( parms.value("x3") );    
+        Double x4 = Double.parseDouble( parms.value("x4") );
         final LatLng uleft  = new LatLng((double) x4, (double) x1); 
         final LatLng lright = new LatLng((double) x2, (double) x3);
 
         long scale = 0;
         String color = "1100ee";
         
-        if (parms.get("scale") != null)
-           scale = Long.parseLong(parms.get("scale"));
-        if (parms.get("color") != null)
-           color = parms.get("color");
+        if (parms.value("scale") != null)
+           scale = Long.parseLong(parms.value("scale"));
+        if (parms.value("color") != null)
+           color = parms.value("color");
            
-        boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);
-        long client = getSession(req);        
+        boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);     
                    
         out.println("<overlay seq=\"-1\">");
 
         MyDBSession db = _dbp.getDB();
         try {    
-          String src = parms.get("station");   
+          String src = parms.value("station");   
           java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd");
 
-          Date dfrom = df.parse(parms.get("tfrom"));
+          Date dfrom = df.parse(parms.value("tfrom"));
           Date dto = null; 
-          if (parms.get("tto").equals("-"))
+          if (parms.value("tto").equals("-"))
              dto = new Date(); 
           else
-             dto = df.parse(parms.get("tto"));
+             dto = df.parse(parms.value("tto"));
              
           Station s = (Station) db.getItem(src, dto);
           if (s != null) {  
@@ -211,6 +209,7 @@ public class XMLserver extends ServerBase
         
         out.println("</overlay>");
         out.close();
+        return outs.toString();
    }     
    
 

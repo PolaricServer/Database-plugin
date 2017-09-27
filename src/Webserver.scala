@@ -9,11 +9,8 @@ import no.polaric.aprsd.http.ServerUtils
 import no.polaric.aprsd.http.ServerBase
 import no.polaric.aprsd.http.PointView
 import no.polaric.aprsd.http.TrackerPointView
-import org.simpleframework.http.core.Container
-import org.simpleframework.transport.connect.Connection
-import org.simpleframework.transport.connect.SocketConnection
-import org.simpleframework.http._
-
+import spark.Request;
+import spark.Response;
 
 
 
@@ -28,6 +25,25 @@ package no.polaric.aprsdb
    val _dbp = api.properties().get("aprsdb.plugin").asInstanceOf[DatabasePlugin];
    val dateformat = "(\\-\\/\\-)|([0-9]{4}\\-[01][0-9]\\-[0-3][0-9]\\/[0-2][0-9]:[0-5][0-9])"
    val sdf = new java.text.SimpleDateFormat("HH:mm")  
+     
+     
+     
+            
+   /* FIXME: See webconfig plugin. ConfigUtils.java */   
+   protected def refreshPage(req: Request, resp: Response, t: Int, url: String) = 
+   {
+      val mid = req.queryParams("mid");
+      val cid = req.queryParams("chan");
+      var lang = req.queryParams("lang");
+      lang = if (lang==null) "en" else lang
+      val uparm = "?lang=" + lang + 
+        { if (mid != null) "&mid="+mid else "" } + 
+        { if (cid != null) "&chan="+cid else "" }
+            
+      resp.header("Refresh", t+";url=\""+url + uparm+"\"")
+   }
+        
+     
      
    /**
     * Webservice to export a set of tracks in GPX format. 
@@ -73,13 +89,13 @@ package no.polaric.aprsdb
          * FIXME: Deal with parse errors (input parameters) !!!!!
          */         
 
-        val ntracks = req.getParameter("ntracks").toInt
+        val ntracks = req.queryParams("ntracks").toInt
         var tracks = new Array [Tuple3[String, Date, Date]] (ntracks)
         
         for (i <- 0 to ntracks-1) { 
-           val src = req.getParameter("station"+i)
-           val dfrom = req.getParameter("tfrom"+i)
-           val dto = req.getParameter("tto"+i)
+           val src = req.queryParams("station"+i)
+           val dfrom = req.queryParams("tfrom"+i)
+           val dto = req.queryParams("tto"+i)
            _dbp.log().debug("Db.Webserver", "GPX: dto = '"+dto+"'")
            
            if (dfrom.matches(dateformat) && dto.matches(dateformat))
@@ -95,8 +111,8 @@ package no.polaric.aprsdb
         }
         
            
-        res.setValue("Content-Type", "text/gpx+xml; charset=utf-8")
-        res.setValue("Content-Disposition", "attachment; filename=\"tracks.gpx\"")
+        res.`type`("text/gpx+xml; charset=utf-8")
+        res.header("Content-Disposition", "attachment; filename=\"tracks.gpx\"")
         
         val gpx = 
            <gpx xmlns="http://www.topografix.com/GPX/1/1" creator="Polaric Server" version="1.1" 
@@ -125,7 +141,7 @@ package no.polaric.aprsdb
    def handle_rawAprsPackets(req : Request, res : Response) =
    {
        val df = new java.text.SimpleDateFormat("HH:mm:ss")
-       val id = req.getParameter("ident")
+       val id = req.queryParams("ident")
        val db = _dbp.getDB(true) 
        val result: NodeSeq = 
        try {
@@ -160,7 +176,7 @@ package no.polaric.aprsdb
      
    def handle_deleteSign(req : Request, res : Response) =
    {
-       val id = req.getParameter("objid")
+       val id = req.queryParams("objid")
        val prefix = <h2>Slett objekt</h2>
              
        def fields(req : Request): NodeSeq =
@@ -200,8 +216,8 @@ package no.polaric.aprsdb
    {
    
         val pos = getCoord(req)
-        val id = req.getParameter("objid")
-        val edit = ( "true".equals(req.getParameter("edit")))
+        val id = req.queryParams("objid")
+        val edit = ( "true".equals(req.queryParams("edit")))
         val prefix = if (edit) <h2>Redigere enkelt objekt</h2>
                      else <h2>Legge inn enkelt objekt</h2>
         
@@ -268,12 +284,12 @@ package no.polaric.aprsdb
         /* Action. To be executed when user hits 'submit' button */
         def action(request : Request): NodeSeq =
            {
-               val tscale = req.getParameter("scale")
+               val tscale = req.queryParams("scale")
                val scale = if (tscale==null) 1000000 else java.lang.Long.parseLong(tscale)
-               val url = req.getParameter("url")
-               val cls = req.getParameter("cls")
-               val descr = req.getParameter("descr")
-               var icon = req.getParameter("iconselect")
+               val url = req.queryParams("url")
+               val cls = req.queryParams("cls")
+               val descr = req.queryParams("descr")
+               var icon = req.queryParams("iconselect")
                
                /* Try to get existing transaction and if not successful
                 * or if not in edit mode, create a new one
@@ -319,17 +335,21 @@ package no.polaric.aprsdb
         val prefix = <h2>Mine trackere</h2>
         val db = _dbp.getDB(true)     
         val user = getAuthUser(req)
-        val addTracker = req.getParameter("addTracker")
+        val addTracker = req.queryParams("addTracker")
+        refreshPage(req, res, 60, "listTrackers")
+        
                   
         def fields(req : Request): NodeSeq = 
         {
            val user = getAuthUser(req)
-           val list = db.getTrackers(user)   
+           val list = db.getTrackers(user)  
+           if (list == null) _dbp.log().warn("Db.Webserver", "listTrackers: LIST IS NULL '")
            <table>
            <tr><th></th><th>Ident</th><th>Alias</th><th>Ikon</th><th>Aktiv</th><th>Sist hørt</th><th>Beskr.</th></tr>
            {  
               if (!list.isEmpty)
                  for (it <- list.iterator; if it != null) yield {
+                    val lastch = if (it.isActive()) it.getStation().getLastChanged() else null
                     val alias = if (it.isActive()) it.getStation().getAlias()
                                 else it.alias
                     <tr>
@@ -340,15 +360,15 @@ package no.polaric.aprsdb
                                 <img title="edit" src="../images/edit.png" height="14" id={"editItem_"+it.id} />
                             </a>
                         </td>
-                        <td>{ if (it.isActive()) 
+                        <td>{ if (it.isActive() && it.getStation().visible()) 
                                <a href={"javascript:polaric.findItem('"+it.id+"', false);"}>{it.id}</a> 
                               else it.id } 
                         </td>
                         <td>{it.getAlias()}</td>
                         <td>{showIcon(req, it.getIcon(), "18")}</td>
                         <td>{if (it.isActive()) showIcon(req, "signs/ok.png", "18") else EMPTY}</td>
-                        <td>{if (it.isActive()) sdf.format(it.getStation().getLastChanged())}</td> 
-                        <td>{if (it.isActive()) it.getStation().getDescr()}</td>
+                        <td>{if (it.isActive() && lastch != null) sdf.format(lastch) else EMPTY}</td> 
+                        <td>{if (it.isActive()) it.getStation().getDescr() else EMPTY}</td>
                     </tr>
                  }
            }
@@ -360,7 +380,7 @@ package no.polaric.aprsdb
                
         def action(req : Request): NodeSeq =
         {        
-           val ident = req.getParameter("addTracker")
+           val ident = req.queryParams("addTracker")
            try {
               db.addTracker(ident, user, null, null)
               _dbp.log().info("Db.Webserver", "Add tracker: '"+ident+"' by user '"+getAuthUser(req)+"'")
@@ -405,7 +425,7 @@ package no.polaric.aprsdb
     
     
     def handle_removeTracker(req:Request, res : Response) = {
-        val id = req.getParameter("id")
+        val id = req.queryParams("id")
         val user = getAuthUser(req)
         val db = _dbp.getDB(true)
         
@@ -433,9 +453,10 @@ package no.polaric.aprsdb
       
    def handle_editTracker(req : Request, res : Response) =
    {
-       val id = req.getParameter("id")
+       val id = req.queryParams("id")
        var x:TrackerPoint = _api.getDB().getItem(id, null)
        var view:PointView = null
+       
        if (x==null) {
           x = new Station(id)       
           try { 

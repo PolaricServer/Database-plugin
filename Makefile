@@ -12,7 +12,7 @@
 ## JAR:   Jar archiver
 ##########################################################################
   CLASSDIR = classes
- CLASSPATH = /usr/share/java/gettext-commons.jar:polaric-aprsd.jar:jcoord.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis.jar:simple.jar
+ CLASSPATH = /usr/share/java/gettext-commons.jar:polaric-aprsd.jar:jcoord-polaric.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis-jdbc.jar:spark-core.jar
 INSTALLDIR = /etc/polaric-aprsd/plugins
      JAVAC = javac -source 1.8 -target 1.8
        JAR = jar

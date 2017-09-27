@@ -20,7 +20,7 @@ import  no.polaric.aprsd.*;
 
 public class Tracker
 {
-  public String id, alias, icon;
+  public String id, user, alias, icon;
   private TrackerPoint st; 
   
   public boolean isActive() 
@@ -35,8 +35,8 @@ public class Tracker
   public String getIcon() 
      { return (isActive() ? st.getIcon() : icon); }
      
-  public Tracker (StationDB db, String i, String a, String ic) {
-     id=i; alias=a; icon=ic;
+  public Tracker (StationDB db, String i, String u, String a, String ic) {
+     id=i; user=u; alias=a; icon=ic;
      st = db.getItem(id, null, false);
   }
   

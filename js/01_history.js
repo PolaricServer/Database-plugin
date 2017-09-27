@@ -28,7 +28,7 @@
      t.hist = JSON.parse(storage['polaric.db.hist']);
    
    if (ses_storage['polaric.db.hist.call'] != null)
-     t.fromdate = ses_storage['polaric.db.hist.call'];
+     t.call = ses_storage['polaric.db.hist.call'];
    
    if (ses_storage['polaric.db.hist.from'] != null)
      t.fromdate = JSON.parse(ses_storage['polaric.db.hist.from']);

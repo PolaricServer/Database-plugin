@@ -226,7 +226,9 @@ public class MyDBSession extends DBSession
         throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT * from \"SignClass\" ORDER BY name ASC ");
+            ( " SELECT * from \"SignClass\" ORDER BY name ASC ", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+         
          ResultSet rs = stmt.executeQuery();
          DbList<Sign.Category> list = new DbList(rs, new DbList.Factory() 
          {

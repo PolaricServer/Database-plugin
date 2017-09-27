@@ -31,9 +31,16 @@ Opprett en database <dbname> og installer postgis:
   createlang plpgsql -d <databasename>
 
   # Finally, load the functions and reference system tables
+  # Update: postgresql/9.4 og postgis-x.x
+  #
   psql <databasename> -f /usr/share/postgresql/9.1/contrib/postgis-1.5/postgis.sql
   psql <databasename> -f /usr/share/postgresql/9.1/contrib/postgis-1.5/spatial_ref_sys.sql
-  
+    
+    # IN POSTGRESQL 9.6++
+    ---------------------
+    CREATE EXTENSION postgis;
+    CREATE EXTENSION postgis_topology;
+    
 
   # login in new database (still as superuser postgres)
   psql <databasename>
