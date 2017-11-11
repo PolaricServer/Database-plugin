@@ -26,23 +26,7 @@ package no.polaric.aprsdb
    val dateformat = "(\\-\\/\\-)|([0-9]{4}\\-[01][0-9]\\-[0-3][0-9]\\/[0-2][0-9]:[0-5][0-9])"
    val sdf = new java.text.SimpleDateFormat("HH:mm")  
      
-     
-     
-            
-   /* FIXME: See webconfig plugin. ConfigUtils.java */   
-   protected def refreshPage(req: Request, resp: Response, t: Int, url: String) = 
-   {
-      val mid = req.queryParams("mid");
-      val cid = req.queryParams("chan");
-      var lang = req.queryParams("lang");
-      lang = if (lang==null) "en" else lang
-      val uparm = "?lang=" + lang + 
-        { if (mid != null) "&mid="+mid else "" } + 
-        { if (cid != null) "&chan="+cid else "" }
-            
-      resp.header("Refresh", t+";url=\""+url + uparm+"\"")
-   }
-        
+       
      
      
    /**
@@ -194,7 +178,7 @@ package no.polaric.aprsdb
               val db = _dbp.getDB(true)
               try {
                   db.deleteSign(Integer.parseInt(id)) 
-                  _dbp.log().info("Db.Webserver", "Delete sign: '"+id+"' by user '"+getAuthUser(req)+"'")
+                  _dbp.log().info("Db.Webserver", "Delete sign: '"+id+"' by user '"+getAuthInfo(req).userid+"'")
                   <h3>Objekt slettet!</h3>
               }
               catch { case e: java.sql.SQLException => 
@@ -328,166 +312,6 @@ package no.polaric.aprsdb
         printHtml (res, htmlBody (req, null, htmlForm(req, prefix, fields, IF_AUTH(action))))
     }
 
-     
-     
-    def handle_listTrackers(req : Request, res : Response) =
-    {
-        val prefix = <h2>Mine trackere</h2>
-        val db = _dbp.getDB(true)     
-        val user = getAuthUser(req)
-        val addTracker = req.queryParams("addTracker")
-        refreshPage(req, res, 60, "listTrackers")
-        
-                  
-        def fields(req : Request): NodeSeq = 
-        {
-           val user = getAuthUser(req)
-           val list = db.getTrackers(user)  
-           if (list == null) _dbp.log().warn("Db.Webserver", "listTrackers: LIST IS NULL '")
-           <table>
-           <tr><th></th><th>Ident</th><th>Alias</th><th>Ikon</th><th>Aktiv</th><th>Sist hørt</th><th>Beskr.</th></tr>
-           {  
-              if (!list.isEmpty)
-                 for (it <- list.iterator; if it != null) yield {
-                    val lastch = if (it.isActive()) it.getStation().getLastChanged() else null
-                    val alias = if (it.isActive()) it.getStation().getAlias()
-                                else it.alias
-                    <tr>
-                        <td><a href={"removeTracker?id="+it.id}>
-                                <img title="remove" src="../images/edit-delete.png" height="14" id={"rmtracker_"+it.id} />
-                            </a>&nbsp; 
-                            <a href={"editTracker?edit=true&id="+it.id}>
-                                <img title="edit" src="../images/edit.png" height="14" id={"editItem_"+it.id} />
-                            </a>
-                        </td>
-                        <td>{ if (it.isActive() && it.getStation().visible()) 
-                               <a href={"javascript:polaric.findItem('"+it.id+"', false);"}>{it.id}</a> 
-                              else it.id } 
-                        </td>
-                        <td>{it.getAlias()}</td>
-                        <td>{showIcon(req, it.getIcon(), "18")}</td>
-                        <td>{if (it.isActive()) showIcon(req, "signs/ok.png", "18") else EMPTY}</td>
-                        <td>{if (it.isActive() && lastch != null) sdf.format(lastch) else EMPTY}</td> 
-                        <td>{if (it.isActive()) it.getStation().getDescr() else EMPTY}</td>
-                    </tr>
-                 }
-           }
-           </table> 
-           <script type="text/javascript">{"init_polaric('_PARENT_', '*);"}</script>
-           <script type="text/javascript" src="../Aprs/iframeApi.js"></script>
-        }
-               
-               
-        def action(req : Request): NodeSeq =
-        {        
-           val ident = req.queryParams("addTracker")
-           try {
-              db.addTracker(ident, user, null, null)
-              _dbp.log().info("Db.Webserver", "Add tracker: '"+ident+"' by user '"+getAuthUser(req)+"'")
-              <h3>Tracker '{ident}' lagt til</h3>
-           }
-           catch { case e: java.sql.SQLException => 
-              _dbp.log().warn("Db.Webserver", "listTrackers: '"+e)
-              <h3>Kunne ikke oppdatere</h3>
-              <p>{e}</p>
-           }
-        }
-       
-       
-       
-        def _submit(req: Request): NodeSeq = {
-           { textInput("addTracker", 10, 30, addTracker) } ++
-           <button type="submit" 
-                   name="update" id="update">Add tracker</button>
-           <button onclick="window.close(); return false" 
-                   id="cancel"> Close </button>        
-       }
-       
-       
-       
-       try {
-          printHtml (res, htmlBody ( req, null, 
-              htmlForm(req, prefix, IF_AUTH(fields), IF_AUTH(action),
-                  false, -1, _submit)))
-       }
-       catch { case e: java.sql.SQLException => 
-          _dbp.log().warn("Db.Webserver", "listTrackers: '"+e)
-          val msg = 
-            <h2>Det oppsto en feil</h2>
-            <p>{e}</p>
-            ;
-          printHtml(res, htmlBody(req, null, msg))
-       }
-       finally { db.close() }
-    } 
-    
-    
-    
-    
-    def handle_removeTracker(req:Request, res : Response) = {
-        val id = req.queryParams("id")
-        val user = getAuthUser(req)
-        val db = _dbp.getDB(true)
-        
-        val result: NodeSeq = try {
-           db.deleteTracker(id) 
-           _dbp.log().info("Db.Webserver", "Delete tracker: '"+id+"' by user '"+getAuthUser(req)+"'")
-            <script source="javascript">setTimeout('window.history.go(-1)', 1000);</script>
-           <h3>Tracker fjernet fra lista</h3>
-        }
-        catch { case e: java.sql.SQLException => 
-           <h3>Det oppsto en feil</h3>
-           <p>{e}</p>
-        }
-        finally { db.close() }
-        
-        printHtml(res, htmlBody(req, null, result))
-    }
-    
-    
-    
-          
-
-      
-      
-      
-   def handle_editTracker(req : Request, res : Response) =
-   {
-       val id = req.queryParams("id")
-       var x:TrackerPoint = _api.getDB().getItem(id, null)
-       var view:PointView = null
-       
-       if (x==null) {
-          x = new Station(id)       
-          try { 
-             val t = _dbp.getDB(true).getTracker(id)
-             x.setAlias(t.alias);
-             x.setIcon(t.icon);
-          }
-          catch { case e: java.sql.SQLException => EMPTY }
-          
-          view = new TrackerView(api, x, true, req)
-       }
-       else
-          view = PointView.getViewFor(x, api, true, req)
-       
-       
-       def tracker_submit(req: Request): NodeSeq = {
-           <button onclick="window.history.back(); return false" 
-                   id="cancel"> Back </button>
-           <button type="submit" 
-                   name="update" id="update"> Update </button>
-       }
-       
-       
-       printHtml (res, htmlBody ( req, null, 
-              htmlForm(req, null, view.fields, IF_AUTH((req: Request) => 
-                      { view.action(req);
-                        _dbp.saveItem(x);
-                        _dbp.log().info("Db.Webserver", "Edit tracker: '"+id+"' by user '"+getAuthUser(req)+"'")
-                        <h3>Updated</h3> } ),
-                  false, tracker_submit)))
-   }
    
      
   }

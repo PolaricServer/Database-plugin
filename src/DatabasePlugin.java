@@ -45,6 +45,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            api.properties().put("aprsdb.plugin", this); 
            api.addHttpHandlerCls("no.polaric.aprsdb.XMLserver", null);
            api.addHttpHandlerCls("no.polaric.aprsdb.Webserver", null);
+           api.addHttpHandlerCls("no.polaric.aprsdb.MyTrackers", null);
            _isOwner = api.getBoolProperty("db.isowner", true);
            _log = new Logfile(api, "database", "database.log");
            

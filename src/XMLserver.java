@@ -65,7 +65,7 @@ public class XMLserver extends ServerBase
         if (parms.value("scale") != null)
            scale = Long.parseLong(parms.value("scale"));
         
-        boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);
+        boolean showSarInfo = (getAuthInfo(req).userid != null || _api.getSar() == null);
                     
         out.println("<overlay seq=\"-1\">");
 
@@ -155,7 +155,7 @@ public class XMLserver extends ServerBase
         if (parms.value("color") != null)
            color = parms.value("color");
            
-        boolean showSarInfo = (getAuthUser(req) != null || _api.getSar() == null);     
+        boolean showSarInfo = (getAuthInfo(req).userid != null || _api.getSar() == null);     
                    
         out.println("<overlay seq=\"-1\">");
 

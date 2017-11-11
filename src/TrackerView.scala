@@ -65,7 +65,7 @@ package no.polaric.aprsdb
                   alias = "NULL"
                 }
              _api.log().info("TrackerPointView", 
-                "ALIAS: '"+alias+"' for '"+model.getIdent()+"' by user '"+getAuthUser(req)+"'")
+                "ALIAS: '"+alias+"' for '"+model.getIdent()+"' by user '"+getAuthInfo(req).userid+"'")
              if (ch && api.getRemoteCtl() != null)
                  api.getRemoteCtl().sendRequestAll("ALIAS "+model.getIdent()+" "+alias, null);
 
