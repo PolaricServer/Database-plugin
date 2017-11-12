@@ -9,7 +9,9 @@ INIFILE=/etc/polaric-aprsd/server.ini
 case "$1" in
 
     configure|reconfigure)
-      rm /etc/polaric-aprsd/plugins/postgis.jar
+      if [ -e "/etc/polaric-aprsd/plugins/postgis.jar" ]; then
+         rm /etc/polaric-aprsd/plugins/postgis.jar
+      fi   
       ln -s /usr/share/java/postgis-jdbc-*.jar /etc/polaric-aprsd/plugins/postgis.jar
     ;;
     
