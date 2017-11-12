@@ -169,7 +169,6 @@ package no.polaric.aprsdb
        
        
        def tracker_submit(req: Request): NodeSeq = {
-           refreshPage(req, res, 2, "listTrackers");
            <button onclick="window.history.back(); return false" 
                    id="cancel"> Back </button>
            <button type="submit" 
@@ -179,11 +178,12 @@ package no.polaric.aprsdb
        
        printHtml (res, htmlBody ( req, null, 
               htmlForm(req, null, view.fields, IF_AUTH((req: Request) => 
-                      { view.action(req);
-                        _dbp.saveItem(x);
-                        _dbp.log().info("Db.Webserver", "Edit tracker: '"+id+"' by user '"+getAuthInfo(req).userid+"'")
-                        <h3>Updated</h3> } ),
-                  false, tracker_submit)))
+                {  refreshPage(req, res, 2, "listTrackers");
+                   view.action(req);
+                   _dbp.saveItem(x);
+                   _dbp.log().info("Db.Webserver", "Edit tracker: '"+id+"' by user '"+getAuthInfo(req).userid+"'")
+                    <h3>Updated</h3> 
+                } ), false, tracker_submit)))
    }
    
      
