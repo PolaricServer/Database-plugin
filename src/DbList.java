@@ -110,6 +110,14 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
     
     public void remove() 
        { }  
+       
+       
+    public List<T> toList() {
+        List<T> list = new ArrayList<T>(); 
+        for (T x : this)
+            list.add(x);
+        return list;
+    }
     
 }
 

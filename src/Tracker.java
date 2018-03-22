@@ -20,25 +20,35 @@ import  no.polaric.aprsd.*;
 
 public class Tracker
 {
-  public String id, user, alias, icon;
-  private TrackerPoint st; 
+    public class Info {
+        public String id, user, alias, icon;
+        public Info(String i, String u, String a, String ic)
+            {id=i; user=u; alias=a; icon=ic; }
+    }
+    
+    
+    public Info info;
+    private TrackerPoint st; 
   
-  public boolean isActive() 
-     { return st != null; }
+    public boolean isActive() 
+        { return st != null; }
      
-  public TrackerPoint getStation() 
-     { return st; }
+    public TrackerPoint getStation() 
+        { return st; }
      
-  public String getAlias()
-     { return (isActive() ? st.getAlias() : alias); }
+    public String getAlias()
+        { return (isActive() ? st.getAlias() : info.alias); }
      
-  public String getIcon() 
-     { return (isActive() ? st.getIcon() : icon); }
+    public String getIcon() 
+        { return (isActive() ? st.getIcon() : info.icon); }
      
-  public Tracker (StationDB db, String i, String u, String a, String ic) {
-     id=i; user=u; alias=a; icon=ic;
-     st = db.getItem(id, null, false);
-  }
+    public Tracker (StationDB db, String i, String u, String a, String ic) {
+        info = new Info(i,u,a,ic);
+        st = db.getItem(info.id, null, false);
+    }
+    
+    public Tracker (StationDB db, Info inf)
+        { info = inf; st = db.getItem(inf.id, null, false); }
   
 }
    

@@ -77,7 +77,7 @@ public class MyDBSession extends DBSession
     /**
      * Get points that were transmitted via a certain digipeater during a certain time span. 
      */
-    public synchronized DbList<TPoint> getPointsVia(String digi, Reference uleft, Reference lright, java.util.Date from, java.util.Date to)
+    public DbList<TPoint> getPointsVia(String digi, Reference uleft, Reference lright, java.util.Date from, java.util.Date to)
        throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
@@ -105,20 +105,14 @@ public class MyDBSession extends DBSession
          stmt.setTimestamp(7, date2ts(from));
          stmt.setTimestamp(8, date2ts(to));
          stmt.setMaxRows(10000);
-         ResultSet rs = stmt.executeQuery();
-         DbList<TPoint> list = new DbList(rs, new DbList.Factory() 
-         {
-                public TPoint getElement(ResultSet rs) throws SQLException 
-                {
-                   return new TPoint(null, getRef(rs, "position"));  
-                }
-            });
-         return list;
+
+         return new DbList(stmt.executeQuery(), rs ->
+            { return new TPoint(null, getRef(rs, "position")); });
     }
 
     
     
-    public synchronized void addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
+    public void addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "addSign: "+descr+", class="+cls);
@@ -135,7 +129,7 @@ public class MyDBSession extends DBSession
     }
     
     
-    public synchronized void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
+    public void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "updateSign: "+id+", "+descr);
@@ -153,7 +147,7 @@ public class MyDBSession extends DBSession
     }  
     
     
-    public synchronized Sign getSign(int id)
+    public Sign getSign(int id)
           throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "getSign: "+id);
@@ -170,7 +164,7 @@ public class MyDBSession extends DBSession
     
     
         
-    public synchronized void deleteSign(int id)
+    public void deleteSign(int id)
           throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "deleteSign: "+id);
@@ -186,7 +180,7 @@ public class MyDBSession extends DBSession
     /**
      * Get list of signs in a specified geographic area and above a specified scale 
      */
-    public synchronized DbList<Signs.Item> getSigns(long scale, Reference uleft, Reference lright)
+    public DbList<Signs.Item> getSigns(long scale, Reference uleft, Reference lright)
        throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
@@ -203,40 +197,30 @@ public class MyDBSession extends DBSession
          stmt.setDouble(4, lr.getLng());
          stmt.setDouble(5, lr.getLat());
          stmt.setMaxRows(200);
-         ResultSet rs = stmt.executeQuery();
-         DbList<Signs.Item> list = new DbList(rs, new DbList.Factory() 
-         {
-                public Signs.Item getElement(ResultSet rs) throws SQLException 
-                { 
-                   String icon = rs.getString("sicon");
-                   if (icon == null)
-                      icon = rs.getString("cicon");
+         
+         return new DbList(stmt.executeQuery(), rs -> 
+            {
+                String icon = rs.getString("sicon");
+                if (icon == null)
+                    icon = rs.getString("cicon");
 
-                  // Item (Reference r, long sc, String ic, String url, String txt)
-                   return new Signs.Item(rs.getInt("sid"), getRef(rs, "position"), 0, icon,
-                           rs.getString("url"), rs.getString("description"));  
-                }
+                // Item (Reference r, long sc, String ic, String url, String txt)
+                return new Signs.Item(rs.getInt("sid"), getRef(rs, "position"), 0, icon,
+                    rs.getString("url"), rs.getString("description"));  
             });
-         return list;
     }
     
     
     
-    public synchronized DbList<Sign.Category> getCategories()
+    public DbList<Sign.Category> getCategories()
         throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT * from \"SignClass\" ORDER BY name ASC ", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          
-         ResultSet rs = stmt.executeQuery();
-         DbList<Sign.Category> list = new DbList(rs, new DbList.Factory() 
-         {
-              public Sign.Category getElement(ResultSet rs) throws SQLException { 
-                 return new Sign.Category(rs.getInt("id"), rs.getString("name"), rs.getString("icon"));  
-              }
-         });
-         return list;   
+        return new DbList(stmt.executeQuery(), rs ->
+            { return new Sign.Category(rs.getInt("id"), rs.getString("name"), rs.getString("icon")); });
     }
     
     
@@ -251,7 +235,7 @@ public class MyDBSession extends DBSession
     /**
      * Get trail for a given station and a given time span. 
      */
-    public synchronized DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to, boolean rev)
+    public DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to, boolean rev)
        throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "getTrail: "+src+ ", "+df.format(from)+" - "+df.format(to));
@@ -264,15 +248,9 @@ public class MyDBSession extends DBSession
          stmt.setTimestamp(2, date2ts(from));
          stmt.setTimestamp(3, date2ts(to));
          stmt.setMaxRows(500);
-         ResultSet rs = stmt.executeQuery();
-         DbList<TPoint> list = new DbList(rs, new DbList.Factory() 
-         {
-                public TPoint getElement(ResultSet rs) throws SQLException 
-                {
-                   return new TPoint(rs.getTimestamp("time"), getRef(rs, "position"));  
-                }
-            });
-         return list;
+         
+        return new DbList(stmt.executeQuery(), rs ->
+            { return new TPoint(rs.getTimestamp("time"), getRef(rs, "position"));  });
     }
     
 
@@ -281,7 +259,7 @@ public class MyDBSession extends DBSession
    /**
      * Get trail poiint for a given station and a given time. 
      */
-    public synchronized Trail.Item getTrailPoint(String src, java.util.Date t)
+    public Trail.Item getTrailPoint(String src, java.util.Date t)
        throws java.sql.SQLException
     { 
        _log.debug("MyDbSession", "getTrailPoint: "+src+", "+df.format(t));
@@ -323,7 +301,7 @@ public class MyDBSession extends DBSession
     /**
      * Get an APRS item at a given point in time.
      */    
-    public synchronized AprsPoint getItem(String src, java.util.Date at)
+    public AprsPoint getItem(String src, java.util.Date at)
        throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "getItem:  "+src+", "+df.format(at));
@@ -361,7 +339,7 @@ public class MyDBSession extends DBSession
      * @param src from callsign
      * @param n   number of elements of list
      */
-    public synchronized DbList<AprsPacket> getAprsPackets(String src, int n)
+    public DbList<AprsPacket> getAprsPackets(String src, int n)
        throws java.sql.SQLException
     {    
         _log.debug("MyDbSession", "getAprsPackets:  "+src);
@@ -373,11 +351,8 @@ public class MyDBSession extends DBSession
        
         stmt.setString(1, src);
         stmt.setInt(2, n);
-        ResultSet rs = stmt.executeQuery();
-            
-        DbList<AprsPacket> list = new DbList(rs, new DbList.Factory() 
-        {
-            public AprsPacket getElement(ResultSet rs) throws SQLException 
+        
+        return new DbList(stmt.executeQuery(), rs -> 
             {
                 AprsPacket p =  new AprsPacket();
                 String path = rs.getString("path");
@@ -390,9 +365,7 @@ public class MyDBSession extends DBSession
                 p.report = rs.getString("info");
                 p.time = rs.getTimestamp("time");
                 return p;
-             }
-         });
-        return list;
+             });
     }
     
     
@@ -409,7 +382,7 @@ public class MyDBSession extends DBSession
      * @param src   Regular expression to filter for callsigns/identifier. May be null.
      * @param alias Regular expression to filter for alias. May be null.
      */
-    public synchronized DbList<Mission> searchMissions(java.util.Date at, java.util.Date until, String src, String alias )
+    public DbList<Mission> searchMissions(java.util.Date at, java.util.Date until, String src, String alias )
     { 
       /* TBD */
       return null;
@@ -425,7 +398,7 @@ public class MyDBSession extends DBSession
      * @param src Source callsign (or identifier)
      * @param at  Time when the mission (that we search for) is active. 
      */
-    public synchronized Mission getMission(String src, java.util.Date at)
+    public Mission getMission(String src, java.util.Date at)
        throws java.sql.SQLException
     {
        PreparedStatement stmt = getCon().prepareStatement
@@ -449,7 +422,7 @@ public class MyDBSession extends DBSession
      * If argument at is null or is missing, use time now. 
      */
 
-    public synchronized void endMission(String src, java.util.Date at) throws java.sql.SQLException
+    public void endMission(String src, java.util.Date at) throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
            ( "UPDATE \"Mission\" SET end=? WHERE src=?" );
@@ -461,7 +434,7 @@ public class MyDBSession extends DBSession
             
     }
     
-    public synchronized void endMission(String src) throws java.sql.SQLException
+    public void endMission(String src) throws java.sql.SQLException
       { endMission(src, null); }
       
       
@@ -478,7 +451,7 @@ public class MyDBSession extends DBSession
      * @param end   Time when mission ends. May be null (open).
      * @param descr Text that describes the mission
      */
-    public synchronized Mission assignMission(Station st, String alias, String icon, 
+    public Mission assignMission(Station st, String alias, String icon, 
             java.util.Date start,  java.util.Date end, String descr)
             throws java.sql.SQLException
     {
@@ -500,7 +473,7 @@ public class MyDBSession extends DBSession
      * @param descr Text that describes the mission
      * 
      */
-    public synchronized void addMission(String src, String alias, String icon,  
+    public void addMission(String src, String alias, String icon,  
             java.util.Date start,  java.util.Date end, String descr)
             throws java.sql.SQLException
     {
@@ -523,7 +496,7 @@ public class MyDBSession extends DBSession
     /**
      * Add managed tracker to the database.
      */
-    public synchronized void addTracker(String id, String user, String alias, String icon)  
+    public void addTracker(String id, String user, String alias, String icon)  
             throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "addTracker: "+id+", user="+user);
@@ -538,7 +511,7 @@ public class MyDBSession extends DBSession
     }
     
     
-    public synchronized void updateTracker(String id, String alias, String icon)
+    public void updateTracker(String id, String alias, String icon)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "updateTracker: "+id);
@@ -553,7 +526,7 @@ public class MyDBSession extends DBSession
     
     
     
-    public synchronized void deleteTracker(String id)
+    public void deleteTracker(String id)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "deleteTracker: "+id);
@@ -566,23 +539,22 @@ public class MyDBSession extends DBSession
          
     
     
-    public synchronized Tracker getTracker(String id)
+    public Tracker getTracker(String id)
         throws java.sql.SQLException
     {        
-         PreparedStatement stmt = getCon().prepareStatement
+        PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT * from \"Tracker\" "  +
               " WHERE id=?", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-         stmt.setString(1, id);
-         ResultSet rs = stmt.executeQuery();
-         if (rs.next()) 
-            return new Tracker(_api.getDB(), rs.getString("id"), rs.getString("userid"), rs.getString("alias"), rs.getString("icon"));  
-         return null;
+        stmt.setString(1, id);
+        return new DbList<Tracker> ( stmt.executeQuery(), rs->
+           { return new Tracker(_api.getDB(), rs.getString("id"), rs.getString("userid"), rs.getString("alias"), rs.getString("icon")); }
+        ).next();
     }
     
     
 
-    public synchronized DbList<Tracker> getTrackers(String user)
+    public DbList<Tracker> getTrackers(String user)
         throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
@@ -590,15 +562,65 @@ public class MyDBSession extends DBSession
               " WHERE userid=? ORDER BY id ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, user);
-         ResultSet rs = stmt.executeQuery();
-         DbList<Tracker> list = new DbList(rs, new DbList.Factory() 
-         {
-              public Tracker getElement(ResultSet rs) throws SQLException { 
-                 return new Tracker(_api.getDB(), rs.getString("id"), user, rs.getString("alias"), rs.getString("icon"));  
-              }
-         });
-         return list;   
+         return new DbList( stmt.executeQuery(), rs ->
+            { return new Tracker(_api.getDB(), rs.getString("id"), user, rs.getString("alias"), rs.getString("icon"));  }
+        );
     }
+    
+    
+    /*
+    
+   
+    public synchronized DbList<HistSearch> getHistSearch(String user)
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT * FROM \"HistSearch\"" +
+              " WHERE userid=? ORDER BY name ASC", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+            stmt.setString(1, user);
+            
+            return new DbList( stmt.executeQuery(), rs ->
+                { return new HistSearch(rs.getString("name"), rs.getString("src"),
+                               rs.getTimestamp("tstart"), rs.getTimestamp("tend") );  }
+            );
+    }
+    
+    
+    
+    
+    public synchronized void addHistSearch(String user, HistSearch hs) 
+            throws java.sqlException
+    {
+        deleteHistSearch(hs);
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"HistSearch\" (userid, name, src, tstart, tend)" + 
+                " VALUES (?, ?, ?, ?, ?)" );
+        stmt.setString(1, user);
+        stmt.setString(2, hs.name);
+        stmt.setString(3, hs.src);
+        stmt.setTimestamp(4, hs.tstart);
+        stmt.setTimestamp(5, hs.tend);
+        stmt.executeUpdate();
+    }
+    
+
+    
+    
+    public synchronized void deleteHistSearch(String user, HistSearch hs) 
+            throws java.sqlException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " DELETE FROM \"HistSearch\" 
+              " WHERE userid=? AND name=? AND src=? AND tstart=?" );
+        stmt.setString(1, user);
+        stmt.setString(2, hs.name);
+        stmt.setString(3, hs.src);
+        stmt.setTimestamp(4, hs.tstart);
+        stmt.executeUpdate();
+    }
+    
+    */
     
 }
 

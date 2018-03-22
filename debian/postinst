@@ -12,7 +12,7 @@ case "$1" in
       if [ -e "/etc/polaric-aprsd/plugins/postgis.jar" ]; then
          rm /etc/polaric-aprsd/plugins/postgis.jar
       fi   
-      ln -s /usr/share/java/postgis-jdbc-*.jar /etc/polaric-aprsd/plugins/postgis.jar
+      ln -s /usr/share/java/postgis-jdbc.jar /etc/polaric-aprsd/plugins/postgis.jar
     ;;
     
     configure|reconfigure)

@@ -43,11 +43,19 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            _filter_src = api.getProperty("db.filter.src", ".*");
            boolean signs = api.getBoolProperty("db.signs.on", true);  
            api.properties().put("aprsdb.plugin", this); 
+           
            api.addHttpHandlerCls("no.polaric.aprsdb.XMLserver", null);
            api.addHttpHandlerCls("no.polaric.aprsdb.Webserver", null);
            api.addHttpHandlerCls("no.polaric.aprsdb.MyTrackers", null);
            _isOwner = api.getBoolProperty("db.isowner", true);
            _log = new Logfile(api, "database", "database.log");
+           
+           /*
+            * Start REST API.
+            */
+            JsonApi japi = new JsonApi(api);
+            japi.start();
+           
            
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
@@ -63,6 +71,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            StationDBImp dbi = (StationDBImp) api.getDB();
            dbi.setHistDB(this);
            
+           
+           
            if (signs)                                   
            
               /* 
@@ -71,7 +81,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                */
               Signs.setExtDb(new Signs.ExtDb() {
                   MyDBSession db = null; 
-                  public Iterable<Signs.Item> search(long scale, Reference uleft, Reference lright) {
+           
+                  public Iterable<Signs.Item> search
+                         (long scale, Reference uleft, Reference lright) {
                      db = getDB();
                      try {
                         Iterable<Signs.Item> x = db.getSigns(scale, uleft, lright);
@@ -83,14 +95,16 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                      catch (Exception e) 
                         { 
                            _api.log().warn(null, "Sign search: "+e); 
-                           db.abort(); 
+                           if (db != null) 
+                               db.abort(); 
                            return new ArrayList<Signs.Item>(1);
                         }
                   }
                   
                   public void close() {
                     { if (db != null) db.close(); db=null; } 
-                 }    
+                 }
+                 
               });
               _isActive = true;
               _log.info(null, "DatabasePlugin activated");
@@ -284,25 +298,26 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            PreparedStatement stmt = db.getCon().prepareStatement
              ( "INSERT INTO \"AprsPacket\" (channel, src, dest, time, path, ipath, info)" + 
                "VALUES (?, ?, ?, ?, ?, ?,  ?)" );
-             
+            
+           String rep = p.report.replaceAll("\0", "(NUL)");
            stmt.setString(1, p.source.getIdent());
            stmt.setString(2, p.from);
            stmt.setString(3, p.to);
            stmt.setTimestamp(4, DBSession.date2ts(p.time));
            stmt.setString(5, path);
            stmt.setString(6, ipath);
-           stmt.setString(7, p.report); 
+           stmt.setString(7, rep); 
            stmt.executeUpdate();
            db.commit();
        }
        catch (NullPointerException e)
        {
-           _api.log().error(null, "handlePosReport: "+e);
+           _api.log().error(null, "handlePacket: "+e);
            e.printStackTrace(System.out);
            db.abort();
        }
        catch (Exception e) {
-           _log.warn(null, "logAprsPacket): "+e);  
+           _log.warn(null, "handlePacket: "+e);  
            db.abort();
        }
        finally { db.close(); }
@@ -320,6 +335,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
         getDB().simpleTrans("saveItem", x -> {
             MyDBSession ses = (MyDBSession) x;
             Tracker t = ses.getTracker(tp.getIdent()); 
+            
             String icon = (tp.iconOverride() ? tp.getIcon() : null);
             if (t==null)
                ses.addTracker(tp.getIdent(), tp.getUser(), tp.getAlias(), icon);
@@ -338,12 +354,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
     {
          getDB().simpleTrans("updateItem", x -> {
             Tracker t = ((MyDBSession)x).getTracker(tp.getIdent());
-            if (t != null){ 
-               tp.setPersistent(true, t.user, false); 
-               if (t.alias != null) 
-                  tp.setAlias(t.alias);
-               if (t.icon != null) 
-                  tp.setIcon(t.icon);
+            if (t != null) { 
+               tp.setPersistent(true, t.info.user, false); 
+               if (t.info.alias != null) 
+                  tp.setAlias(t.info.alias);
+               if (t.info.icon != null) 
+                  tp.setIcon(t.info.icon);
             }
             return null;
          });

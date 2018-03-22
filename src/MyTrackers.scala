@@ -48,18 +48,18 @@ package no.polaric.aprsdb
                  for (it <- list.iterator; if it != null) yield {
                     val lastch = if (it.isActive()) it.getStation().getLastChanged() else null
                     val alias = if (it.isActive()) it.getStation().getAlias()
-                                else it.alias
+                                else it.info.alias
                     <tr>
-                        <td><a href={"removeTracker?id="+it.id}>
-                                <img title="remove" src="../images/edit-delete.png" height="14" id={"rmtracker_"+it.id} />
+                        <td><a href={"removeTracker?id="+it.info.id}>
+                                <img title="remove" src="../images/edit-delete.png" height="14" id={"rmtracker_"+it.info.id} />
                             </a>&nbsp; 
-                            <a href={"editTracker?edit=true&id="+it.id}>
-                                <img title="edit" src="../images/edit.png" height="14" id={"editItem_"+it.id} />
+                            <a href={"editTracker?edit=true&id="+it.info.id}>
+                                <img title="edit" src="../images/edit.png" height="14" id={"editItem_"+it.info.id} />
                             </a>
                         </td>
                         <td>{ if (it.isActive() && it.getStation().visible()) 
-                               <a href={"javascript:polaric.findItem('"+it.id+"', false);"}>{it.id}</a> 
-                              else it.id } 
+                               <a href={"javascript:polaric.findItem('"+it.info.id+"', false);"}>{it.info.id}</a> 
+                              else it.info.id } 
                         </td>
                         <td>{it.getAlias()}</td>
                         <td>{showIcon(req, it.getIcon(), "18")}</td>
@@ -157,8 +157,8 @@ package no.polaric.aprsdb
           x = new Station(id)       
           try { 
              val t = _dbp.getDB(true).getTracker(id)
-             x.setAlias(t.alias);
-             x.setIcon(t.icon);
+             x.setAlias(t.info.alias);
+             x.setIcon(t.info.icon);
           }
           catch { case e: java.sql.SQLException => EMPTY }
           
