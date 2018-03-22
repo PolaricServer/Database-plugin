@@ -51,6 +51,7 @@ package no.polaric.aprsdb
        {
             val s = db.getItem(src, dto)
             val h = db.getTrail(src, dfrom, dto, false)
+            _dbp.log().debug("Db.Webserver", "do_trail...")
             
             <trk>
                 <name>{s.getIdent}</name>
@@ -72,7 +73,7 @@ package no.polaric.aprsdb
         /* Get request parameters 
          * FIXME: Deal with parse errors (input parameters) !!!!!
          */         
-
+        
         val ntracks = req.queryParams("ntracks").toInt
         var tracks = new Array [Tuple3[String, Date, Date]] (ntracks)
         
@@ -106,13 +107,17 @@ package no.polaric.aprsdb
                 <name>APRS Tracks</name>
                 <time>{xdf.format(new Date()) }</time>
              </metadata>
-             {
-                _dbp.log().debug("Db.Webserver", "GPX file export")
-                for (i <- 0 to ntracks-1) yield 
-                    if (tracks(i) != null)
-                       do_trail(tracks(i)._1, tracks(i)._2, tracks(i)._3)
-                    else EMPTY
-             }
+             {  try {
+                    for (i <- 0 to ntracks-1) yield 
+                        if (tracks(i) != null)
+                            do_trail(tracks(i)._1, tracks(i)._2, tracks(i)._3)
+                        else EMPTY
+                }
+                catch { case e: Exception => 
+                    _dbp.log().warn("Db.Webserver", "GPX: "+e)
+                } 
+                finally { db.close() }
+            }
            </gpx>
            ; 
         
