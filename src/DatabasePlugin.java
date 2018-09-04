@@ -186,7 +186,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       */
      private String qChar(char x)
      {
-        if (x=='\'') return "'\\\''"; 
+        if (x=='\'') return "'\'\''"; 
         else return "'" + x + "'";
      }
               
@@ -224,7 +224,6 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                    x.setChanging();
              
            }
-           
            PreparedStatement stmt = db.getCon().prepareStatement
              ( "INSERT INTO \"PosReport\" (channel, src, time, rtime, speed, course, position, symbol, symtab, comment, nopkt)" + 
                " VALUES (?, ?, ?, ?, ?, ?, ?, "+qChar(pd.symbol)+", "+qChar(pd.symtab)+", ?, ?)" );
@@ -252,11 +251,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
        catch (Exception e)
        {
            _log.warn(null, "handlePosReport: "+e);  
+           e.printStackTrace(System.out);
            db.abort();
        }
        finally { db.close(); }
      }
-     
      
      
      

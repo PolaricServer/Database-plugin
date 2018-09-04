@@ -22,6 +22,9 @@ public class Tracker
 {
     public class Info {
         public String id, user, alias, icon;
+        public boolean active; 
+        public Date lastHrd;
+        
         public Info(String i, String u, String a, String ic)
             {id=i; user=u; alias=a; icon=ic; }
     }
@@ -42,9 +45,12 @@ public class Tracker
     public String getIcon() 
         { return (isActive() ? st.getIcon() : info.icon); }
      
+     
     public Tracker (StationDB db, String i, String u, String a, String ic) {
         info = new Info(i,u,a,ic);
         st = db.getItem(info.id, null, false);
+        info.active = isActive();
+        info.lastHrd = (isActive() ? getStation().getLastChanged() : null);
     }
     
     public Tracker (StationDB db, Info inf)

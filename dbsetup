@@ -4,7 +4,7 @@ Sette opp database med postgis
 
 
 Installer postgresql (installerer v 9.1)
-apt get install postgresql postgresql-contrib postgresql-client
+apt-get install postgresql postgresql-contrib postgresql-client
 
 Og postgis:
 apt-get install postgis postgresql-9.1-postgis libpostgis-java
@@ -28,13 +28,15 @@ Opprett en database <dbname> og installer postgis:
   createdb <databasename> --o <username>
 
   # Need to enable plpgsql for the database before loading the functions  # DO THIS IN V. 9.1???
+  # Not necessary in v. 9.6
   createlang plpgsql -d <databasename>
 
+  
   # Finally, load the functions and reference system tables
-  # Update: postgresql/9.4 og postgis-x.x
+  # Note. Version number may change. Check it first! 
   #
-  psql <databasename> -f /usr/share/postgresql/9.1/contrib/postgis-1.5/postgis.sql
-  psql <databasename> -f /usr/share/postgresql/9.1/contrib/postgis-1.5/spatial_ref_sys.sql
+  psql <databasename> -f /usr/share/postgresql/9.6/contrib/postgis-2.3/postgis.sql
+  psql <databasename> -f /usr/share/postgresql/9.6/contrib/postgis-2.3/spatial_ref_sys.sql
     
     # IN POSTGRESQL 9.6++
     ---------------------
@@ -48,6 +50,14 @@ Opprett en database <dbname> og installer postgis:
   # grant privilege on standard ogc tables to user
   grant all on geometry_columns to <username>;
   grant select on spatial_ref_sys to <username>;
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   

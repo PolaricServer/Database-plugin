@@ -17,7 +17,7 @@
  {
    var t = this; 
    t.call = ""; 
-   t.fromdate = null; 
+   t.fromdate = null; // FIXME: Encapsulate in object
    t.fromtime = null; 
    t.todate = null; 
    t.totime = null; 

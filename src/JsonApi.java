@@ -50,8 +50,9 @@ public class JsonApi implements JsonPoints
     public void start() {   
         
         _api.getWebserver().corsEnable("/hist/*");
+        
     
-        /* 
+        /* REST service:  
          * /hist/<callsign>/trail?tfrom=...&tto=...   
          * Get historical trail for a given callsign. 
          * Timespan is given as request parameters tfrom and tto 
@@ -94,7 +95,10 @@ public class JsonApi implements JsonPoints
         
         
         
-        /* Get "my trackers" for a given user. */
+        /* 
+         * REST Service
+         * Get "my trackers" for a given user. 
+         */
         get("/users/*/trackers", "application/json", (req, resp) -> {
             String uid = req.splat()[0];
             MyDBSession db = _dbp.getDB();
@@ -122,7 +126,10 @@ public class JsonApi implements JsonPoints
         
         
         
-        /* Save a tracker for a given user. Update if it exists in the database. */      
+        /* 
+         * REST Service: 
+         * Save a tracker for a given user. Update if it exists in the database. 
+         */      
         put("/users/*/trackers", (req, resp) -> {
             String uid = req.splat()[0];
             MyDBSession db = _dbp.getDB();
@@ -144,7 +151,10 @@ public class JsonApi implements JsonPoints
         
         
         
-        
+        /*
+         * REST Service: 
+         * Delete a tracker for a given user. 
+         */
         delete("/users/*/trackers/*", (req, resp) -> {
             String uid = req.splat()[0];
             String call = req.splat()[1];
