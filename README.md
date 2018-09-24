@@ -10,7 +10,7 @@ This is a _plugin_ that provides database storage using PostgreSQL with the
 PostGIS extension. It is optional and is primarily meant for online 
 servers having sufficient memory and storage. It is used on aprs.no. 
 
-# Features
+### Features
 
 APRS positions (spatiotemporal data) and APRS packets for later analysis.
 It is configurable what callsigns are stored and for how long. Queries 
