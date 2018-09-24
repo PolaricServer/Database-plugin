@@ -514,7 +514,6 @@ public class MyDBSession extends DBSession
     public void updateTracker(String id, String alias, String icon)
             throws java.sql.SQLException
     {
-        _log.debug("MyDbSession", "updateTracker: "+id);
         PreparedStatement stmt = getCon().prepareStatement
             ( "UPDATE \"Tracker\" SET alias=?, icon=?"+
               "WHERE id=?" );
@@ -567,6 +566,51 @@ public class MyDBSession extends DBSession
         );
     }
     
+    
+    public long addJsObject(String user, String tag, String data)  
+            throws java.sql.SQLException
+    {
+         _log.debug("MyDbSession", "addJsObject: user="+user+", tag="+tag);
+         PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"JsObject\" (userid, tag, data)" + 
+                " VALUES (?, ?, ?) RETURNING id" );
+         stmt.setString(1, user);
+         stmt.setString(2, tag);
+         stmt.setString(3, data);
+        // stmt.executeUpdate();
+         ResultSet rs = stmt.executeQuery(); 
+         rs.next();
+         return rs.getLong("id");
+    }
+    
+    
+    public void deleteJsObject(String user, String tag, long id)
+            throws java.sql.SQLException
+    {
+        _log.debug("MyDbSession", "deleteJsObject: "+id+", user="+user);
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " DELETE FROM \"JsObject\" "+
+              " WHERE userid=? AND tag=? AND id=?; ");
+        stmt.setString(1, user);
+        stmt.setString(2, tag);
+        stmt.setLong(3, id);
+        stmt.executeUpdate();
+    }
+    
+    
+    public DbList<JsObject> getJsObjects(String user, String tag)
+          throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT id,data FROM \"JsObject\"" +
+              " WHERE userid=? AND tag=? ORDER BY data ASC", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+         stmt.setString(1, user);
+         stmt.setString(2, tag);
+         return new DbList( stmt.executeQuery(), rs ->
+            { return new JsObject(rs.getLong("id"), rs.getString("data"));  }
+        );
+    }
     
     /*
     

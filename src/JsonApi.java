@@ -107,8 +107,6 @@ public class JsonApi implements JsonPoints
             try {
                 tr =  db.getTrackers(uid);
                 List<Tracker.Info> tri = tr.toList().stream().map(x -> x.info).collect(Collectors.toList());
-                for (Tracker.Info x: tri) 
-                    System.out.println("*** "+x.id);
                 return tri;
             }
             catch (java.sql.SQLException e) {
@@ -130,7 +128,7 @@ public class JsonApi implements JsonPoints
          * REST Service: 
          * Save a tracker for a given user. Update if it exists in the database. 
          */      
-        put("/users/*/trackers", (req, resp) -> {
+        post("/users/*/trackers", (req, resp) -> {
             String uid = req.splat()[0];
             MyDBSession db = _dbp.getDB();
             Tracker.Info tr = (Tracker.Info) 
@@ -172,6 +170,95 @@ public class JsonApi implements JsonPoints
             finally { db.close();}
             
         } );
+        
+        
+        /* 
+         * REST Service: 
+         * Add an area to the list 
+         */
+        post("/users/*/*", (req, resp) -> {
+            String uid = req.splat()[0];
+            String tag = req.splat()[1];
+            MyDBSession db = _dbp.getDB();
+            
+            // Note: this is JSON but we do NOT deserialize it. 
+            String data = req.body(); 
+        
+            try {
+                long id = db.addJsObject(uid, tag, data);
+                db.commit();
+                return ""+id;
+            }
+            catch (java.sql.SQLException e) {
+                _dbp.log().warn("JsonApi", "POST /users/"+uid+"/"+tag+": SQL error:"+e.getMessage());
+                db.abort();
+                return ERROR(resp, 500, "SQL error: "+e.getMessage());
+            }
+            finally { db.close(); }
+        });
+        
+        
+        
+        /*
+         * REST Service: 
+         * Delete a tracker for a given user.
+         * FIXME: Sanitize input? 
+         */
+        delete("/users/*/*/*", (req, resp) -> {
+            String uid = req.splat()[0];
+            String tag = req.splat()[1];
+            String id = req.splat()[2];
+            MyDBSession db = _dbp.getDB();
+            
+            try {
+                long ident = Long.parseLong(id);
+                db.deleteJsObject(uid, tag, ident);
+                db.commit();
+                return "OK";
+            }
+            catch (java.lang.NumberFormatException e) {
+                _dbp.log().warn("JsonApi", "DELETE /users/"+uid+"/"+tag+"/"
+                    +id+": Expected numeric object identifier");
+                db.abort();
+                return ERROR(resp, 400, "Expected numeric object identifier");
+            }
+            catch (java.sql.SQLException e) {
+                _dbp.log().warn("JsonApi", "DELETE /users/"+uid+"/"+tag+"/"
+                    +id+": SQL error:"+e.getMessage());
+                db.abort();
+                return ERROR(resp, 500, "SQL error: "+e.getMessage());
+            }
+            finally { db.close();}
+        } );
+        
+        
+        /* 
+         * REST Service
+         * Get a list of areas for a given user. 
+         */
+        get("/users/*/*", "application/json", (req, resp) -> {
+            String uid = req.splat()[0];
+            String tag = req.splat()[1];
+            MyDBSession db = _dbp.getDB();
+            DbList<JsObject> a = null; 
+            
+            try {
+                a =  db.getJsObjects(uid, tag);
+                List<JsObject> aa = a.toList().stream().collect(Collectors.toList());
+                return aa;
+            }
+            catch (java.sql.SQLException e) {
+                _dbp.log().warn("JsonApi", "GET /users/"+uid+"/areas: SQL error:"+e.getMessage());
+                db.abort();
+                return ERROR(resp, 500, "SQL error: "+e.getMessage());
+            }
+            finally { 
+                db.close(); 
+            }
+
+        }, ServerBase::toJson );
+        
+        
     }
 
 

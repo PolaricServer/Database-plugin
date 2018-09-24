@@ -174,8 +174,13 @@ public class DbInstaller
                                "userid  varchar(20), " +
                                "alias   varchar(30), " +
                                "icon    varchar " );
-
-            
+                               
+            createClass("JsObject", null, 
+                               "id      SERIAL PRIMARY KEY, " +
+                               "userid  varchar(20), " + 
+                               "tag     varchar(20), " +
+                               "data    text" );
+                                
             createClass("SignClass", null, 
                                "id          SERIAL PRIMARY KEY, "+
                                "name        text, "+
