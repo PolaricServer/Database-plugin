@@ -43,6 +43,18 @@ public class JsonApi implements JsonPoints
       { resp.status(status); return msg; }
       
       
+    // FIXME: Move to StationDB? 
+    public TrackerPoint updateItem(String id, String alias, String icon) {
+        TrackerPoint pt = _api.getDB().getItem(id, null, false);
+        if (pt != null) {
+            _dbp.log().debug("JsonApi", "Update tracker "+id+": alias="+alias);
+            pt.setIcon(icon); 
+            pt.setAlias(alias);
+            // FIXME: Send update messages to peer systems
+        }
+        return pt; 
+    }
+    
     
     /** 
      * Set up the webservices. 
@@ -126,25 +138,42 @@ public class JsonApi implements JsonPoints
         
         /* 
          * REST Service: 
-         * Save a tracker for a given user. Update if it exists in the database. 
+         * Save a tracker for a given user. Update if it exists in the database and is owned by the user. 
          */      
         post("/users/*/trackers", (req, resp) -> {
             String uid = req.splat()[0];
             MyDBSession db = _dbp.getDB();
             Tracker.Info tr = (Tracker.Info) 
-                ServerBase.fromJson(req.body(), HistSearch.class);
+                ServerBase.fromJson(req.body(), Tracker.Info.class);
             try {
-                db.addTracker(tr.id, tr.user, tr.alias, tr.icon);
+                if (tr==null) {
+                    db.abort();
+                    _dbp.log().warn("JsonApi", "POST /users/*/trackers: cannot parse input");
+                    return ERROR(resp, 500, "Cannot parse input");
+                }
+                tr.id = tr.id.toUpperCase();
+                Tracker dbtr = db.getTracker(tr.id);
+                
+                if (dbtr == null)                     
+                    db.addTracker(tr.id, tr.user, tr.alias, tr.icon);
+   
+                /* If we own the tracker, we can update it */
+                else if (tr.user.equals(dbtr.info.user)) 
+                    db.updateTracker(tr.id, tr.alias, tr.icon);
+                else {
+                    db.abort();
+                    return ERROR(resp, 403, "Item is owned by another user");
+                }
+                var pt = updateItem(tr.id, tr.alias, tr.icon);
                 db.commit();
-                return "OK";
+                return (pt==null ? "OK" : "OK-ACTIVE");
             }
             catch (java.sql.SQLException e) {
-                _dbp.log().warn("JsonApi", "PUT /users/*/trackers: SQL error:"+e.getMessage());
                 db.abort();
+                _dbp.log().warn("JsonApi", "POST /users/*/trackers: SQL error:"+e.getMessage());
                 return ERROR(resp, 500, "SQL error: "+e.getMessage());
             }
             finally { db.close(); }
-            
         } );
         
         
@@ -159,6 +188,7 @@ public class JsonApi implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 db.deleteTracker(call);
+                updateItem(call, null, null);
                 db.commit();
                 return "OK";
             }
@@ -174,7 +204,7 @@ public class JsonApi implements JsonPoints
         
         /* 
          * REST Service: 
-         * Add an area to the list 
+         * Add an object for a given user
          */
         post("/users/*/*", (req, resp) -> {
             String uid = req.splat()[0];
@@ -234,7 +264,7 @@ public class JsonApi implements JsonPoints
         
         /* 
          * REST Service
-         * Get a list of areas for a given user. 
+         * Get a list of objects for a given user. 
          */
         get("/users/*/*", "application/json", (req, resp) -> {
             String uid = req.splat()[0];
@@ -248,7 +278,7 @@ public class JsonApi implements JsonPoints
                 return aa;
             }
             catch (java.sql.SQLException e) {
-                _dbp.log().warn("JsonApi", "GET /users/"+uid+"/areas: SQL error:"+e.getMessage());
+                _dbp.log().warn("JsonApi", "GET /users/"+uid+"/"+tag+": SQL error:"+e.getMessage());
                 db.abort();
                 return ERROR(resp, 500, "SQL error: "+e.getMessage());
             }

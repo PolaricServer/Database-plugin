@@ -13,18 +13,20 @@
  */
 
 package no.polaric.aprsdb;
-import java.util.*;
+import  java.util.*;
 import  no.polaric.aprsd.*;
-
+import  java.io.Serializable;
 
 
 public class Tracker
 {
-    public class Info {
+    public static class Info implements Serializable {
         public String id, user, alias, icon;
         public boolean active; 
         public Date lastHrd;
         
+        public Info() 
+            {};
         public Info(String i, String u, String a, String ic)
             {id=i; user=u; alias=a; icon=ic; }
     }

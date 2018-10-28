@@ -107,6 +107,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                  
               });
               _isActive = true;
+              AuthInfo.addService("database");
               _log.info(null, "DatabasePlugin activated");
         }
         catch (ClassCastException e) {
