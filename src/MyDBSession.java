@@ -23,6 +23,7 @@ import  org.apache.commons.dbcp.*;
 import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
 import  org.postgis.PGgeometry;
+import  java.io.*;
 
 
 
@@ -570,7 +571,6 @@ public class MyDBSession extends DBSession
     public long addJsObject(String user, String tag, String data)  
             throws java.sql.SQLException
     {
-         _log.debug("MyDbSession", "addJsObject: user="+user+", tag="+tag);
          PreparedStatement stmt = getCon().prepareStatement
               ( " INSERT INTO \"JsObject\" (userid, tag, data)" + 
                 " VALUES (?, ?, ?) RETURNING id" );
@@ -587,7 +587,6 @@ public class MyDBSession extends DBSession
     public void deleteJsObject(String user, String tag, long id)
             throws java.sql.SQLException
     {
-        _log.debug("MyDbSession", "deleteJsObject: "+id+", user="+user);
         PreparedStatement stmt = getCon().prepareStatement
             ( " DELETE FROM \"JsObject\" "+
               " WHERE userid=? AND tag=? AND id=?; ");
@@ -611,6 +610,48 @@ public class MyDBSession extends DBSession
             { return new JsObject(rs.getLong("id"), rs.getString("data"));  }
         );
     }
+    
+    
+    public String getFileObject(long id)         
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT * from \"FileObject\" "  +
+              " WHERE id=?", 
+              ResultSet.CONCUR_READ_ONLY );
+        stmt.setLong(1, id);
+        ResultSet rs = stmt.executeQuery(); 
+        if (rs.next())
+            return rs.getString("data");
+        return null;
+    }
+    
+    
+    public long addFileObject(InputStream data)        
+        throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"FileObject\" (data)" + 
+                " VALUES (?) RETURNING id" );
+         stmt.setCharacterStream(1, new InputStreamReader(data));
+         ResultSet rs = stmt.executeQuery(); 
+         rs.next();
+         return rs.getLong("id");
+    }
+    
+    
+    public void deleteFileObject(long id)   
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " DELETE FROM \"FileObject\" " +
+              " WHERE id=?; ");
+        stmt.setLong(1, id);
+        stmt.executeUpdate();
+    }
+    
+    
+    
     
     /*
     

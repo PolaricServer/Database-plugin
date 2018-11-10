@@ -20,8 +20,8 @@ Client/user-owned data like trackers, static position objects,
 map-extents, map-layer setups, etc through a REST API.
 
 Currently it includes some js snippets that can be installed as 
-extensions to the webapp package. Note that webapp is to be replaced 
-with webapp2 and these will eventually go away.
+extensions to the webapp package. Note that the old _webapp_ is to be replaced 
+with _webapp2_ and these will eventually go away.
 
 Future uses may include (SAR) mission information, users, etc. 
 

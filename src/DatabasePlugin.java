@@ -53,7 +53,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            /*
             * Start REST API.
             */
-            JsonApi japi = new JsonApi(api);
+            RestApi japi = new RestApi(api);
             japi.start();
            
            

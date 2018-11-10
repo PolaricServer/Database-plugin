@@ -180,6 +180,10 @@ public class DbInstaller
                                "userid  varchar(20), " + 
                                "tag     varchar(20), " +
                                "data    text" );
+                               
+            createClass("FileObject", null,
+                               "id      SERIAL PRIMARY KEY, " +
+                               "data    text" ); 
                                 
             createClass("SignClass", null, 
                                "id          SERIAL PRIMARY KEY, "+
