@@ -89,28 +89,37 @@ public class MyDBSession extends DBSession
              " AND  p.time=r.rtime " + 
              " AND  (substring(p.path, '([^,\\*]+).*\\*.*')=? OR " +
                      " (substring(p.ipath, 'qAR,([^,\\*]+).*')=? AND p.path !~ '.*\\*.*')) " +
-             " AND  position && ST_MakeEnvelope(?, ?, ?, ?, 4326) " +
+             (uleft==null ? "": " AND  position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
+             
              " AND  p.time > ? AND p.time < ? LIMIT 10000",
 
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-         stmt.setString(1, digi);
-         stmt.setString(2, digi);
+        stmt.setString(1, digi);
+        stmt.setString(2, digi);
 
-         LatLng ul = uleft.toLatLng();
-         LatLng lr = lright.toLatLng();
-         stmt.setDouble(3, ul.getLng());
-         stmt.setDouble(4, ul.getLat());
-         stmt.setDouble(5, lr.getLng());
-         stmt.setDouble(6, lr.getLat());
-
-         stmt.setTimestamp(7, date2ts(from));
-         stmt.setTimestamp(8, date2ts(to));
-         stmt.setMaxRows(10000);
-
-         return new DbList(stmt.executeQuery(), rs ->
+        if (uleft != null) {
+            LatLng ul = uleft.toLatLng();
+            LatLng lr = lright.toLatLng();
+            stmt.setDouble(3, ul.getLng());
+            stmt.setDouble(4, ul.getLat());
+            stmt.setDouble(5, lr.getLng());
+            stmt.setDouble(6, lr.getLat());
+            stmt.setTimestamp(7, date2ts(from));
+            stmt.setTimestamp(8, date2ts(to));
+        }
+        else {
+            stmt.setTimestamp(3, date2ts(from));
+            stmt.setTimestamp(4, date2ts(to));
+        }
+        stmt.setMaxRows(10000);
+        
+        return new DbList(stmt.executeQuery(), rs ->
             { return new TPoint(null, getRef(rs, "position")); });
     }
 
+    
+    
+    
     
     
     public void addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)

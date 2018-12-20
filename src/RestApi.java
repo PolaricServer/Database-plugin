@@ -72,7 +72,7 @@ public class RestApi implements JsonPoints
      * Set up the webservices. 
      */
     public void start() {   
-        
+        _api.getWebserver().protectUrl("/files/*");
         _api.getWebserver().corsEnable("/hist/*");
         _api.getWebserver().corsEnable("/files/*");
     
@@ -117,6 +117,48 @@ public class RestApi implements JsonPoints
         }, ServerBase::toJson );
         
         
+     
+        /* REST service:  
+         * /hist/<callsign>/hrdvia?tfrom=...&tto=...   
+         * Get historical trail for a given callsign. 
+         * Timespan is given as request parameters tfrom and tto 
+         */
+        get("/hist/*/hrdvia", "application/json", (req, resp) -> {
+            String src = req.splat()[0].toUpperCase();
+            QueryParamsMap parms = req.queryMap();
+            MyDBSession db = _dbp.getDB();
+            JsOverlay mu = null;
+            
+            try {
+                Date dfrom = df.parse(parms.value("tfrom"));
+                Date dto = null; 
+                if (parms.value("tto").equals("-/-"))
+                    dto = new Date(); 
+                else
+                    dto = df.parse(parms.value("tto"));
+
+                Station s = (Station) db.getItem(src, dto);
+                DbList<TPoint> h = db.getPointsVia(src, null, null, dfrom, dto);          
+                mu = new JsOverlay("HEARD-VIA");
+                
+                /* 
+                 * Convert list of TPoint's to a list of 
+                 * JSTPoint's on the returned overlay JSON object. 
+                 * FIXME: DB search should return a list of JsTPoint directly. 
+                 */
+                mu.pcloud = new ArrayList<JsTPoint>(); 
+                for (TPoint x : h) 
+                    mu.pcloud.add(new JsTPoint(x));
+                return mu;
+            }
+            catch(java.text.ParseException e) {  
+                return ABORT(resp, db, "GET /hist/*/hrdvia: Cannot parse timestring", 500,  null);
+            }
+            catch(java.sql.SQLException e) { 
+                return ABORT(resp, db, "GET /hist/*/hrdvia: SQL error:"+e.getMessage(), 500, null); 
+            }            
+            finally { db.close(); }
+        }, ServerBase::toJson );       
         
         
         
@@ -298,6 +340,7 @@ public class RestApi implements JsonPoints
             String fid = req.splat()[0];
             MyDBSession db = _dbp.getDB();
             try {
+                resp.header("cache-control", "max-age=3600"); /* 1 hour cache */
                 long id = Long.parseLong(fid); 
                 return db.getFileObject(id);
             }
@@ -325,19 +368,28 @@ public class RestApi implements JsonPoints
                 java.util.Collection<Part> parts = req.raw().getParts(); 
                 for (Part p: parts) {
                     var type = p.getContentType();
-                    if (type != null && (type.matches("application\\/(x\\-)?gpx\\+xml"))) {
-                        _dbp.log().info("RestApi", "Upload file: name="+p.getSubmittedFileName()+", size="+p.getSize());
+                    var file = p.getSubmittedFileName();
+                    if (type != null && (
+                        (type.equals("application/gpx+xml")) || type.equals("application/x-gpx+xml") ||
+                        (file.substring(file.lastIndexOf(".")+1).equals("gpx"))
+                    )) {
+                        _dbp.log().info("RestApi", "Upload file: name="+file+", size="+p.getSize());
                         ids.add( db.addFileObject(p.getInputStream()) );
                     }
                     else
-			return ABORT(resp, db, "post/files/gpx/: Unsupported file type: "+type, 
-			    415, "Unsupported file type (should be GPX)");
+                        return ABORT(resp, db, "post/files/gpx/: Unsupported file type: "+type, 
+                            415, "Unsupported file type (should be GPX)");
                 }
                 return ids;
             }
             catch(java.sql.SQLException e) {
                 return ABORT(resp, db, "POST /files/gpx/: SQL error: "+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
+            }      
+            catch(Exception e) {
+                e.printStackTrace(System.out);
+                return ABORT(resp, db, "POST /files/gpx/: Strange server error: "+e.getMessage(),
+                    500, "Server error: "+e.getMessage());
             }
             finally {
                 db.close();
