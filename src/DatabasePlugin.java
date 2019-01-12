@@ -328,14 +328,14 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
     
     /**
      * Save item info to database. 
+     * Called from StationDBImp.
      * @param tp Item to update
      */
     public void saveItem(TrackerPoint tp) 
     {
         getDB().simpleTrans("saveItem", x -> {
             MyDBSession ses = (MyDBSession) x;
-            Tracker t = ses.getTracker(tp.getIdent()); 
-            
+            Tracker t = ses.getTracker(tp.getIdent());   
             String icon = (tp.iconOverride() ? tp.getIcon() : null);
             if (t==null)
                ses.addTracker(tp.getIdent(), tp.getUser(), tp.getAlias(), icon);
@@ -347,7 +347,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      
      
     /**
-     * Update item from database. 
+     * Update item from database.
+     * Called from StationDBImp.
      * @param tp Item to update
      */
     public void updateItem(TrackerPoint tp) 
@@ -355,11 +356,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
          getDB().simpleTrans("updateItem", x -> {
             Tracker t = ((MyDBSession)x).getTracker(tp.getIdent());
             if (t != null) { 
+               tp.setTag("MANAGED");
                tp.setPersistent(true, t.info.user, false); 
-               if (t.info.alias != null) 
-                  tp.setAlias(t.info.alias);
-               if (t.info.icon != null) 
-                  tp.setIcon(t.info.icon);
+               tp.setAlias(t.info.alias);
+               tp.setIcon(t.info.icon);
             }
             return null;
          });

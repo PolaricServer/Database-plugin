@@ -509,7 +509,6 @@ public class MyDBSession extends DBSession
     public void addTracker(String id, String user, String alias, String icon)  
             throws java.sql.SQLException
     {
-         _log.debug("MyDbSession", "addTracker: "+id+", user="+user);
          PreparedStatement stmt = getCon().prepareStatement
               ( " INSERT INTO \"Tracker\" (id, userid, alias, icon)" + 
                 " VALUES (?, ?, ?, ?)" );
@@ -538,7 +537,6 @@ public class MyDBSession extends DBSession
     public void deleteTracker(String id)
             throws java.sql.SQLException
     {
-        _log.debug("MyDbSession", "deleteTracker: "+id);
         PreparedStatement stmt = getCon().prepareStatement
             ( " DELETE FROM \"Tracker\" "+
               " WHERE id=?; ");

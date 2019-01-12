@@ -27,13 +27,14 @@ import org.eclipse.jetty.server.*;
  * see XMLserver.java
  */
  
-public class RestApi implements JsonPoints
+public class RestApi extends ServerBase implements JsonPoints
 {
     private ServerAPI _api; 
     private DatabasePlugin _dbp;
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
     public RestApi(ServerAPI api) {
+        super (api); 
         _api = api;
         _dbp = (DatabasePlugin) api.properties().get("aprsdb.plugin");
     }
@@ -53,19 +54,7 @@ public class RestApi implements JsonPoints
         return ERROR(resp, status, msg);
     }
       
-      
-      
-    // FIXME: Move to StationDB? 
-    public TrackerPoint updateItem(String id, String alias, String icon) {
-        TrackerPoint pt = _api.getDB().getItem(id, null, false);
-        if (pt != null) {
-            _dbp.log().debug("RestApi", "Update tracker "+id+": alias="+alias);
-            pt.setIcon(icon); 
-            pt.setAlias(alias);
-            // FIXME: Send update messages to peer systems
-        }
-        return pt; 
-    }
+
     
     
     /** 
@@ -105,6 +94,7 @@ public class RestApi implements JsonPoints
                 p.trail = createTrail(s, h); 
                 mu.points = new LinkedList<JsPoint>();
                 mu.points.add(p);
+                db.commit();
                 return mu;
             }
             catch(java.text.ParseException e) {  
@@ -149,6 +139,7 @@ public class RestApi implements JsonPoints
                 mu.pcloud = new ArrayList<JsTPoint>(); 
                 for (TPoint x : h) 
                     mu.pcloud.add(new JsTPoint(x));
+                db.commit();
                 return mu;
             }
             catch(java.text.ParseException e) {  
@@ -174,9 +165,11 @@ public class RestApi implements JsonPoints
             try {
                 tr =  db.getTrackers(uid);
                 List<Tracker.Info> tri = tr.toList().stream().map(x -> x.info).collect(Collectors.toList());
+                db.commit();
                 return tri;
             }
             catch (java.sql.SQLException e) {
+                
                 return ABORT(resp, db, "GET /users/*/trackers: SQL error:"+e.getMessage(), 500, null);
             }
             finally { 
@@ -216,7 +209,7 @@ public class RestApi implements JsonPoints
                     return ABORT(resp, db, "POST /users/*/trackers: Item is owned by another user",
                         403, "Item is owned by another user");
                 }
-                var pt = updateItem(tr.id, tr.alias, tr.icon);
+                var pt = updateItem(tr.id, tr.alias, tr.icon, req);
                 db.commit();
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
@@ -239,7 +232,8 @@ public class RestApi implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 db.deleteTracker(call);
-                updateItem(call, null, null);
+                updateItem(call, null, null, req);
+                removeItem(call);
                 db.commit();
                 return "OK";
             }
@@ -247,8 +241,7 @@ public class RestApi implements JsonPoints
                 return ABORT(resp, db, "DELETE /users/*/trackers/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
-            finally { db.close();}
-            
+            finally { db.close();}  
         } );
         
         
@@ -322,6 +315,7 @@ public class RestApi implements JsonPoints
             try {
                 a =  db.getJsObjects(uid, tag);
                 List<JsObject> aa = a.toList().stream().collect(Collectors.toList());
+                db.commit();
                 return aa;
             }
             catch (java.sql.SQLException e) {
@@ -342,7 +336,9 @@ public class RestApi implements JsonPoints
             try {
                 resp.header("cache-control", "max-age=3600"); /* 1 hour cache */
                 long id = Long.parseLong(fid); 
-                return db.getFileObject(id);
+                var x = db.getFileObject(id);
+                db.commit();
+                return x;
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "GET /files/gpx/"+fid+": SQL error:"+e.getMessage(), 500, null);
@@ -375,6 +371,7 @@ public class RestApi implements JsonPoints
                     )) {
                         _dbp.log().info("RestApi", "Upload file: name="+file+", size="+p.getSize());
                         ids.add( db.addFileObject(p.getInputStream()) );
+                        db.commit();
                     }
                     else
                         return ABORT(resp, db, "post/files/gpx/: Unsupported file type: "+type, 
@@ -405,6 +402,7 @@ public class RestApi implements JsonPoints
             try {
                 long id = Long.parseLong(fid); 
                 db.deleteFileObject(id);
+                db.commit();
                 return "OK";
             }
             catch (java.sql.SQLException e) {
@@ -423,7 +421,27 @@ public class RestApi implements JsonPoints
         
     }
 
-
+      
+      
+    public TrackerPoint updateItem(String id, String alias, String icon, Request req) {
+        TrackerPoint pt = _api.getDB().getItem(id, null, false);
+        if (pt != null) {
+            pt.setTag("MANAGED");
+            if ( pt.setAlias(alias) ) 
+                notifyAlias(id, alias, req); 
+            if ( pt.setIcon(icon) )
+                notifyIcon(id, icon, req);
+        }
+        return pt; 
+    }
+    
+    
+    
+    public void removeItem(String id) {
+        TrackerPoint pt = _api.getDB().getItem(id, null, false);
+        pt.removeTag("MANAGED");
+    }
+    
    
     /** 
      * Convert Tracker point to JSON point. 
