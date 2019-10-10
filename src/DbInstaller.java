@@ -145,7 +145,7 @@ public class DbInstaller
                                "course integer, " +
                                "symbol character default '.'," +
                                "symtab character default '/'," + 
-                               "comment text"+
+                               "comment text,"+
                                "nopkt  boolean");
             addGeoField("PosReport", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */
             

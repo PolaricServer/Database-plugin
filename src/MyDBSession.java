@@ -91,7 +91,7 @@ public class MyDBSession extends DBSession
                      " (substring(p.ipath, 'qAR,([^,\\*]+).*')=? AND p.path !~ '.*\\*.*')) " +
              (uleft==null ? "": " AND  position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
              
-             " AND  p.time > ? AND p.time < ? LIMIT 10000",
+             " AND  p.time > ? AND p.time < ? LIMIT 15000",
 
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, digi);
@@ -111,7 +111,7 @@ public class MyDBSession extends DBSession
             stmt.setTimestamp(3, date2ts(from));
             stmt.setTimestamp(4, date2ts(to));
         }
-        stmt.setMaxRows(10000);
+        stmt.setMaxRows(15000);
         
         return new DbList(stmt.executeQuery(), rs ->
             { return new TPoint(null, getRef(rs, "position")); });
@@ -197,7 +197,7 @@ public class MyDBSession extends DBSession
            ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name, s.icon AS sicon, cl.icon AS cicon " +
              " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id" +
              " WHERE maxscale>=? AND position && ST_MakeEnvelope(?, ?, ?, ?, 4326) AND NOT s.hidden"+
-             " LIMIT 200",
+             " LIMIT 300",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
          stmt.setLong(1, scale);
          LatLng ul = uleft.toLatLng();
@@ -206,7 +206,7 @@ public class MyDBSession extends DBSession
          stmt.setDouble(3, ul.getLat());
          stmt.setDouble(4, lr.getLng());
          stmt.setDouble(5, lr.getLat());
-         stmt.setMaxRows(200);
+         stmt.setMaxRows(300);
          
          return new DbList(stmt.executeQuery(), rs -> 
             {
@@ -252,12 +252,12 @@ public class MyDBSession extends DBSession
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"PosReport\"" +
              " WHERE src=? AND time >= ? AND time <= ?" + 
-             " ORDER BY time "+(rev? "DESC" : "ASC")+" LIMIT 500",
+             " ORDER BY time "+(rev? "DESC" : "ASC")+" LIMIT 5000",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, src);
          stmt.setTimestamp(2, date2ts(from));
          stmt.setTimestamp(3, date2ts(to));
-         stmt.setMaxRows(500);
+         stmt.setMaxRows(5000);
          
         return new DbList(stmt.executeQuery(), rs ->
             { return new TPoint(rs.getTimestamp("time"), getRef(rs, "position"));  });

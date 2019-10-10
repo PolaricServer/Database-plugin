@@ -3,7 +3,7 @@ Sette opp database med postgis
 ------------------------------
 
 
-Installer postgresql (installerer v 9.1)
+Installer postgresql
 apt-get install postgresql postgresql-contrib postgresql-client
 
 Og postgis:
@@ -28,15 +28,15 @@ Opprett en database <dbname> og installer postgis:
   createdb <databasename> --o <username>
 
   # Need to enable plpgsql for the database before loading the functions  # DO THIS IN V. 9.1???
-  # Not necessary in v. 9.6
+  # Not necessary in v. 9.6 and later
   createlang plpgsql -d <databasename>
 
   
   # Finally, load the functions and reference system tables
   # Note. Version number may change. Check it first! 
   #
-  psql <databasename> -f /usr/share/postgresql/9.6/contrib/postgis-2.3/postgis.sql
-  psql <databasename> -f /usr/share/postgresql/9.6/contrib/postgis-2.3/spatial_ref_sys.sql
+  psql <databasename> -f /usr/share/postgresql/10/contrib/postgis-2.4/postgis.sql
+  psql <databasename> -f /usr/share/postgresql/10/contrib/postgis-2.4/spatial_ref_sys.sql
     
     # IN POSTGRESQL 9.6++
     ---------------------
