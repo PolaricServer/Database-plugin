@@ -20,15 +20,15 @@ Client/user-owned data like trackers, static position objects,
 map-extents, map-layer setups, etc through a REST API.
 
 Currently it includes some js snippets that can be installed as 
-extensions to the webapp package. Note that the old _webapp_ is to be replaced 
-with _webapp2_ and these will eventually go away.
+extensions to the old webapp package. Note that the old _webapp_ has been replaced 
+with _webapp2_ and these will soon go away.
 
 Future uses may include (SAR) mission information, users, etc. 
 
 ## System requirements
 
 Linux/Java platform (tested with Debian/Ubuntu/Mint) with
-* Java Runtime environment version 8 or later. 
+* Java Runtime environment version 11 or later. 
 * scala-library version 2.11 or later. You will also need scala-xml
   and scala-parser-combinators packages. 
 * polaric-aprsd installed.
