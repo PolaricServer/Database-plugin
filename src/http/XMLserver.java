@@ -1,6 +1,7 @@
 
 package no.polaric.aprsdb;
 import no.polaric.aprsd.*;
+import no.polaric.aprsdb.*;
 import no.polaric.aprsd.http.*;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -21,14 +22,14 @@ import spark.QueryParamsMap;
 
 public class XMLserver extends ServerBase
 {
-   private DatabasePlugin _dbp;
+   private PluginApi _dbp;
    private String _icon;
    
    public XMLserver(ServerAPI api) throws IOException
    {
       super(api);
       _icon = api.getConfig().getProperty("map.icon.default", "sym.gif").trim();
-      _dbp = (DatabasePlugin) api.properties().get("aprsdb.plugin");
+      _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
    }
 
 

@@ -15,7 +15,7 @@
       ALIB = aprsd-lib
  CLASSPATH = /usr/share/java/gettext-commons.jar:polaric-aprsd.jar:jcoord-polaric.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis-jdbc.jar:$(ALIB)/spark-core-polaric.jar:$(ALIB)/jetty-polaric.jar:/usr/share/java/jackson-annotations.jar
 INSTALLDIR = /etc/polaric-aprsd/plugins
-     JAVAC = javac -source 1.10 -target 1.10
+     JAVAC = javac -source 11 -target 11
        JAR = jar
 
 # Review (and if necessary) change these if you are going to 
@@ -34,7 +34,7 @@ INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd
 ##################################################
     LIBDIR = _lib
  JAVAFLAGS =
- PACKAGES  = core scala
+ PACKAGES  = core http scala plugin
 
 
 
@@ -80,10 +80,20 @@ $(LIBDIR):
 core: 
 	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/*.java 
 
+	
+.PHONY : plugin 
+plugin: core http scala
+	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/plugin/*.java
 
+	
+.PHONY : http
+http: core
+	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/http/*.java
+	
+	
 .PHONY : scala
-scala:            
-	scalac -d $(TDIR) -classpath $(LIBDIR):$(CLASSPATH) src/*.scala
+scala: core          
+	scalac -d $(TDIR) -classpath $(LIBDIR):$(CLASSPATH) src/http/*.scala
 
 
 clean:

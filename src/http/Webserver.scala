@@ -5,6 +5,7 @@ import uk.me.jstott.jcoord._
 import scala.xml._
 import scala.collection.JavaConversions._
 import no.polaric.aprsd._
+import no.polaric.aprsdb._
 import no.polaric.aprsd.http.ServerUtils
 import no.polaric.aprsd.http.ServerBase
 import no.polaric.aprsd.http.PointView
@@ -14,7 +15,7 @@ import spark.Response;
 
 
 
-package no.polaric.aprsdb
+package no.polaric.aprsdb.http
 {
 
   class Webserver 
@@ -22,7 +23,7 @@ package no.polaric.aprsdb
   {
      
      
-   val _dbp = api.properties().get("aprsdb.plugin").asInstanceOf[DatabasePlugin];
+   val _dbp = api.properties().get("aprsdb.plugin").asInstanceOf[no.polaric.aprsdb.PluginApi];
    val dateformat = "(\\-\\/\\-)|([0-9]{4}\\-[01][0-9]\\-[0-3][0-9]\\/[0-2][0-9]:[0-5][0-9])"
    val sdf = new java.text.SimpleDateFormat("HH:mm")  
      

@@ -18,6 +18,7 @@ import java.io._
 import scala.xml._
 import uk.me.jstott.jcoord._
 import no.polaric.aprsd._
+import no.polaric.aprsdb._
 import no.polaric.aprsd.http._
 import org.xnap.commons.i18n._
 import spark.Request;
@@ -25,7 +26,7 @@ import spark.Response;
 
 
    
-package no.polaric.aprsdb
+package no.polaric.aprsdb.http
 {
 
    class TrackerView 

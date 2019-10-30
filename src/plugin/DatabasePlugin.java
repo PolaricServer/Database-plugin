@@ -1,5 +1,6 @@
 
 package no.polaric.aprsdb;
+import no.polaric.aprsdb.http.*;
 import no.polaric.aprsd.*;
 import no.polaric.aprsd.http.*;
 import java.util.*;
@@ -12,7 +13,7 @@ import org.postgis.PGgeometry;
 
 
 
-public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, StationDB.Hist
+public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, StationDB.Hist, PluginApi
 {
      protected BasicDataSource _dsrc;
      private ServerAPI _api; 
@@ -53,9 +54,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            /*
             * Start REST API.
             */
-            RestApi japi = new RestApi(api);
-            japi.start();
-           
+            RestApi api1 = new RestApi(api);
+            api1.start();
+            HistApi api2 = new HistApi(api);
+            api2.start();
+            GpxFileApi api3 = new GpxFileApi(api);
+            api3.start();
            
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
