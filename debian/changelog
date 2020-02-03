@@ -1,3 +1,9 @@
+polaric-db-plugin (2.3+) UNRELEASED; urgency=medium
+
+  * Development 
+
+ -- Øyvind Hanssen <ohanssen@acm.org>  Mon, 03 Feb 2020 18:06:39 +0100
+
 polaric-db-plugin (2.2) unstable; urgency=medium
 
   * Move to Java 11, aprsd 2.2, etc..  
