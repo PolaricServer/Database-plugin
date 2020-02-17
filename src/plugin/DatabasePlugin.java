@@ -45,15 +45,15 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            boolean signs = api.getBoolProperty("db.signs.on", true);  
            api.properties().put("aprsdb.plugin", this); 
            
-           api.addHttpHandlerCls("no.polaric.aprsdb.XMLserver", null);
-           api.addHttpHandlerCls("no.polaric.aprsdb.Webserver", null);
-           api.addHttpHandlerCls("no.polaric.aprsdb.MyTrackers", null);
+           api.addHttpHandlerCls("no.polaric.aprsdb.http.Webserver", null);
            _isOwner = api.getBoolProperty("db.isowner", true);
            _log = new Logfile(api, "database", "database.log");
+           
            
            /*
             * Start REST API.
             */
+            
             RestApi api1 = new RestApi(api);
             api1.start();
             HistApi api2 = new HistApi(api);

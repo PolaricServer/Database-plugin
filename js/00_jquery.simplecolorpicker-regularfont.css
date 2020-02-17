@@ -1,8 +1,0 @@
-.simplecolorpicker.regularfont span.color[data-selected]:after {
-  content: 'X'; /* Ok/check mark */
-
-  margin-right: 3.2px;
-  margin-left: 3.2px;
-  font-family: arial;
-  font-weight: bold;
-}

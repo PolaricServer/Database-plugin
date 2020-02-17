@@ -22,7 +22,6 @@ INSTALLDIR = /etc/polaric-aprsd/plugins
 # install by using this makefile
 
    INSTALL_JAR = $(DESTDIR)/etc/polaric-aprsd/plugins
-   INSTALL_WWW = $(DESTDIR)/etc/polaric-webapp/www/auto
    INSTALL_BIN = $(DESTDIR)/usr/bin
 INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd
    INSTALL_LOG = $(DESTDIR)/var/log/polaric
@@ -44,14 +43,6 @@ install: polaric-aprsd.jar
 	install -d $(INSTALL_CONFIG)
 	install -d $(INSTALL_BIN)
 	install -d $(INSTALL_JAR)
-	install -d $(INSTALL_WWW)
-	install -m 644 js/database.js $(INSTALL_WWW)
-	install -m 644 js/00_jquery.simplecolorpicker.js $(INSTALL_WWW)
-	install -m 644 js/jquery.simplecolorpicker.css $(INSTALL_WWW)
-	install -m 644 js/00_jquery.simplecolorpicker-regularfont.css $(INSTALL_WWW)
-	install -m 644 js/01_history.js $(INSTALL_WWW)	
-	install -m 644 js/02_heard.js $(INSTALL_WWW)	
-	install -m 644 js/edit.png $(INSTALL_WWW)
 	install -m 755 -d $(INSTALL_LOG)
 	install -m 644 polaric-db.jar $(INSTALL_JAR)
 
