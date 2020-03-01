@@ -56,20 +56,23 @@ public class RestApi extends ServerBase implements JsonPoints
     }
       
 
-    
+
     
     /** 
      * Set up the webservices. 
      */
     public void start() {   
-  
+    
+        _api.getWebserver().corsEnable("/trackers/*");
+        _api.getWebserver().corsEnable("/objects/*");
+        
         
         /**************************************************************************** 
          * REST Service
          * Get "my trackers" for a given user. 
          ****************************************************************************/
          
-        get("/users/*/trackers", "application/json", (req, resp) -> {
+        get("/trackers/*", "application/json", (req, resp) -> {
             String uid = req.splat()[0];
             MyDBSession db = _dbp.getDB();
             DbList<Tracker> tr = null; 
@@ -99,7 +102,7 @@ public class RestApi extends ServerBase implements JsonPoints
          * and is owned by the user. 
          ****************************************************************************/
          
-        post("/users/*/trackers", (req, resp) -> {
+        post("/trackers/*", (req, resp) -> {
             String uid = req.splat()[0];
             MyDBSession db = _dbp.getDB();
             Tracker.Info tr = (Tracker.Info) 
@@ -140,7 +143,7 @@ public class RestApi extends ServerBase implements JsonPoints
          * Delete a tracker for a given user. 
          **************************************************************************/
          
-        delete("/users/*/trackers/*", (req, resp) -> {
+        delete("/trackers/*/*", (req, resp) -> {
             String uid = req.splat()[0];
             String call = req.splat()[1];
             MyDBSession db = _dbp.getDB();
@@ -166,7 +169,7 @@ public class RestApi extends ServerBase implements JsonPoints
          * We assume that this is a JSON object but do not parse it. 
          **************************************************************************/
          
-        post("/users/*/*", (req, resp) -> {
+        post("/objects/*/*", (req, resp) -> {
             String uid = req.splat()[0];
             String tag = req.splat()[1];
             MyDBSession db = _dbp.getDB();
@@ -194,7 +197,7 @@ public class RestApi extends ServerBase implements JsonPoints
          * FIXME: Sanitize input? 
          ***************************************************************************/
          
-        delete("/users/*/*/*", (req, resp) -> {
+        delete("/objects/*/*/*", (req, resp) -> {
             String uid = req.splat()[0];
             String tag = req.splat()[1];
             String id = req.splat()[2];
@@ -225,7 +228,7 @@ public class RestApi extends ServerBase implements JsonPoints
          * Get a list of (JSON) objects for a given user. 
          *****************************************************************************/
          
-        get("/users/*/*", "application/json", (req, resp) -> {
+        get("/objects/*/*", "application/json", (req, resp) -> {
             String uid = req.splat()[0];
             String tag = req.splat()[1];
             MyDBSession db = _dbp.getDB();
