@@ -19,10 +19,6 @@ include movement trails, positions covered by digipeaters, etc.
 Client/user-owned data like trackers, static position objects, 
 map-extents, map-layer setups, etc through a REST API.
 
-Currently it includes some js snippets that can be installed as 
-extensions to the old webapp package. Note that the old _webapp_ has been replaced 
-with _webapp2_ and these will soon go away.
-
 Future uses may include (SAR) mission information, users, etc. 
 
 ## System requirements

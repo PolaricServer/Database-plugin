@@ -1,8 +1,14 @@
-polaric-db-plugin (2.3+) UNRELEASED; urgency=medium
+polaric-db-plugin (2.4+) UNRELEASED; urgency=medium
 
   * Development 
 
- -- Øyvind Hanssen <ohanssen@acm.org>  Mon, 03 Feb 2020 18:06:39 +0100
+ -- Øyvind Hanssen <ohanssen@acm.org>  Wed, 01 Apr 2020 23:42:18 +0200
+
+polaric-db-plugin (2.4) unstable; urgency=medium
+
+  * Some fixes.. 
+
+ -- Øyvind Hanssen <ohanssen@acm.org>  Sat, 28 Mar 2020 13:40:11 +0100
 
 polaric-db-plugin (2.2) unstable; urgency=medium
 
