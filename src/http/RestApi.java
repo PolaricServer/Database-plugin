@@ -62,29 +62,34 @@ public class RestApi extends ServerBase implements JsonPoints
      * Set up the webservices. 
      */
     public void start() {   
-    
+        _api.getWebserver().corsEnable("/trackers");
         _api.getWebserver().corsEnable("/trackers/*");
         _api.getWebserver().corsEnable("/objects/*");
-        
+        _api.getWebserver().protectUrl("/trackers");
+        _api.getWebserver().protectUrl("/trackers/*");
+        _api.getWebserver().protectUrl("/objects/*");
+                
         
         /**************************************************************************** 
          * REST Service
-         * Get "my trackers" for a given user. 
+         * Get "my trackers" for the logged in user. 
          ****************************************************************************/
          
-        get("/trackers/*", "application/json", (req, resp) -> {
-            String uid = req.splat()[0];
-            MyDBSession db = _dbp.getDB();
+        get("/trackers", "application/json", (req, resp) -> {
             DbList<Tracker> tr = null; 
-            
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+                
+            /* Database transaction */
+            MyDBSession db = _dbp.getDB();
             try {
-                tr =  db.getTrackers(uid);
+                tr =  db.getTrackers(auth.userid);
                 List<Tracker.Info> tri = tr.toList().stream().map(x -> x.info).collect(Collectors.toList());
                 db.commit();
                 return tri;
             }
             catch (java.sql.SQLException e) {
-                
                 return ABORT(resp, db, "GET /users/*/trackers: SQL error:"+e.getMessage(), 500, null);
             }
             finally { 
@@ -98,15 +103,23 @@ public class RestApi extends ServerBase implements JsonPoints
         
         /**************************************************************************** 
          * REST Service: 
-         * Save a tracker for a given user. Update if it exists in the database 
+         * Save a tracker for the logged in user. Update if it exists in the database 
          * and is owned by the user. 
          ****************************************************************************/
          
-        post("/trackers/*", (req, resp) -> {
-            String uid = req.splat()[0];
+        post("/trackers", (req, resp) -> {
             MyDBSession db = _dbp.getDB();
+            
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+            
+            /* Get tracker info from request */
             Tracker.Info tr = (Tracker.Info) 
                 ServerBase.fromJson(req.body(), Tracker.Info.class);
+            
+            /* Database transaction */
             try {
                 if (tr==null) 
                     return ABORT(resp, db, "POST /users/*/trackers: cannot parse input", 
@@ -116,10 +129,10 @@ public class RestApi extends ServerBase implements JsonPoints
                 Tracker dbtr = db.getTracker(tr.id);
                 
                 if (dbtr == null)                     
-                    db.addTracker(tr.id, tr.user, tr.alias, tr.icon);
+                    db.addTracker(tr.id, auth.userid, tr.alias, tr.icon);
    
                 /* If we own the tracker, we can update it */
-                else if (tr.user.equals(dbtr.info.user)) 
+                else if (auth.userid.equals(dbtr.info.user)) 
                     db.updateTracker(tr.id, tr.alias, tr.icon);
                 else {
                     return ABORT(resp, db, "POST /users/*/trackers: Item is owned by another user",
@@ -140,14 +153,29 @@ public class RestApi extends ServerBase implements JsonPoints
         
         /**************************************************************************
          * REST Service: 
-         * Delete a tracker for a given user. 
+         * Delete a tracker for the logged in user. 
          **************************************************************************/
          
-        delete("/trackers/*/*", (req, resp) -> {
-            String uid = req.splat()[0];
-            String call = req.splat()[1];
+        delete("/trackers/*", (req, resp) -> {
+            String call = req.splat()[0];
+            
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+            
             MyDBSession db = _dbp.getDB();
             try {
+                call = call.toUpperCase();
+                Tracker dbtr = db.getTracker(call);
+                if (dbtr == null)
+                    return ABORT(resp, db, "DELETE /trackers/*: Item not found: ",
+                        404, "Item not found"+call);
+                        
+                if (!auth.userid.equals(dbtr.info.user))
+                    return ABORT(resp, db, "DELETE /trackers/*: Item is owned by another user",
+                        403, "Item is owned by another user");
+                 
                 db.deleteTracker(call);
                 updateItem(call, null, null, req);
                 removeItem(call);
@@ -155,7 +183,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 return "OK";
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "DELETE /users/*/trackers/*: SQL error:"+e.getMessage(),
+                return ABORT(resp, db, "DELETE /trackers/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close();}  
@@ -165,25 +193,29 @@ public class RestApi extends ServerBase implements JsonPoints
         
         /************************************************************************** 
          * REST Service: 
-         * Add an object for a given user. 
+         * Add an object for the logged in user. 
          * We assume that this is a JSON object but do not parse it. 
          **************************************************************************/
          
-        post("/objects/*/*", (req, resp) -> {
-            String uid = req.splat()[0];
-            String tag = req.splat()[1];
-            MyDBSession db = _dbp.getDB();
+        post("/objects/*", (req, resp) -> {
+            String tag = req.splat()[0];
             
-            // Note: this is JSON but we do NOT deserialize it. 
-            String data = req.body(); 
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
         
+            /* Note: this is JSON but we do NOT deserialize it. We store it. */
+            String data = req.body(); 
+            
+            MyDBSession db = _dbp.getDB();
             try {
-                long id = db.addJsObject(uid, tag, data);
+                long id = db.addJsObject(auth.userid, tag, data);
                 db.commit();
                 return ""+id;
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /users/"+uid+"/"+tag+": SQL error:"+e.getMessage(),
+                return ABORT(resp, db, "POST /objects/"+tag+": SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close(); }
@@ -193,29 +225,33 @@ public class RestApi extends ServerBase implements JsonPoints
         
         /***************************************************************************
          * REST Service: 
-         * Delete an object for a given user.
+         * Delete an object for the logged in user.
          * FIXME: Sanitize input? 
          ***************************************************************************/
          
-        delete("/objects/*/*/*", (req, resp) -> {
-            String uid = req.splat()[0];
-            String tag = req.splat()[1];
-            String id = req.splat()[2];
-            MyDBSession db = _dbp.getDB();
+        delete("/objects/*/*", (req, resp) -> {
+            String tag = req.splat()[0];
+            String id = req.splat()[1];
             
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+            
+            MyDBSession db = _dbp.getDB();
             try {
                 long ident = Long.parseLong(id);
-                db.deleteJsObject(uid, tag, ident);
+                db.deleteJsObject(auth.userid, tag, ident);
                 db.commit();
                 return "OK";
             }
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "DELETE /users/"+uid+"/"+tag+"/"
+                return ABORT(resp, db, "DELETE /objects/"+tag+"/"
                     +id+": Expected numeric object identifier", 
                     400, "Expected numeric object identifier");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "DELETE /users/"+uid+"/"+tag+"/"+id+": SQL error:"+e.getMessage(),
+                return ABORT(resp, db, "DELETE /users/"+tag+"/"+id+": SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close();}
@@ -225,23 +261,27 @@ public class RestApi extends ServerBase implements JsonPoints
         
         /***************************************************************************** 
          * REST Service
-         * Get a list of (JSON) objects for a given user. 
+         * Get a list of (JSON) objects for the logged in user. 
          *****************************************************************************/
          
-        get("/objects/*/*", "application/json", (req, resp) -> {
-            String uid = req.splat()[0];
-            String tag = req.splat()[1];
+        get("/objects/*", "application/json", (req, resp) -> {
+            String tag = req.splat()[0];
+            
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+            
             MyDBSession db = _dbp.getDB();
             DbList<JsObject> a = null; 
-            
             try {
-                a =  db.getJsObjects(uid, tag);
+                a =  db.getJsObjects(auth.userid, tag);
                 List<JsObject> aa = a.toList().stream().collect(Collectors.toList());
                 db.commit();
                 return aa;
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /users/"+uid+"/"+tag+": SQL error:"+e.getMessage(),
+                return ABORT(resp, db, "GET /objects/"+tag+": SQL error:"+e.getMessage(),
                     500, null);
             }
             finally { 
@@ -271,7 +311,8 @@ public class RestApi extends ServerBase implements JsonPoints
     
     public void removeItem(String id) {
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
-        pt.removeTag("MANAGED");
+        if (pt != null)
+            pt.removeTag("MANAGED");
     }
     
    

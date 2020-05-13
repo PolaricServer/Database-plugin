@@ -69,7 +69,7 @@ public class DbMaintenance implements Runnable
                      " (time + INTERVAL '"+_maxage_limited_raw+" days' < 'now' AND ("+_maxage_limited_filter+"))" );
            long deleted = stmt.executeUpdate();
            if (deleted > 0) 
-              _log.log(" DbMaintenance: Deleted "+deleted+" old records from AprsPacket table"); 
+              _log.info("DbMaintenance", "Deleted "+deleted+" old records from AprsPacket table"); 
            
            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsMessage\" " + 
@@ -77,7 +77,7 @@ public class DbMaintenance implements Runnable
                      " (time + INTERVAL '"+_maxage_limited+" days' < 'now' AND ("+_maxage_limited_filter+"))" );
            deleted =  stmt.executeUpdate();
            if (deleted > 0) 
-               _log.info(null, "DbMaintenance: Deleted "+deleted+" old records from AprsMesssage table");
+               _log.info("DbMaintenance","Deleted "+deleted+" old records from AprsMesssage table");
            
            /* Also delete data where time is in the future (because of bugs) */
            db.getCon().prepareStatement
@@ -85,7 +85,7 @@ public class DbMaintenance implements Runnable
                 "WHERE time > 'now + INTERVAL 2 hours'" );
            deleted = stmt.executeUpdate();
            if (deleted > 0) 
-               _log.info(null, "DbMaintenance: Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
+               _log.info("DbMaintenance", "Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
            db.commit();
        }
        catch (Exception e)
@@ -102,10 +102,9 @@ public class DbMaintenance implements Runnable
    public void run()
    {   
         long period = 1000 * 60 * 60 * 4;     // 4 hours
-        _log.info(null, "DbMaintenance: Starting database maintenance task...");
+        _log.debug("DbMaintenance", "Starting database maintenance task...");
         while(true) {
            try { Thread.sleep(period); } catch (Exception e) {} 
-           _log.info(null, "DbMaintenance: Doing data cleaning...");
            deleteOldData();     
         }  
 

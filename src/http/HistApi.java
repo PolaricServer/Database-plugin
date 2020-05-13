@@ -93,6 +93,8 @@ public class HistApi extends ServerBase implements JsonPoints
           
                 mu = new JsOverlay("HISTORICAL");
                 JsPoint p = createPoint(s);
+                if (p==null)
+                    return ABORT(resp, db, "GET /hist/*/trail: Point not found", 404,  null);
                 p.trail = createTrail(s, h); 
                 mu.points = new LinkedList<JsPoint>();
                 mu.points.add(p);
@@ -165,10 +167,11 @@ public class HistApi extends ServerBase implements JsonPoints
      * Return null if point has no position.  
      */
     private JsPoint createPoint(TrackerPoint s) {
-        LatLng ref = s.getPosition().toLatLng(); 
-        if (ref == null) 
+        Reference rref = s.getPosition();
+        LatLng ref; 
+        if (rref == null) 
             return null;
-         
+        ref=rref.toLatLng();  
         JsPoint x  = new JsPoint();
         x.ident  = s.getIdent();
         x.label  = createLabel(s);
