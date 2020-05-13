@@ -22,6 +22,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      private String _filter_src;
      private boolean _isActive = false;
      private boolean _isOwner = false; 
+     private boolean _disableHist = false;
      private Logfile _log;
         
      /** Start the plugin  */
@@ -42,6 +43,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
 
            _filter_chan = api.getProperty("db.filter.chan", ".*");
            _filter_src = api.getProperty("db.filter.src", ".*");
+           _disableHist = api.getBoolProperty("db.disablehist", false);
            boolean signs = api.getBoolProperty("db.signs.on", true);  
            api.properties().put("aprsdb.plugin", this); 
            
@@ -205,6 +207,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      public synchronized void handlePosReport(Source chan, String sender, java.util.Date ts, PosData pd,
             String descr, String pathinfo)
      {
+       if (_disableHist)
+          return;
        if (!chan.getIdent().matches(_filter_chan) || !sender.matches(_filter_src))
           return; 
        DBSession db = getDB();   
@@ -282,6 +286,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       */
      public synchronized void handlePacket(AprsPacket p)
      {
+       if (_disableHist)
+          return;
        if (!p.source.getIdent().matches(_filter_chan) || !p.from.matches(_filter_src)) 
           return;
        
