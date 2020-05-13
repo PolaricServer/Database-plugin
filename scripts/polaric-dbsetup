@@ -1,0 +1,45 @@
+#!/bin/bash
+
+   INIFILE=/etc/polaric-aprsd/config.d/database.ini   
+JDBCDRIVER="/usr/share/java/postgresql-jdbc4.jar"
+ CLASSPATH=polaric-aprsd.jar:polaric-db.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/commons-pool.jar:/usr/share/java/commons-collections.jar:$JDBCDRIVER
+ 
+   
+
+   
+# We have to be the superuser
+if [ $(whoami) != "root" ]; then
+    echo "ERROR: This script must be run as the superuser (root)"
+    exit 1
+fi
+
+
+#
+# Generate a 16 character random password
+#
+PASSWD=$(< /dev/urandom tr -dc [:alnum:][:graph:] | head -c${1:-16})
+
+
+#
+# Setup database with PostGIS, etc.. 
+# Run script as postgres user passing the database password as argument
+#
+echo "Initializing database.."
+su -c "polaric-dbsetup-first $PASSWD" - postgres
+[ $? -eq 0 ] || exit 1 
+echo "Done." 
+
+ 
+# 
+# Set password in ini file
+#
+sed -n -E 's/db\.passwd = XXX/db\.passwd = $PASSWD/g'
+
+ 
+#
+# Run Java db installer program
+#
+echo "Creating and initializing application specific database tables"
+java -cp $CLASSPATH no.polaric.aprsdb.DbInstaller $INIFILE $*
+echo "Done."
+     

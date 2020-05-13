@@ -23,7 +23,7 @@ INSTALLDIR = /etc/polaric-aprsd/plugins
 
    INSTALL_JAR = $(DESTDIR)/etc/polaric-aprsd/plugins
    INSTALL_BIN = $(DESTDIR)/usr/bin
-INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd
+INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd/config.d
    INSTALL_LOG = $(DESTDIR)/var/log/polaric
 
   
@@ -45,6 +45,9 @@ install: polaric-aprsd.jar
 	install -d $(INSTALL_JAR)
 	install -m 755 -d $(INSTALL_LOG)
 	install -m 644 polaric-db.jar $(INSTALL_JAR)
+	install -m 644 database.ini $(INSTALL_CONFIG)
+	install -m 755 scripts/polaric-dbsetup-first $(INSTALL_BIN)
+	install -m 755 scripts/polaric-dbsetup $(INSTALL_BIN)
 
 
 $(INSTALLDIR)/polaric-db.jar: polaric-db.jar

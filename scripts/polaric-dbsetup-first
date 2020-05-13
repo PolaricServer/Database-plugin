@@ -1,0 +1,60 @@
+#!/bin/bash
+
+   DBNAME=polaric
+ USERNAME=polaric
+   PASSWD=$1
+
+
+
+# We have to be the postgres user
+if [ $(whoami) != "postgres" ]; then
+    echo "ERROR: This script must be run as the 'postgres' user"
+    exit 1
+fi
+
+
+# Get major version number
+PGMAJOR=$(psql --version | sed -n -E 's/psql \(PostgreSQL\) ((9\.[0-9]+)|[0-9]+)(\.[0-9]+)* (.*)/\1/p')
+PGIS=$(ls /usr/share/postgresql/$PGMAJOR/contrib | grep postgis)
+
+if [[ $PGMAJOR =~ ^[0-8]\..* ]]
+    echo "ERROR: Too old version of PostgreSQL."
+    exit 1
+fi
+
+if [ "$PGIS" = "" ]; then
+    echo "ERROR: PostGIS extension not installed."
+    exit 1
+fi
+
+# Create the user (allowed to log in and with password)
+createuser $USERNAME -l -e
+
+# create database ownqed by user 
+createdb $DBNAME -O $USERNAME
+
+
+# Need to enable plpgsql for the database before loading the functions  # DO THIS IN V. 9.1???
+# Not necessary in v. 9.6 and later. 
+if [[ $PGMAJOR =~ ^9\.[0-5] ]]; then
+    createlang plpgsql -d $DBNAME
+fi
+
+  
+# Finally, load the functions and reference system tables
+# Note. Version number may change. Check it first! 
+#
+psql $DBNAME -f /usr/share/postgresql/$PGMAJOR/contrib/$PGIS/postgis.sql
+psql $DBNAME -f /usr/share/postgresql/$PGMAJOR/contrib/$PGIS/spatial_ref_sys.sql
+
+
+#set the password
+psql -c "alter user polaric with encrypted password '$PASSWD';" $DBNAME
+
+
+# login in new database (still as superuser postgres)
+# grant privilege on standard ogc tables to user
+
+psql -c 'grant all on geometry_columns to $USERNAME;' \
+     -c 'grant select on spatial_ref_sys to $USERNAME;' $DBNAME
+ 

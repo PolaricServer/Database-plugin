@@ -43,7 +43,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
 
            _filter_chan = api.getProperty("db.filter.chan", ".*");
            _filter_src = api.getProperty("db.filter.src", ".*");
-           _disableHist = api.getBoolProperty("db.disablehist", false);
+           _disableHist = api.getBoolProperty("db.hist.on", true);
            boolean signs = api.getBoolProperty("db.signs.on", true);  
            api.properties().put("aprsdb.plugin", this); 
            
