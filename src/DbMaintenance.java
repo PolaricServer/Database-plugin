@@ -53,15 +53,17 @@ public class DbMaintenance implements Runnable
       _thread.start();
    }
    
-   public MyDBSession getDB()
+   public MyDBSession getDB() throws DBSession.SessionError
      { return new MyDBSession(_dsrc, _api, false, _log); }
          
          
          
    public synchronized void deleteOldData( )
     {
-        DBSession db = getDB();
-        try {
+        DBSession db = null;
+        try {       
+           db = getDB();
+    
            /* Delete old data */
            PreparedStatement stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsPacket\" " + 
@@ -88,12 +90,16 @@ public class DbMaintenance implements Runnable
                _log.info("DbMaintenance", "Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
            db.commit();
        }
+       catch (DBSession.SessionError e) {
+           _log.error("DbMaintenance", "Cannot open database session: "+ e.getMessage());
+       }
        catch (Exception e)
        {
            _log.warn("DbMaintenance", "deleteOldData: "+e);  
-           db.abort();
+           if (db!=null) 
+               db.abort();
        }
-       finally { db.close(); }
+       finally { if (db !=null) db.close(); }
     }
    
    

@@ -57,6 +57,13 @@ public class DBSession
         }
      }
      
+     
+     public static class SessionError extends Exception {
+        SessionError(String msg, Throwable cause) {
+            super(msg, cause);
+        }
+     }
+     
           
      public interface Transaction {
          Object accept(DBSession t) throws SQLException;
@@ -96,7 +103,7 @@ public class DBSession
       * Constructor. 
       * @param dsrc JDBC DataSource object. 
       */ 
-     public DBSession(DataSource dsrc, boolean autocommit, Logfile log)
+     public DBSession(DataSource dsrc, boolean autocommit, Logfile log) throws SessionError
      {
           try { 
             if (_con == null) { 
@@ -111,8 +118,8 @@ public class DBSession
             }
          }
          catch (Exception e) {
-             // FIXME: Re-throw exception here. 
-             _log.warn("DbSession", "Cannot open db connection: "+e);
+             _log.error("DbSession", "Cannot open database: "+e.getMessage());
+             throw new SessionError(e.getMessage(), e);
          }   
      }
 

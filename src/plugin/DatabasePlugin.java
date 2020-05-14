@@ -22,7 +22,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      private String _filter_src;
      private boolean _isActive = false;
      private boolean _isOwner = false; 
-     private boolean _disableHist = false;
+     private boolean _enableHist = false;
      private Logfile _log;
         
      /** Start the plugin  */
@@ -30,7 +30,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       {
          _api = api;
          try {
-           _api.log().info("DatabasePlugin", "Activate...");
+           boolean active = api.getBoolProperty("db.plugin.on", false);
+           if (!active)
+               return; 
+           
            Properties p = new Properties();
            p.put("accessToUnderlyingConnectionAllowed", "true");
            BasicDataSourceFactory dsf = new BasicDataSourceFactory();
@@ -43,7 +46,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
 
            _filter_chan = api.getProperty("db.filter.chan", ".*");
            _filter_src = api.getProperty("db.filter.src", ".*");
-           _disableHist = api.getBoolProperty("db.hist.on", true);
+           _enableHist = api.getBoolProperty("db.hist.on", true);
            boolean signs = api.getBoolProperty("db.signs.on", true);  
            api.properties().put("aprsdb.plugin", this); 
            
@@ -51,6 +54,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            _isOwner = api.getBoolProperty("db.isowner", true);
            _log = new Logfile(api, "database", "database.log");
            
+           _api.log().info("DatabasePlugin", "Activate...");
            
            /*
             * Start REST API.
@@ -90,21 +94,25 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            
                   public Iterable<Signs.Item> search
                          (long scale, Reference uleft, Reference lright) {
-                     db = getDB();
-                     try {
+
+                     try {                     
+                        db = getDB();
                         Iterable<Signs.Item> x = db.getSigns(scale, uleft, lright);
                         db.commit();
                         if (x==null)
                           return new ArrayList<Signs.Item>(1); 
                         return x; 
                      }
-                     catch (Exception e) 
-                        { 
-                           _api.log().warn(null, "Sign search: "+e); 
-                           if (db != null) 
-                               db.abort(); 
-                           return new ArrayList<Signs.Item>(1);
-                        }
+                     catch (DBSession.SessionError e) {
+                        _api.log().error("DatabasePlugin", "Cannot open database: "+e.getMessage());
+                        return null;
+                     }
+                     catch (Exception e) { 
+                        _api.log().warn(null, "Sign search: "+e); 
+                        if (db != null) 
+                            db.abort(); 
+                        return new ArrayList<Signs.Item>(1);
+                     }
                   }
                   
                   public void close() {
@@ -163,10 +171,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       }
 
         
-      public MyDBSession getDB() 
+      public MyDBSession getDB() throws DBSession.SessionError
         { return getDB(false); }
         
-      public MyDBSession getDB(boolean autocommit)
+      public MyDBSession getDB(boolean autocommit) throws DBSession.SessionError
          { return new MyDBSession(_dsrc, _api, autocommit, _log); }
       
       
@@ -207,12 +215,15 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      public synchronized void handlePosReport(Source chan, String sender, java.util.Date ts, PosData pd,
             String descr, String pathinfo)
      {
-       if (_disableHist)
+       System.out.println("**** 1 ****");
+       if (!_enableHist)
           return;
        if (!chan.getIdent().matches(_filter_chan) || !sender.matches(_filter_src))
           return; 
-       DBSession db = getDB();   
+       MyDBSession db = null;   
        try {
+           System.out.println("**** 2 ****");
+           db = getDB();
            /* If change to comment, save it in database. */
            AprsPoint x = (AprsPoint) _api.getDB().getItem(sender, null);
            String comment;
@@ -251,15 +262,14 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            stmt.executeUpdate(); 
            db.commit();
        }
-       catch (NullPointerException e)
-       {
-           _api.log().error(null, "handlePosReport: "+e);
+       catch (DBSession.SessionError e) { }
+       catch (NullPointerException e) {
+           _api.log().error("DatabasePlugin", "handlePosReport: "+e);
            e.printStackTrace(System.out);
            db.abort();
        }
-       catch (Exception e)
-       {
-           _log.warn(null, "handlePosReport: "+e);  
+       catch (Exception e) {
+           _log.warn("DatabasePlugin", "handlePosReport: "+e);  
            e.printStackTrace(System.out);
            db.abort();
        }
@@ -286,12 +296,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       */
      public synchronized void handlePacket(AprsPacket p)
      {
-       if (_disableHist)
+       if (!_enableHist)
           return;
        if (!p.source.getIdent().matches(_filter_chan) || !p.from.matches(_filter_src)) 
           return;
        
-       DBSession db = getDB();
+       MyDBSession db = null;
        String path = p.via;
        String[] pp = path.split(",q",2);
        String ipath = null;
@@ -305,6 +315,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
        }
         
        try {
+           db = getDB();
            PreparedStatement stmt = db.getCon().prepareStatement
              ( "INSERT INTO \"AprsPacket\" (channel, src, dest, time, path, ipath, info)" + 
                "VALUES (?, ?, ?, ?, ?, ?,  ?)" );
@@ -320,14 +331,14 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            stmt.executeUpdate();
            db.commit();
        }
-       catch (NullPointerException e)
-       {
-           _api.log().error(null, "handlePacket: "+e);
+       catch (DBSession.SessionError e) { }
+       catch (NullPointerException e) {
+           _api.log().error("DatabasePlugin", "handlePacket: "+e);
            e.printStackTrace(System.out);
            db.abort();
        }
        catch (Exception e) {
-           _log.warn(null, "handlePacket: "+e);  
+           _log.warn("DatabasePlugin", "handlePacket: "+e);  
            db.abort();
        }
        finally { db.close(); }
@@ -343,18 +354,22 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      */
     public void saveItem(TrackerPoint tp) 
     {
-        getDB().simpleTrans("saveItem", x -> {
-            MyDBSession ses = (MyDBSession) x;
-            Tracker t = ses.getTracker(tp.getIdent());   
-            String icon = (tp.iconOverride() ? tp.getIcon() : null);
-            if (t==null)
-               ses.addTracker(tp.getIdent(), tp.getUser(), tp.getAlias(), icon);
-            else
-               ses.updateTracker(tp.getIdent(), tp.getAlias(),icon);
-            return null; 
-        });
+        try {
+            getDB().simpleTrans("saveItem", x -> {
+                MyDBSession ses = (MyDBSession) x;
+                Tracker t = ses.getTracker(tp.getIdent());   
+                String icon = (tp.iconOverride() ? tp.getIcon() : null);
+                if (t==null)
+                    ses.addTracker(tp.getIdent(), tp.getUser(), tp.getAlias(), icon);
+                else
+                    ses.updateTracker(tp.getIdent(), tp.getAlias(),icon);
+                return null;
+            });
+        }
+        catch (DBSession.SessionError e) { }
     } 
-     
+    
+    
      
     /**
      * Update item from database.
@@ -363,35 +378,44 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      */
     public void updateItem(TrackerPoint tp) 
     {
-         getDB().simpleTrans("updateItem", x -> {
-            Tracker t = ((MyDBSession)x).getTracker(tp.getIdent());
-            if (t != null) { 
-               tp.setTag("MANAGED");
-               tp.setPersistent(true, t.info.user, false); 
-               tp.setAlias(t.info.alias);
-               tp.setIcon(t.info.icon);
-            }
-            return null;
-         });
+        try {
+            getDB().simpleTrans("updateItem", x -> {
+                Tracker t = ((MyDBSession)x).getTracker(tp.getIdent());
+                if (t != null) { 
+                    tp.setTag("MANAGED");
+                    tp.setPersistent(true, t.info.user, false); 
+                    tp.setAlias(t.info.alias);
+                    tp.setIcon(t.info.icon);
+                }
+                return null;
+            });
+        }
+        catch (DBSession.SessionError e) { }
     }
         
         
         
-   /**
+    /**
      * Get an APRS item at a given point in time.
      */    
     public synchronized AprsPoint getItem(String src, java.util.Date at)
     {
-       return (AprsPoint) getDB().simpleTrans("getItem", x->
-          { return ((MyDBSession)x).getItem(src, at); });
+        try {
+            return (AprsPoint) getDB().simpleTrans("getItem", x->
+                { return ((MyDBSession)x).getItem(src, at); });
+        }
+        catch (DBSession.SessionError e) { return null; }
     } 
      
      
      
     public synchronized Trail.Item getTrailPoint(String src, java.util.Date at)
     {
-       return (Trail.Item) getDB().simpleTrans("getTrailPoint", x->
-          { return ((MyDBSession)x).getTrailPoint(src, at); });
+        try {
+            return (Trail.Item) getDB().simpleTrans("getTrailPoint", x->
+                { return ((MyDBSession)x).getTrailPoint(src, at); });
+        }
+        catch (DBSession.SessionError e) { return null; }
     }
     
     

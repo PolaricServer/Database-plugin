@@ -13,15 +13,14 @@
 ##########################################################################
   CLASSDIR = classes
       ALIB = aprsd-lib
- CLASSPATH = /usr/share/java/gettext-commons.jar:polaric-aprsd.jar:jcoord-polaric.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis-jdbc.jar:$(ALIB)/spark-core-polaric.jar:$(ALIB)/jetty-polaric.jar:/usr/share/java/jackson-annotations.jar
-INSTALLDIR = /etc/polaric-aprsd/plugins
+ CLASSPATH = /usr/share/java/gettext-commons.jar:polaric-aprsd.jar:aprsd-lib/jcoord-polaric.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis-jdbc.jar:$(ALIB)/spark-core-polaric.jar:$(ALIB)/jetty-polaric.jar:/usr/share/java/jackson-annotations.jar
      JAVAC = javac -source 11 -target 11
        JAR = jar
 
 # Review (and if necessary) change these if you are going to 
 # install by using this makefile
 
-   INSTALL_JAR = $(DESTDIR)/etc/polaric-aprsd/plugins
+   INSTALL_JAR = $(DESTDIR)/usr/share/java
    INSTALL_BIN = $(DESTDIR)/usr/bin
 INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd/config.d
    INSTALL_LOG = $(DESTDIR)/var/log/polaric
@@ -50,10 +49,6 @@ install: polaric-aprsd.jar
 	install -m 755 scripts/polaric-dbsetup $(INSTALL_BIN)
 
 
-$(INSTALLDIR)/polaric-db.jar: polaric-db.jar
-	cp polaric-db.jar $(INSTALLDIR)/polaric-db.jar
-
-	
 aprs: $(LIBDIR)
 	@make TDIR=$(LIBDIR) CLASSPATH=$(LIBDIR):$(CLASSPATH) compile     
 	cd $(LIBDIR);jar cvf ../polaric-db.jar *;cd ..

@@ -38,6 +38,7 @@ public class MyDBSession extends DBSession
    private DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
    
    MyDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
+    throws DBSession.SessionError
    {
       super(dsrc, autocommit, log); 
       _api = api; 

@@ -12,7 +12,13 @@ case "$1" in
       if [ -e "/etc/polaric-aprsd/plugins/postgis.jar" ]; then
          rm /etc/polaric-aprsd/plugins/postgis.jar
       fi   
-      ln -s /usr/share/java/postgis-jdbc.jar /etc/polaric-aprsd/plugins/postgis.jar
+      echo 
+      echo "Database plugin is now installed."
+      echo "To install, configure and connect a database, and to activate the"
+      echo "plugin, you may need to run the following commands:"
+      echo "   polaric-dbsetup"
+      echo "   polaric-restart"
+    
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

@@ -6,7 +6,7 @@ import no.polaric.aprsd.*;
  
 public interface PluginApi {
     public Logfile log();
-    public MyDBSession getDB();
-    public MyDBSession getDB(boolean autocommit);
+    public MyDBSession getDB() throws DBSession.SessionError;
+    public MyDBSession getDB(boolean autocommit) throws DBSession.SessionError;
     public void saveItem(TrackerPoint tp);
 }
