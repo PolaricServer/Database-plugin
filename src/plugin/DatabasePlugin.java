@@ -215,14 +215,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      public synchronized void handlePosReport(Source chan, String sender, java.util.Date ts, PosData pd,
             String descr, String pathinfo)
      {
-       System.out.println("**** 1 ****");
        if (!_enableHist)
           return;
        if (!chan.getIdent().matches(_filter_chan) || !sender.matches(_filter_src))
           return; 
        MyDBSession db = null;   
        try {
-           System.out.println("**** 2 ****");
            db = getDB();
            /* If change to comment, save it in database. */
            AprsPoint x = (AprsPoint) _api.getDB().getItem(sender, null);
