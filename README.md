@@ -6,9 +6,9 @@ time. It is originally targeted for use by radio amateurs in voluntary search
 and rescue service in Norway. It consists of a web application and a server 
 program (APRS daemon). 
  
-This is a _plugin_ that provides database storage using PostgreSQL with the 
-PostGIS extension. It is optional and is primarily meant for online 
-servers having sufficient memory and storage. It is used on aprs.no. 
+This is a _plugin_ that provides database storage using PostgreSQL. It is 
+optional and is primarily meant for online servers having sufficient 
+memory and storage. It is used on aprs.no. 
 
 ### Features
 
@@ -23,7 +23,7 @@ Future uses may include (SAR) mission information, users, etc.
 
 ## System requirements
 
-Linux/Java platform (tested with Debian/Ubuntu/Mint) with
+Linux/Java platform (tested on Debian/Ubuntu platforms) with
 * Java Runtime environment version 11 or later. 
 * scala-library version 2.11 or later. You will also need scala-xml
   and scala-parser-combinators packages. 
@@ -31,10 +31,25 @@ Linux/Java platform (tested with Debian/Ubuntu/Mint) with
 
 ## Installation
 
-Feel free to contact me if you plan to use this :) 
+A deb package will be available soon with scripts that can install and configure 
+the database. It depends on PostgreSQL and PostGIS packages. 
 
-Like aprsd, it can be compiled to a Debian package. It needs PostgreSQL and PostGIS to be 
-properly installed and configured. See the file _'dbsetup'_ (though it may be a little outdated). 
+When installed for the first time, run the script 'polaric-dbsetup'
+It will install database software and the PostGIS extension, it will create
+the necessary tables and it will configure polaric-aprsd to use the
+plugin. 
 
-_'dbinstall'_ is a script that creates the tables and other stuff in the database.. 
+The plugin configuration may be edited: /etc/polaric-aprsd/config.d/database.ini
+It is fairly self-explained. You may use psql to inspect and maintain the database. 
+
+Database name is 'polaric' and is owned by a database user 'polaric'. 
+
+Remember to run polaric-restart after installing this or making changes to the
+config file. 
+
+You may also build it yourself. To do this, install the source code for polaric-aprsd
+and make a symlink to its 'lib' subdirectory. To build a deb package run the command:
+
+debuild -uc -us -b
+
 
