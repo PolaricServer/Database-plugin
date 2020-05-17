@@ -12,7 +12,7 @@ if [ $(whoami) != "postgres" ]; then
     exit 1
 fi
 
-echo "--1--"
+
 
 # Get major version number
 PGMAJOR=$(psql --version | sed -n -E 's/psql \(PostgreSQL\) ((9\.[0-9]+)|[0-9]+)(\.[0-9]+)* (.*)/\1/p')
@@ -27,15 +27,15 @@ if [ "$PGIS" = "" ]; then
     echo "ERROR: PostGIS extension not installed."
     exit 1
 fi
-echo "--2--"
+
 # Create the user (allowed to log in and with password)
 createuser $USERNAME -l -e
 
 # create database ownqed by user 
 createdb $DBNAME -O $USERNAME
 
-echo "--3--"
-# Need to enable plpgsql for the database before loading the functions  # DO THIS IN V. 9.1???
+
+# Need to enable plpgsql for the database before loading the functions
 # Not necessary in v. 9.6 and later. 
 if [[ $PGMAJOR =~ ^9\.[0-5] ]]; then
     createlang plpgsql -d $DBNAME
@@ -49,7 +49,7 @@ psql $DBNAME -q -f /usr/share/postgresql/$PGMAJOR/contrib/$PGIS/postgis.sql
 psql $DBNAME -q -f /usr/share/postgresql/$PGMAJOR/contrib/$PGIS/spatial_ref_sys.sql
 
 
-#set the password
+# set the password
 psql -c "alter user polaric with encrypted password '$PASSWD';" $DBNAME
 
 
@@ -59,4 +59,3 @@ psql -c "alter user polaric with encrypted password '$PASSWD';" $DBNAME
 psql -c "grant all on geometry_columns to $USERNAME;" \
      -c "grant select on spatial_ref_sys to $USERNAME;" $DBNAME
  
-# pg_ctlcluster 11 main start

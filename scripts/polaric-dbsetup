@@ -13,9 +13,9 @@ if [ $(whoami) != "root" ]; then
 fi
 
 echo 
-echo "This script will install and configure a database on this host." 
-echo "and it will connect the polaric-aprsd plugin to this database." 
-echo "It will need an internet connection to fetch some software packages."
+echo "This script will install and configure a database on this host and "
+echo "connect the polaric-aprsd plugin to this database. It may need an" 
+echo "active internet connection to fetch some software packages."
 echo
 read -p "Do you want to continue? [Y/n]" -n 1 -r
 echo    # (optional) move to a new line
@@ -28,9 +28,8 @@ fi
 # Install packages
 echo 
 echo "Installing software packages..."
-apt-get -y install postgresql postgis
+apt-get -q -y install postgresql postgis
 [ $? -eq 0 ] || exit 1  
-echo "Done."
 
 #
 # Generate a 16 character random password
@@ -46,14 +45,13 @@ echo
 echo "Initializing database.."
 su -c "polaric-dbsetup-first '$PASSWD'" - postgres
 [ $? -eq 0 ] || exit 1 
-echo "Done." 
 
  
 # 
 # Set password in ini file
 # Activate the plugin
 #
-sed -i -E "s/db\.passwd = XXX/db\.passwd = $PASSWD/g" $INIFILE
+sed -i -E "s/db\.passwd = .*/db\.passwd = $PASSWD/g" $INIFILE
 sed -i -E "s/db\.plugin\.on = false/db\.plugin\.on = true/g" $INIFILE
  
 #
@@ -62,5 +60,6 @@ sed -i -E "s/db\.plugin\.on = false/db\.plugin\.on = true/g" $INIFILE
 echo
 echo "Creating and initializing application specific database tables"
 java -cp $CLASSPATH no.polaric.aprsdb.DbInstaller $INIFILE $*
+echo
 echo "Done."
      

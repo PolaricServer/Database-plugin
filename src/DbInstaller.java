@@ -27,7 +27,10 @@ public class DbInstaller
 {    
      private static String _url, _login, _passwd;
      private static Connection _db;
-
+     
+     /* Schema version - increase when changing schema and provide upgrade method */
+     private static final _VERSION = 1; 
+     
          
      static {
         // Load the JDBC driver
@@ -89,13 +92,118 @@ public class DbInstaller
      
      protected static void remove(Properties p)
      {
+         removeClass("MetaData");
          removeClass("AprsPacket"); 
          removeClass("PosReport");     
          removeClass("StatusReport");  
-         removeClass("AprsMessage");      
+         removeClass("AprsMessage");   
+         removeClass("Mission");
+         removeClass("Tracker");
+         removeClass("JsObject");
+         removeClass("SignClass");
+         removeClass("Signs");
      }
+     
+     
       
-      
+     protected static void installRelations(Connection db) {
+    
+        remove(config); 
+    
+        createClass("MetaData", null, 
+                        "version integer not null" );
+                        
+        updateQuery("INSERT INTO \"Metadata\" (version) values("+_VERSION+");");
+        
+                   
+        createClass("AprsPacket", null, 
+                        "channel varchar(25) not null, " +
+                        "src varchar(10) not null, " +
+                        "dest varchar(10) not null, " +
+                        "time timestamp without time zone, " +
+                        "path text, " +
+                        "ipath text, " +
+                        "info text " );
+                                                                     
+                                                            
+        createClass("AprsMessage", null, 
+                        "channel varchar(25) not null, " +
+                        "src varchar(20) not null, " +
+                        "time timestamp without time zone, " +
+                        "rtime timestamp without time zone, " +
+                        "PRIMARY KEY (time, src) " );
+                   // Note that we use timestamp from tracker if available. 
+                   // We added received time to be able to join with AprsPacket. 
+                   // Normal form? 
+                   
+                               
+        createClass("PosReport", "AprsMessage",
+                        "speed  integer, " +
+                        "course integer, " +
+                        "symbol character default '.'," +
+                        "symtab character default '/'," + 
+                        "comment text,"+
+                        "nopkt  boolean");
+        addGeoField("PosReport", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */
+            
+                               
+        createClass("StatusReport", "AprsMessage",
+                        "dest    varchar(10) not null, " +
+                        "info    text ");           
+                                                     
+                                                     
+        createClass("Mission", null, 
+                        "src    varchar(20) not null, " +
+                        "alias  varchar(30), " +
+                        "icon   varchar, " +
+                        "tstart  timestamp without time zone not null, "  +
+                        "tend    timestamp without time zone, "  + /* NULL means still active */
+                        "descr  text, " +
+                        "PRIMARY KEY (src, tstart) " );
+                
+                
+        createClass("Tracker", null, 
+                        "id      varchar(20) not null PRIMARY KEY, " +
+                        "userid  varchar(20), " +
+                        "alias   varchar(30), " +
+                        "icon    varchar " );
+                               
+        createClass("JsObject", null, 
+                        "id      SERIAL PRIMARY KEY, " +
+                        "userid  varchar(20), " + 
+                        "tag     varchar(20), " +
+                        "data    text" );
+                               
+        createClass("FileObject", null,
+                        "id      SERIAL PRIMARY KEY, " +
+                        "data    text" ); 
+                                
+        createClass("SignClass", null, 
+                        "id      SERIAL PRIMARY KEY, "+
+                        "name    text, "+
+                        "icon    text ");
+                               
+        createClass("Signs", null,
+                        "id          SERIAL PRIMARY KEY, "+
+                        "class       integer REFERENCES \"SignClass\" (id) ON DELETE SET NULL, "+
+                        "maxscale    integer, "+
+                        "icon        text," +
+                        "url         text," +
+                        "description text," +
+                        "group       text," +
+                        "userid      text," +
+                        "picture     boolean default false," +
+                        "approved    boolean default false " +
+                        "hidden      boolean default false ");
+        addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */           
+                               
+            
+        updateQuery("CREATE INDEX geoindex ON \"PosReport\" USING GIST (position);");
+        updateQuery("CREATE INDEX geoindex_s ON \"Signs\" USING GIST (position);");
+        updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");
+        updateQuery("CREATE INDEX posreport_time_src_idx on \"PosReport\" (time,src);");
+     }
+     
       
      public static void main(String args[])
      {               
@@ -115,101 +223,8 @@ public class DbInstaller
             System.out.println("user="+login);
 
             _db = DriverManager.getConnection(url, login, passwd);
-                                   
-            /* FIXME: NEED SOME UPGRADE FUNCTION TO KEEP DATA */
-            remove(config); 
-            
-            createClass("AprsPacket", null, 
-                               "channel varchar(25) not null, " +
-                               "src varchar(10) not null, " +
-                               "dest varchar(10) not null, " +
-                               "time timestamp without time zone, " +
-                               "path text, " +
-                               "ipath text, " +
-                               "info text " );
-                                                                     
-                                                                     
-            createClass("AprsMessage", null, 
-                               "channel varchar(25) not null, " +
-                               "src varchar(20) not null, " +
-                               "time timestamp without time zone, " +
-                               "rtime timestamp without time zone, " +
-                               "PRIMARY KEY (time, src) " );
-                   // Note that we use timestamp from tracker if available. 
-                   // We added received time to be able to join with AprsPacket. 
-                   // Normal form? 
-                   
-                               
-            createClass("PosReport", "AprsMessage",
-                               "speed  integer, " +
-                               "course integer, " +
-                               "symbol character default '.'," +
-                               "symtab character default '/'," + 
-                               "comment text,"+
-                               "nopkt  boolean");
-            addGeoField("PosReport", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */
-            
-                 /* Consider: Store only changes to position in this class? */
-                 
-                 
-                               
-            createClass("StatusReport", "AprsMessage",
-                               "dest    varchar(10) not null, " +
-                               "info    text ");           
-                                                     
-                                                     
-            createClass("Mission", null, 
-                               "src    varchar(20) not null, " +
-                               "alias  varchar(30), " +
-                               "icon   varchar, " +
-                               "tstart  timestamp without time zone not null, "  +
-                               "tend    timestamp without time zone, "  + /* NULL means still active */
-                               "descr  text, " +
-                               "PRIMARY KEY (src, tstart) " );
-                /* Assume that you cannot be assigned to more than one mission at a given time */
-                
-                
-            createClass("Tracker", null, 
-                               "id      varchar(20) not null PRIMARY KEY, " +
-                               "userid  varchar(20), " +
-                               "alias   varchar(30), " +
-                               "icon    varchar " );
-                               
-            createClass("JsObject", null, 
-                               "id      SERIAL PRIMARY KEY, " +
-                               "userid  varchar(20), " + 
-                               "tag     varchar(20), " +
-                               "data    text" );
-                               
-            createClass("FileObject", null,
-                               "id      SERIAL PRIMARY KEY, " +
-                               "data    text" ); 
-                                
-            createClass("SignClass", null, 
-                               "id          SERIAL PRIMARY KEY, "+
-                               "name        text, "+
-                               "icon        text ");
-                               
-            createClass("Signs", null,
-                               "id          SERIAL PRIMARY KEY, "+
-                               "class       integer REFERENCES \"SignClass\" (id) ON DELETE SET NULL, "+
-                               "maxscale    integer, "+
-                               "icon        text," +
-                               "url         text," +
-                               "description text," +
-                               "picture     boolean default false," +
-                               "approved    boolean default false ");
-            addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */           
-                               
-                
-            
-            updateQuery("CREATE INDEX geoindex ON \"PosReport\" USING GIST (position);");
-            updateQuery("CREATE INDEX geoindex_s ON \"Signs\" USING GIST (position);");
-            updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");
-            updateQuery("CREATE INDEX posreport_time_src_idx on \"PosReport\" (time,src);");
-
+            installRelations(_db)
             _db.close();                    
-
          }
          catch (Exception e) {
              e.printStackTrace(System.out);

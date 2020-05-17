@@ -16,8 +16,10 @@ case "$1" in
       echo "Database plugin is now installed."
       echo "To install, configure and connect a database, and to activate the"
       echo "plugin, you may need to run the following commands:"
-      echo "   polaric-dbsetup"
+      echo
+      echo "   polaric-dbsetup (if database is not installed already)"
       echo "   polaric-restart"
+      echo
     
     ;;
 
