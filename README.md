@@ -34,7 +34,7 @@ A deb package is available. For information on getting started on a Debian based
 http://aprs.no/dokuwiki/doku.php/install.dev. It has scripts that can help install and configure 
 the database. It depends on PostgreSQL and PostGIS packages. 
 
-apt-get install polaric-database-plugin
+apt-get install polaric-db-plugin
 
 When installed for the first time, run the script 'polaric-dbsetup'
 It will install database software and the PostGIS extension, it will create
