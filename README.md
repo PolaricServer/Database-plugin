@@ -30,9 +30,11 @@ Linux/Java platform (tested on Debian/Ubuntu platforms) with
 * polaric-aprsd installed.
 
 ## Installation and use
-
-A deb package will be available soon. It has scripts that can install and configure 
+A deb package is available. For information on getting started on a Debian based platform please see: 
+http://aprs.no/dokuwiki/doku.php/install.dev. It has scripts that can help install and configure 
 the database. It depends on PostgreSQL and PostGIS packages. 
+
+apt-get install polaric-database-plugin
 
 When installed for the first time, run the script 'polaric-dbsetup'
 It will install database software and the PostGIS extension, it will create
