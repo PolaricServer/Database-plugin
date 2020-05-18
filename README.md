@@ -29,9 +29,9 @@ Linux/Java platform (tested on Debian/Ubuntu platforms) with
   and scala-parser-combinators packages. 
 * polaric-aprsd installed.
 
-## Installation
+## Installation and use
 
-A deb package will be available soon with scripts that can install and configure 
+A deb package will be available soon. It has scripts that can install and configure 
 the database. It depends on PostgreSQL and PostGIS packages. 
 
 When installed for the first time, run the script 'polaric-dbsetup'
@@ -39,16 +39,15 @@ It will install database software and the PostGIS extension, it will create
 the necessary tables and it will configure polaric-aprsd to use the
 plugin. 
 
-The plugin configuration may be edited: /etc/polaric-aprsd/config.d/database.ini
-It is fairly self-explained. You may use psql to inspect and maintain the database. 
-
-Database name is 'polaric' and is owned by a database user 'polaric'. 
-
-Remember to run polaric-restart after installing this or making changes to the
-config file. 
-
+Please edit the plugin configuration to suit your needs: /etc/polaric-aprsd/config.d/database.ini
+It is fairly self-explained. Database name is 'polaric' and is owned by a database user 'polaric'. 
+Remember to run polaric-restart after installing the plugin or making changes to the config file. 
+ 
+You may use 'psql' to inspect and maintain the database. 
+ 
 You may also build it yourself. To do this, install the source code for polaric-aprsd
-and make a symlink to its 'lib' subdirectory. To build a deb package run the command:
+and make a symlink to its 'lib' subdirectory and polaric-aprsd.jar. To build a deb 
+package run the command:
 
 debuild -uc -us -b
 

@@ -1,8 +1,9 @@
-polaric-db-plugin (2.4+) UNRELEASED; urgency=medium
+polaric-db-plugin (2.5) stable; urgency=medium
 
-  * Development 
+  * Configuration scripts etc to make it easier to get started 
+  * Various fixes..
 
- -- Øyvind Hanssen <ohanssen@acm.org>  Wed, 01 Apr 2020 23:42:18 +0200
+ -- Øyvind Hanssen <ohanssen@acm.org>  Mon, 18 May 2020 20:44:20 +0200
 
 polaric-db-plugin (2.4) unstable; urgency=medium
 

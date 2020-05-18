@@ -29,7 +29,7 @@ public class DbInstaller
      private static Connection _db;
      
      /* Schema version - increase when changing schema and provide upgrade method */
-     private static final _VERSION = 1; 
+     private static final int _VERSION = 1; 
      
          
      static {
@@ -107,8 +107,6 @@ public class DbInstaller
      
       
      protected static void installRelations(Connection db) {
-    
-        remove(config); 
     
         createClass("MetaData", null, 
                         "version integer not null" );
@@ -223,7 +221,8 @@ public class DbInstaller
             System.out.println("user="+login);
 
             _db = DriverManager.getConnection(url, login, passwd);
-            installRelations(_db)
+            remove(config);
+            installRelations(_db);
             _db.close();                    
          }
          catch (Exception e) {

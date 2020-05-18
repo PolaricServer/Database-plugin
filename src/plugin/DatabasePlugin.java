@@ -242,6 +242,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                    x.setChanging();
              
            }
+           if (comment.charAt(0)=='\0')
+               comment = "NULL"; 
+               
            PreparedStatement stmt = db.getCon().prepareStatement
              ( "INSERT INTO \"PosReport\" (channel, src, time, rtime, speed, course, position, symbol, symtab, comment, nopkt)" + 
                " VALUES (?, ?, ?, ?, ?, ?, ?, "+qChar(pd.symbol)+", "+qChar(pd.symtab)+", ?, ?)" );
