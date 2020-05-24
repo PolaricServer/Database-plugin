@@ -165,6 +165,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       
       
       public String getDescr() {
+         if (_dsrc == null)
+            return "DatabasePLugin (deactivated)";
          String u = _dsrc.getUrl();
          u = u.replaceFirst("jdbc:postgresql://", "");
          return "DatabasePlugin ("+u+")"; 
