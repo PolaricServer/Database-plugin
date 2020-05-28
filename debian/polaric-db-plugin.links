@@ -1,5 +1,4 @@
-usr/share/java/commons-dbcp.jar etc/polaric-aprsd/plugins/commons-dbcp.jar 
-usr/share/java/commons-pool.jar etc/polaric-aprsd/plugins/commons-pool.jar      
+usr/share/java/HikariCP.jar /etc/polaric-aprsd/plugins/HikariCP.jar
 usr/share/java/postgresql.jar   etc/polaric-aprsd/plugins/postgresql.jar                   
 usr/share/java/postgis-jdbc.jar etc/polaric-aprsd/plugins/postgis-jdbc.jar 
 usr/share/java/polaric-db.jar   etc/polaric-aprsd/plugins/polaric-db.jar

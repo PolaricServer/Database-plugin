@@ -5,17 +5,18 @@ import no.polaric.aprsd.*;
 import no.polaric.aprsd.http.*;
 import java.util.*;
 import java.util.function.*;
-import org.apache.commons.dbcp.*; 
 import uk.me.jstott.jcoord.*;
 import java.sql.*;
 import javax.sql.*;
 import org.postgis.PGgeometry;
-
+    
+     import com.zaxxer.hikari.HikariConfig;
+     import com.zaxxer.hikari.HikariDataSource;
 
 
 public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, StationDB.Hist, PluginApi
 {
-     protected BasicDataSource _dsrc;
+     protected DataSource _dsrc;
      private ServerAPI _api; 
      private DbMaintenance _maint; 
      private String _filter_chan;
@@ -24,7 +25,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      private boolean _isOwner = false; 
      private boolean _enableHist = false;
      private Logfile _log;
-        
+     private String  _dburl;
+
+
+
      /** Start the plugin  */
       public void activate(ServerAPI api)
       {
@@ -34,16 +38,23 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            if (!active)
                return; 
            
-           Properties p = new Properties();
-           p.put("accessToUnderlyingConnectionAllowed", "true");
-           BasicDataSourceFactory dsf = new BasicDataSourceFactory();
-           _dsrc = (BasicDataSource) dsf.createDataSource(p);
-           _dsrc.setDriverClassName("org.postgresql.Driver");
-           _dsrc.setUsername(api.getConfig().getProperty("db.login"));
-           _dsrc.setPassword(api.getConfig().getProperty("db.passwd"));
-           _dsrc.setUrl(api.getConfig().getProperty("db.url")); 
-           _dsrc.setValidationQuery("select true");
+            HikariConfig config = new HikariConfig();
+                      
+            _dburl = api.getConfig().getProperty("db.url");
+            config.setJdbcUrl( _dburl );
+            config.setUsername( api.getConfig().getProperty("db.login")  );
+            config.setPassword( api.getConfig().getProperty("db.passwd") );
 
+            config.setMaximumPoolSize(10);
+            config.setAutoCommit(false);
+            config.addDataSourceProperty("dataSourceClassName","org.postgresql.ds.PGSimpleDataSource");
+            config.addDataSourceProperty("cachePrepStmts", "true");
+            config.addDataSourceProperty("prepStmtCacheSize", "1000");
+            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            config.setConnectionTimeout(1000);
+            _dsrc = new HikariDataSource(config);
+           
+           
            _filter_chan = api.getProperty("db.filter.chan", ".*");
            _filter_src = api.getProperty("db.filter.src", ".*");
            _enableHist = api.getBoolProperty("db.hist.on", true);
@@ -53,7 +64,6 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            api.addHttpHandlerCls("no.polaric.aprsdb.http.Webserver", null);
            _isOwner = api.getBoolProperty("db.isowner", true);
            _log = new Logfile(api, "database", "database.log");
-           
            _api.log().info("DatabasePlugin", "Activate...");
            
            /*
@@ -167,7 +177,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       public String getDescr() {
          if (_dsrc == null)
             return "DatabasePLugin (deactivated)";
-         String u = _dsrc.getUrl();
+         String u = _dburl;
          u = u.replaceFirst("jdbc:postgresql://", "");
          return "DatabasePlugin ("+u+")"; 
       }
@@ -228,10 +238,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            AprsPoint x = (AprsPoint) _api.getDB().getItem(sender, null);
            String comment;
            if ( x == null ||
-               (descr != null && !descr.equals("") && !x.getDescr().equals(descr) )) 
-              comment = "'"+descr+"'";
+               (descr != null && !descr.equals("") && !descr.equals(x.getDescr()))) 
+               comment = "'"+descr+"'";
            else {
-              comment = "NULL"; 
+               comment = "NULL"; 
               /* 
                * If item has not changed its position and the time since last 
                * update is less than 3 hours, return. Important: We assume that this 
@@ -242,10 +252,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                    return;
                if (!recentUpdate)
                    x.setChanging();
-             
            }
-           if (comment.charAt(0)=='\0')
-               comment = "NULL"; 
+           comment = comment.replaceAll("\u0000", "");
+
                
            PreparedStatement stmt = db.getCon().prepareStatement
              ( "INSERT INTO \"PosReport\" (channel, src, time, rtime, speed, course, position, symbol, symtab, comment, nopkt)" + 
@@ -264,19 +273,24 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            stmt.setBoolean(9, ("(EXT)".equals(pathinfo.toUpperCase())));
            stmt.executeUpdate(); 
            db.commit();
-       }
-       catch (DBSession.SessionError e) { }
-       catch (NullPointerException e) {
-           _api.log().error("DatabasePlugin", "handlePosReport: "+e);
-           e.printStackTrace(System.out);
-           db.abort();
-       }
-       catch (Exception e) {
-           _log.warn("DatabasePlugin", "handlePosReport: "+e);  
-           e.printStackTrace(System.out);
-           db.abort();
-       }
-       finally { db.close(); }
+        }
+        catch (DBSession.SessionError e) { 
+            _api.log().error("DatabasePlugin", "handlePosReport: "+e);
+        }
+        catch (NullPointerException e) {
+            _api.log().error("DatabasePlugin", "handlePosReport: "+e);
+            e.printStackTrace(System.out);
+            db.abort();
+        }
+        catch (Exception e) {
+            _log.warn("DatabasePlugin", "handlePosReport: "+e);  
+            e.printStackTrace(System.out);
+            db.abort();
+        }
+        finally { 
+            if (db!=null)
+                db.close(); 
+        }
      }
      
      
@@ -334,7 +348,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            stmt.executeUpdate();
            db.commit();
        }
-       catch (DBSession.SessionError e) { }
+       catch (DBSession.SessionError e) {
+            _api.log().error("DatabasePlugin", "handlePacket: "+e);
+       }
        catch (NullPointerException e) {
            _api.log().error("DatabasePlugin", "handlePacket: "+e);
            e.printStackTrace(System.out);
@@ -344,7 +360,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            _log.warn("DatabasePlugin", "handlePacket: "+e);  
            db.abort();
        }
-       finally { db.close(); }
+       finally { 
+          if (db!=null) 
+             db.close(); 
+       }
     }
      
 

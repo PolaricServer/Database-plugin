@@ -19,7 +19,6 @@ import  java.text.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
-import  org.apache.commons.dbcp.*; 
 import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
 import  org.postgis.PGgeometry;

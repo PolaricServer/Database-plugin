@@ -13,7 +13,7 @@
 ##########################################################################
   CLASSDIR = classes
       ALIB = aprsd-lib
- CLASSPATH = /usr/share/java/gettext-commons.jar:polaric-aprsd.jar:aprsd-lib/jcoord-polaric.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis-jdbc.jar:$(ALIB)/spark-core-polaric.jar:$(ALIB)/jetty-polaric.jar:/usr/share/java/jackson-annotations.jar
+ CLASSPATH = /usr/share/java/gettext-commons.jar:polaric-aprsd.jar:aprsd-lib/jcoord-polaric.jar:/usr/share/java/HikariCP.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis-jdbc.jar:$(ALIB)/spark-core-polaric.jar:$(ALIB)/jetty-polaric.jar:/usr/share/java/jackson-annotations.jar
      JAVAC = javac -source 11 -target 11
        JAR = jar
 

@@ -18,7 +18,6 @@ import  javax.sql.*;
 import  java.util.*;
 import java.util.function.*;
 import  java.util.concurrent.locks.*; 
-import  org.apache.commons.dbcp.*; 
 import  no.polaric.aprsd.Logfile;
 
 
@@ -111,10 +110,11 @@ public class DBSession
                _con = dsrc.getConnection(); 
                _con.setAutoCommit(autocommit);
 
-               /* PostGIS extensions */
+               /* PostGIS extensions 
                Connection dconn = ((DelegatingConnection) _con).getInnermostDelegate();
                ((org.postgresql.PGConnection)dconn).addDataType("geometry","org.postgis.PGgeometry");
                ((org.postgresql.PGConnection)dconn).addDataType("box3d","org.postgis.PGbox3d");
+               */
             }
          }
          catch (Exception e) {
