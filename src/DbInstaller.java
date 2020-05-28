@@ -49,21 +49,25 @@ public class DbInstaller
         updateQuery(
            "CREATE TABLE \""+ name + "\" (" +attrs + ")" + 
            (superclass!=null ? (" INHERITS (\""+superclass+"\")") : ""));
+        System.out.println("Created table "+name);   
      }
      
      
-     protected static void updateQuery(String query)
+     protected static void updateQuery(String query, boolean noMsg)
      {
          try {
-            System.out.println(query);
             Statement stmt = _db.createStatement();
             stmt.executeUpdate ( query + ";");
          }
          catch (SQLException e)
-         {
-             System.out.println(e.getMessage());
+         {  
+            if (!noMsg)
+                System.out.println(e.getMessage());
          }
      }     
+     
+     protected static void updateQuery(String query)
+        { updateQuery(query, false); }
      
      
      
@@ -76,16 +80,14 @@ public class DbInstaller
             System.out.println("Removed table "+name);
          }
          catch (SQLException e)
-         {
-             System.out.println(e.getMessage());
-         }
+         { }
      }
      
      
      
      protected static void addGeoField(String cls, String fname, int srid, String type, int dim)
      {
-         updateQuery("SELECT AddGeometryColumn('"+cls+"', '"+fname+"', "+srid+", '"+type+"', "+dim+")");
+         updateQuery("SELECT AddGeometryColumn('"+cls+"', '"+fname+"', "+srid+", '"+type+"', "+dim+")", true);
      }
      
      
@@ -111,7 +113,7 @@ public class DbInstaller
         createClass("MetaData", null, 
                         "version integer not null" );
                         
-        updateQuery("INSERT INTO \"Metadata\" (version) values("+_VERSION+");");
+        updateQuery("INSERT INTO \"MetaData\" (version) values("+_VERSION+");");
         
                    
         createClass("AprsPacket", null, 
@@ -188,10 +190,10 @@ public class DbInstaller
                         "icon        text," +
                         "url         text," +
                         "description text," +
-                        "group       text," +
+                        "\"group\"   text," +
                         "userid      text," +
                         "picture     boolean default false," +
-                        "approved    boolean default false " +
+                        "approved    boolean default false, " +
                         "hidden      boolean default false ");
         addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */           
                                
@@ -214,7 +216,7 @@ public class DbInstaller
             config.load(fin);
          
             String url   = config.getProperty
-              ("db.url", "jdbc:postgresql://localhost/polaric");   
+              ("db.url", "jdbc:postgresql://[::1]/polaric");   
             String login  = config.getProperty ("db.login");
             String passwd = config.getProperty ("db.passwd");
             System.out.println("url="+url);

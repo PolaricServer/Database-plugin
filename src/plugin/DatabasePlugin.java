@@ -38,13 +38,16 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            if (!active)
                return; 
            
+           
+            /*
+             * Data source and pooling
+             */
             HikariConfig config = new HikariConfig();
                       
             _dburl = api.getConfig().getProperty("db.url");
             config.setJdbcUrl( _dburl );
             config.setUsername( api.getConfig().getProperty("db.login")  );
             config.setPassword( api.getConfig().getProperty("db.passwd") );
-
             config.setMaximumPoolSize(10);
             config.setAutoCommit(false);
             config.addDataSourceProperty("dataSourceClassName","org.postgresql.ds.PGSimpleDataSource");

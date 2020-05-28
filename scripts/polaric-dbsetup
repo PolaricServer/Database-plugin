@@ -31,13 +31,15 @@ fi
 # Install packages
 echo 
 echo "Installing software packages..."
+apt-get remove postgresql postgis
+sleep 1
 apt-get -q -y install postgresql postgis
 [ $? -eq 0 ] || exit 1  
 
 #
 # Generate a 16 character random password
 #
-PASSWD=$(< /dev/urandom tr -dc [:alnum:][:graph:] | head -c${1:-16})
+PASSWD=$(< /dev/urandom tr -dc [:alnum:] | head -c${1:-16})
 
 
 #
@@ -60,8 +62,9 @@ sed -i -E "s/db\.plugin\.on = false/db\.plugin\.on = true/g" $INIFILE
 #
 # Run Java db installer program
 #
+sleep 5
 echo
-echo "Creating and initializing application specific database tables"
+echo "Creating and initializing application specific database tables..."
 java -cp $CLASSPATH no.polaric.aprsdb.DbInstaller $INIFILE $*
 echo
 echo "Done."
