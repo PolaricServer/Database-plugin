@@ -107,10 +107,13 @@ public class DbMaintenance implements Runnable
    public void run()
    {   
         long period = 1000 * 60 * 60 * 4;     // 4 hours
+        try { Thread.sleep(1000*15); } catch (Exception e) {} 
         _log.debug("DbMaintenance", "Starting database maintenance task...");
+        try { Thread.sleep(1000*60*5); } catch (Exception e) {} 
         while(true) {
-           try { Thread.sleep(period); } catch (Exception e) {} 
-           deleteOldData();     
+            _log.debug("DbMaintenance", "Starting database maintenance...");
+            deleteOldData();  
+            try { Thread.sleep(period); } catch (Exception e) {} 
         }  
 
    }    

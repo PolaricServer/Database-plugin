@@ -58,19 +58,6 @@ public class MyDBSession extends DBSession
         return new LatLng(pt.y, pt.x);
     }
       
-      
-    /**
-      * Encode and add a position to a PostGIS SQL statement.
-      */
-    private void setRef(PreparedStatement stmt, int index, Reference pos)
-       throws SQLException 
-    {
-        LatLng ll = pos.toLatLng();
-        org.postgis.Point p = new org.postgis.Point( ll.getLng(), ll.getLat() );
-        p.setSrid(4326);
-        stmt.setObject(index, new PGgeometry(p));
-    }
-      
 
   
   
@@ -116,45 +103,55 @@ public class MyDBSession extends DBSession
         return new DbList(stmt.executeQuery(), rs ->
             { return new TPoint(null, getRef(rs, "position")); });
     }
-
     
     
     
-    
-    
-    public void addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
+    public int addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
             throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "addSign: "+descr+", class="+cls);
          PreparedStatement stmt = getCon().prepareStatement
-              ( "INSERT INTO \"Signs\" (maxscale, icon, url, description, position, class)" + 
-                "VALUES (?, ?, ?, ?, ?, ?)" );
+              ( "INSERT INTO \"Signs\" (maxscale, icon, url, description, position, class, userid)" + 
+                "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id" );
          stmt.setLong(1, maxscale);
          stmt.setString(2, icon);
          stmt.setString(3, url);
          stmt.setString(4, descr);
          setRef(stmt, 5, pos);
          stmt.setInt(6, cls);
-         stmt.executeUpdate();
+         stmt.setString(7, uid);
+         ResultSet rs = stmt.executeQuery(); 
+         rs.next();
+         return rs.getInt("id");
     }
+    public int addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
+        throws java.sql.SQLException
+    { return addSign(maxscale, icon, url, descr, pos, cls, null); }
     
     
-    public void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
+    
+    public void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "updateSign: "+id+", "+descr);
         PreparedStatement stmt = getCon().prepareStatement
-            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
+            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?, userid=?"+
               "WHERE id=?" );
         stmt.setLong(1, maxscale);
         setRef(stmt, 2, pos);
         stmt.setString(3, icon);
         stmt.setString(4, url);
         stmt.setString(5, descr);
-        stmt.setInt(6, cls);
-        stmt.setInt(7, id);
+        stmt.setInt(6, cls);      
+        stmt.setString(7, uid);
+        stmt.setInt(8, id);
         stmt.executeUpdate();
     }  
+    public void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
+        throws java.sql.SQLException
+    { updateSign(id, maxscale, icon, url, descr, pos, cls, null); }
+    
+    
     
     
     public Sign getSign(int id)
@@ -162,17 +159,92 @@ public class MyDBSession extends DBSession
     {
          _log.debug("MyDbSession", "getSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
-              ( "SELECT * FROM \"Signs\"" + 
-                "WHERE id=?" );
+              ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name AS cname, "+
+                " s.icon AS sicon, cl.icon AS cicon, class " +
+                " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id " +
+                 "WHERE s.id=?" );
          stmt.setInt(1, id);
          ResultSet rs = stmt.executeQuery();
-         if (rs.next()) 
-            return new Sign(rs.getInt("id"), getRef(rs, "position"), rs.getLong("maxscale"), rs.getString("icon"),
-                 rs.getString("url"), rs.getString("description"), rs.getInt("class"));
+         if (rs.next()) {
+            String icon = rs.getString("sicon");
+            if (icon == null)
+                icon = rs.getString("cicon");
+                    
+            // Item (Reference r, long sc, String ic, String url, String txt)
+            return new Sign(rs.getInt("sid"), getRef(rs, "position"), rs.getLong("maxscale"), icon,
+                    rs.getString("url"), rs.getString("description"), rs.getInt("class"), rs.getString("cname")   ); 
+         }
          return null;
     }
     
+
     
+    /**
+     * Get list of signs in a specified geographic area and above a specified scale 
+     */
+    public DbList<Signs.Item> getSigns(long scale, Reference uleft, Reference lright)
+       throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+           ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name, s.icon AS sicon, cl.icon AS cicon " +
+             " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id" +
+             " WHERE maxscale>=? AND position && ST_MakeEnvelope(?, ?, ?, ?, 4326) AND NOT s.hidden"+
+             " LIMIT 300",
+             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
+        stmt.setLong(1, scale);
+        LatLng ul = uleft.toLatLng();
+        LatLng lr = lright.toLatLng();
+        stmt.setDouble(2, ul.getLng());
+        stmt.setDouble(3, ul.getLat());
+        stmt.setDouble(4, lr.getLng());
+        stmt.setDouble(5, lr.getLat());
+        stmt.setMaxRows(300);
+         
+        return new DbList(stmt.executeQuery(), rs -> 
+            {
+                String icon = rs.getString("sicon");
+                if (icon == null)
+                    icon = rs.getString("cicon");
+
+                // Item (Reference r, long sc, String ic, String url, String txt)
+                return new Signs.Item(rs.getInt("sid"), getRef(rs, "position"), 0, icon,
+                    rs.getString("url"), rs.getString("description"));  
+            });
+    }
+    
+    
+    
+    
+    /**
+     * Get list of signs 
+     */
+    public DbList<Sign> getAllSigns(int type, String user)
+       throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+           ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name AS cname, "+
+             " s.icon AS sicon, cl.icon AS cicon, class " +
+             " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id" +
+             " WHERE true"+
+             (type > -1 ? " AND class="+type : "") + 
+             (user != null ? " AND userid='"+user+"'" : "") + 
+             " LIMIT 5000",
+             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT ); 
+        stmt.setMaxRows(5000);
+         
+        return new DbList(stmt.executeQuery(), rs -> 
+            {
+                String icon = rs.getString("sicon");
+                if (icon == null)
+                    icon = rs.getString("cicon");
+
+                // Item (Reference r, long sc, String ic, String url, String txt)
+                return new Sign(rs.getInt("sid"), getRef(rs, "position"), rs.getLong("maxscale"), icon,
+                    rs.getString("url"), rs.getString("description"), rs.getInt("class"), rs.getString("cname")   );  
+            });
+    }
+    
+        
         
     public void deleteSign(int id)
           throws java.sql.SQLException
@@ -187,45 +259,10 @@ public class MyDBSession extends DBSession
     
     
     
-    /**
-     * Get list of signs in a specified geographic area and above a specified scale 
-     */
-    public DbList<Signs.Item> getSigns(long scale, Reference uleft, Reference lright)
-       throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name, s.icon AS sicon, cl.icon AS cicon " +
-             " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id" +
-             " WHERE maxscale>=? AND position && ST_MakeEnvelope(?, ?, ?, ?, 4326) AND NOT s.hidden"+
-             " LIMIT 300",
-             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
-         stmt.setLong(1, scale);
-         LatLng ul = uleft.toLatLng();
-         LatLng lr = lright.toLatLng();
-         stmt.setDouble(2, ul.getLng());
-         stmt.setDouble(3, ul.getLat());
-         stmt.setDouble(4, lr.getLng());
-         stmt.setDouble(5, lr.getLat());
-         stmt.setMaxRows(300);
-         
-         return new DbList(stmt.executeQuery(), rs -> 
-            {
-                String icon = rs.getString("sicon");
-                if (icon == null)
-                    icon = rs.getString("cicon");
-
-                // Item (Reference r, long sc, String ic, String url, String txt)
-                return new Signs.Item(rs.getInt("sid"), getRef(rs, "position"), 0, icon,
-                    rs.getString("url"), rs.getString("description"));  
-            });
-    }
-    
-    
-    
     public DbList<Sign.Category> getCategories()
         throws java.sql.SQLException
     {
-         PreparedStatement stmt = getCon().prepareStatement
+        PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT * from \"SignClass\" ORDER BY name ASC ", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          
@@ -235,10 +272,11 @@ public class MyDBSession extends DBSession
     
     
     
+    
     /* FIXME: should true be default? */
     public DbList<TPoint> getTrail(String src, java.util.Date from, java.util.Date to)
-          throws java.sql.SQLException
-       { return getTrail(src,from,to,true); }
+            throws java.sql.SQLException
+        { return getTrail(src,from,to,true); }
        
        
                                                                            
@@ -254,10 +292,10 @@ public class MyDBSession extends DBSession
              " WHERE src=? AND time >= ? AND time <= ?" + 
              " ORDER BY time "+(rev? "DESC" : "ASC")+" LIMIT 5000",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-         stmt.setString(1, src);
-         stmt.setTimestamp(2, date2ts(from));
-         stmt.setTimestamp(3, date2ts(to));
-         stmt.setMaxRows(5000);
+        stmt.setString(1, src);
+        stmt.setTimestamp(2, date2ts(from));
+        stmt.setTimestamp(3, date2ts(to));
+        stmt.setMaxRows(5000);
          
         return new DbList(stmt.executeQuery(), rs ->
             { return new TPoint(rs.getTimestamp("time"), getRef(rs, "position"));  });

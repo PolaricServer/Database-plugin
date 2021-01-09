@@ -16,9 +16,11 @@ package no.polaric.aprsdb;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.*;
-import java.util.function.*;
+import  java.util.function.*;
 import  java.util.concurrent.locks.*; 
 import  no.polaric.aprsd.Logfile;
+import  uk.me.jstott.jcoord.*;
+import  org.postgis.PGgeometry;
 
 
 /* OBS: "lånt" fra CMSComp */
@@ -124,12 +126,25 @@ public class DBSession
      }
 
                    
-     protected static Timestamp date2ts(java.util.Date d, int offset)
+     public static Timestamp date2ts(java.util.Date d, int offset)
        { return new Timestamp ( (long) ( (long) (d.getTime()+offset)/100)*100 ); }
        
-     protected static Timestamp date2ts(java.util.Date d)
+     public static Timestamp date2ts(java.util.Date d)
        { return date2ts(d, 0); }
-       
+    
+    
+     /**
+       * Encode and add a position to a PostGIS SQL statement.
+       */
+     public static void setRef(PreparedStatement stmt, int index, Reference pos)
+       throws SQLException 
+     {
+        LatLng ll = pos.toLatLng();
+        org.postgis.Point p = new org.postgis.Point( ll.getLng(), ll.getLat() );
+        p.setSrid(4326);
+        stmt.setObject(index, new PGgeometry(p));
+     }
+        
        
      public Connection getCon() 
         { return _con; }

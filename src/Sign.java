@@ -39,10 +39,18 @@ public class Sign extends Signs.Item
   
   public int getCategory() 
     { return cls; }
+    
+  public String getGroup()
+    { return group; }
   
   public Sign (int i, Reference r, long sc, String ic, String url, String txt, int cls) {
+    this(i,r,sc,ic,url,txt,cls,null);
+  }
+  
+  public Sign (int i, Reference r, long sc, String ic, String url, String txt, int cls, String grp) {
      super(i,r,sc,ic,url,txt); 
      this.cls = cls;
+     this.group = grp;
   }
   
 }

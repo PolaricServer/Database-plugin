@@ -37,7 +37,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            boolean active = api.getBoolProperty("db.plugin.on", false);
            if (!active)
                return; 
-           
+               
+            /* Give PostgreSQL some time to start */
+            try { Thread.sleep(1000*15); } catch (Exception e) {} 
            
             /*
              * Data source and pooling
@@ -66,7 +68,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            
            api.addHttpHandlerCls("no.polaric.aprsdb.http.Webserver", null);
            _isOwner = api.getBoolProperty("db.isowner", true);
-           _log = new Logfile(api, "database", "database.log");
+           _log = new Logfile(api, "db", "database.log");
            _api.log().info("DatabasePlugin", "Activate...");
            
            /*
@@ -79,7 +81,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             api2.start();
             GpxFileApi api3 = new GpxFileApi(api);
             api3.start();
-           
+            SignsApi api4 = new SignsApi(api);
+            api4.start();
+            
+            
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
             * done by more than one concurrent client (the owner of the database). 
@@ -118,7 +123,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                      }
                      catch (DBSession.SessionError e) {
                         _api.log().error("DatabasePlugin", "Cannot open database: "+e.getMessage());
-                        return null;
+                        return new ArrayList<Signs.Item>(1);
                      }
                      catch (Exception e) { 
                         _api.log().warn(null, "Sign search: "+e); 
@@ -179,7 +184,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       
       public String getDescr() {
          if (_dsrc == null)
-            return "DatabasePLugin (deactivated)";
+            return "DatabasePlugin (deactivated)";
          String u = _dburl;
          u = u.replaceFirst("jdbc:postgresql://", "");
          return "DatabasePlugin ("+u+")"; 
