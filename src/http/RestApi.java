@@ -225,6 +225,36 @@ public class RestApi extends ServerBase implements JsonPoints
         
         /***************************************************************************
          * REST Service: 
+         * Update an object for the logged in user.
+         * FIXME: Sanitize input? 
+         ***************************************************************************/
+         
+        put("/objects/*/*", (req, resp) -> {
+            String tag = req.splat()[0];
+            String id = req.splat()[1];
+                
+            /* Note: this is JSON but we do NOT deserialize it. We store it. */
+            String data = req.body();   
+                
+            MyDBSession db = _dbp.getDB();
+            try {
+                long ident = Long.parseLong(id);
+                db.updateJsObject(ident, data);
+                db.commit();
+                return "Ok";
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "PUT /objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
+                    500, "SQL error: "+e.getMessage());
+            }
+            finally { db.close(); }
+            
+        });
+        
+        
+        
+        /***************************************************************************
+         * REST Service: 
          * Delete an object for the logged in user.
          * FIXME: Sanitize input? 
          ***************************************************************************/
