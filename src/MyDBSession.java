@@ -416,129 +416,6 @@ public class MyDBSession extends DBSession
              });
     }
     
-    
-    
-    
-    /**
-     * Return a list of missions active at a given time. Optionally, we may add filters
-     * on id or alias (regular expressions). If the 'at' argument is null this means now.
-     * If the until argument is non-null and after 'at', this means we search for missions
-     * active in the time span from 'at' to 'until'. 
-     *
-     * @param at the given time
-     * @param until the end of the time interval to search for. May be null. 
-     * @param src   Regular expression to filter for callsigns/identifier. May be null.
-     * @param alias Regular expression to filter for alias. May be null.
-     */
-    public DbList<Mission> searchMissions(java.util.Date at, java.util.Date until, String src, String alias )
-    { 
-      /* TBD */
-      return null;
-    }
-    
-    
-    
-    /**
-     * Return the mission that was (or is going to be) active for a station at a 
-     * given time. 
-     * If time is null, return the mission currently active. 
-     *
-     * @param src Source callsign (or identifier)
-     * @param at  Time when the mission (that we search for) is active. 
-     */
-    public Mission getMission(String src, java.util.Date at)
-       throws java.sql.SQLException
-    {
-       PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT src,alias,icon,start,end,descr FROM \"Mission\"" +
-             " WHERE src=? AND time = ?", 
-             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-       stmt.setString(1, src);
-       stmt.setTimestamp(2, date2ts(at));
-       ResultSet rs = stmt.executeQuery();  
-       if (rs.next())
-          return new Mission(rs.getString("src"), rs.getString("alias"), rs.getString("icon"), 
-                      rs.getTimestamp("start"), rs.getTimestamp("end"), rs.getString("descr")); 
-       else
-          return null;
-    }
-    
-    
-    
-    /**
-     * Set end time for a mission. 
-     * If argument at is null or is missing, use time now. 
-     */
-
-    public void endMission(String src, java.util.Date at) throws java.sql.SQLException
-    {
-         PreparedStatement stmt = getCon().prepareStatement
-           ( "UPDATE \"Mission\" SET end=? WHERE src=?" );
-         stmt.setString(1, src);  
-         if (at == null)
-            stmt.setTimestamp(2, new Timestamp(System.currentTimeMillis() ) );
-         else
-            stmt.setTimestamp(2, date2ts(at));
-            
-    }
-    
-    public void endMission(String src) throws java.sql.SQLException
-      { endMission(src, null); }
-      
-      
-    /**
-     * Assign a mission to a station.
-     * A mission has a start and an end time. If end-time is not set (null),
-     * or in the future, the mission is active. An active mission may
-     * set the alias and the icon of the station (if defined). 
-     *
-     * @param st  Station to whom we assign the mission
-     * @param alias Alias to be used with the station during the mission
-     * @param icon Icon to be used with the station during the mission
-     * @param start Time when mission starts
-     * @param end   Time when mission ends. May be null (open).
-     * @param descr Text that describes the mission
-     */
-    public Mission assignMission(Station st, String alias, String icon, 
-            java.util.Date start,  java.util.Date end, String descr)
-            throws java.sql.SQLException
-    {
-       addMission(st.getIdent(), alias, icon, start, end, descr);
-       return new Mission(st.getIdent(), alias, icon, start, end, descr);  
-       
-    }
-    
-    
-    
-    /**
-     * Add a mission to the database.
-     *
-     * @param src Source callsign (or identifier)
-     * @param alias Alias to be used with the callsign during the mission
-     * @param icon Icon to be used with the callsign during the mission
-     * @param start Time when mission starts
-     * @param end   Time when mission ends. May be null (open).
-     * @param descr Text that describes the mission
-     * 
-     */
-    public void addMission(String src, String alias, String icon,  
-            java.util.Date start,  java.util.Date end, String descr)
-            throws java.sql.SQLException
-    {
-         PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"Mission\" (src, alias, icon, start, end, descr)" + 
-                " VALUES (?, ?, ?, ?, ?)" );
-         stmt.setString(1, src);
-         stmt.setString(2, alias);
-         stmt.setString(3, icon);
-         stmt.setTimestamp(4, date2ts(start));
-         if (end == null)
-            stmt.setNull(5, java.sql.Types.TIMESTAMP);
-         else
-            stmt.setTimestamp(5, date2ts(end));
-         stmt.setString(6, descr);
-         stmt.executeUpdate();
-    }
      
  
     /**
@@ -629,6 +506,19 @@ public class MyDBSession extends DBSession
     }
     
     
+    public void updateJsObject(long ident, String data)  
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " UPDATE \"JsObject\"" + 
+                " SET data=? WHERE id=?" );
+        stmt.setString(1, data);
+        stmt.setLong(2, ident);
+        stmt.executeUpdate();
+    }
+    
+    
+    
     public void deleteJsObject(String user, String tag, long id)
             throws java.sql.SQLException
     {
@@ -695,62 +585,6 @@ public class MyDBSession extends DBSession
         stmt.executeUpdate();
     }
     
-    
-    
-    
-    /*
-    
-   
-    public synchronized DbList<HistSearch> getHistSearch(String user)
-            throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT * FROM \"HistSearch\"" +
-              " WHERE userid=? ORDER BY name ASC", 
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-            stmt.setString(1, user);
-            
-            return new DbList( stmt.executeQuery(), rs ->
-                { return new HistSearch(rs.getString("name"), rs.getString("src"),
-                               rs.getTimestamp("tstart"), rs.getTimestamp("tend") );  }
-            );
-    }
-    
-    
-    
-    
-    public synchronized void addHistSearch(String user, HistSearch hs) 
-            throws java.sqlException
-    {
-        deleteHistSearch(hs);
-        PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"HistSearch\" (userid, name, src, tstart, tend)" + 
-                " VALUES (?, ?, ?, ?, ?)" );
-        stmt.setString(1, user);
-        stmt.setString(2, hs.name);
-        stmt.setString(3, hs.src);
-        stmt.setTimestamp(4, hs.tstart);
-        stmt.setTimestamp(5, hs.tend);
-        stmt.executeUpdate();
-    }
-    
-
-    
-    
-    public synchronized void deleteHistSearch(String user, HistSearch hs) 
-            throws java.sqlException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " DELETE FROM \"HistSearch\" 
-              " WHERE userid=? AND name=? AND src=? AND tstart=?" );
-        stmt.setString(1, user);
-        stmt.setString(2, hs.name);
-        stmt.setString(3, hs.src);
-        stmt.setTimestamp(4, hs.tstart);
-        stmt.executeUpdate();
-    }
-    
-    */
     
 }
 
