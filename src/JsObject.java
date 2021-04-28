@@ -8,13 +8,16 @@ import com.fasterxml.jackson.annotation.JsonRawValue;
  
 public class JsObject implements Serializable {
     public long id; 
+    public boolean readOnly=false;
     
     @JsonRawValue
     public String data; 
     
     public JsObject(long id, String data)
-       { this.id=id; this.data=data;}
+       { this.id=id; this.data=data; }
     
+    public JsObject(long id, boolean ro, String data)
+       { this.id=id; this.data=data; this.readOnly=ro; }
 }
 
 

@@ -170,9 +170,15 @@ public class DbInstaller
                                
         createClass("JsObject", null, 
                         "id      SERIAL PRIMARY KEY, " +
-                        "userid  varchar(20), " + 
+                    //    "userid  varchar(20), " +   Remve field in schema v.2 */
                         "tag     varchar(20), " +
                         "data    text" );
+                        
+        /* new in schema v. 2 */
+        createClass("ObjectAccess", null, 
+                        "id       integer REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
+                        "readonly boolean DEFAULT 'false', " + 
+                        "userid   varchar(20), " );
                                
         createClass("FileObject", null,
                         "id      SERIAL PRIMARY KEY, " +

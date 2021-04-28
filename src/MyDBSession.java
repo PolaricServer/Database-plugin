@@ -424,6 +424,7 @@ public class MyDBSession extends DBSession
     public void addTracker(String id, String user, String alias, String icon)  
             throws java.sql.SQLException
     {
+        _log.debug("MyDbSession", "addTracker: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( " INSERT INTO \"Tracker\" (id, userid, alias, icon)" + 
                 " VALUES (?, ?, ?, ?)" );
@@ -438,6 +439,7 @@ public class MyDBSession extends DBSession
     public void updateTracker(String id, String alias, String icon)
             throws java.sql.SQLException
     {
+        _log.debug("MyDbSession", "updateTracker: "+id);
         PreparedStatement stmt = getCon().prepareStatement
             ( "UPDATE \"Tracker\" SET alias=?, icon=?"+
               "WHERE id=?" );
@@ -452,6 +454,7 @@ public class MyDBSession extends DBSession
     public void deleteTracker(String id)
             throws java.sql.SQLException
     {
+        _log.debug("MyDbSession", "deleteTracker: "+id);
         PreparedStatement stmt = getCon().prepareStatement
             ( " DELETE FROM \"Tracker\" "+
               " WHERE id=?; ");
@@ -463,7 +466,8 @@ public class MyDBSession extends DBSession
     
     public Tracker getTracker(String id)
         throws java.sql.SQLException
-    {        
+    {      
+        _log.debug("MyDbSession", "getTracker: "+id);
         PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT * from \"Tracker\" "  +
               " WHERE id=?", 
@@ -494,16 +498,39 @@ public class MyDBSession extends DBSession
             throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"JsObject\" (userid, tag, data)" + 
-                " VALUES (?, ?, ?) RETURNING id" );
-         stmt.setString(1, user);
-         stmt.setString(2, tag);
-         stmt.setString(3, data);
-        // stmt.executeUpdate();
+              ( " INSERT INTO \"JsObject\" (tag, data)" + 
+                " VALUES (?, ?) RETURNING id" );
+         stmt.setString(1, tag);
+         stmt.setString(2, data);
          ResultSet rs = stmt.executeQuery(); 
          rs.next();
-         return rs.getLong("id");
+         long objid = rs.getLong("id");       
+         
+         /* Add user access to the object */
+         PreparedStatement stmt2 = getCon().prepareStatement
+              ( " INSERT INTO \"ObjectAccess\" (id, userid)" +
+                " VALUES (?, ?)" );
+         stmt2.setLong(1, objid);
+         stmt2.setString(2, user);
+         stmt2.executeUpdate();
+         return objid;
     }
+    
+    
+    
+    public void shareJsObject(long ident, String userid, boolean readonly)
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"ObjectAccess\" (id, readonly, userid)" +
+                " VALUES (?, ?, ?)" );
+        stmt.setLong(1, ident);
+        stmt.setBoolean(2, readonly);
+        stmt.setString(3, userid);
+        stmt.executeUpdate();
+    }
+    
+    
     
     
     public void updateJsObject(long ident, String data)  
@@ -524,10 +551,9 @@ public class MyDBSession extends DBSession
     {
         PreparedStatement stmt = getCon().prepareStatement
             ( " DELETE FROM \"JsObject\" "+
-              " WHERE userid=? AND tag=? AND id=?; ");
-        stmt.setString(1, user);
-        stmt.setString(2, tag);
-        stmt.setLong(3, id);
+              " WHERE tag=? AND id=?; ");
+        stmt.setString(1, tag);
+        stmt.setLong(2, id);
         stmt.executeUpdate();
     }
     
@@ -536,7 +562,7 @@ public class MyDBSession extends DBSession
           throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT id,data FROM \"JsObject\"" +
+            ( " SELECT id, data FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
               " WHERE userid=? AND tag=? ORDER BY data ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, user);

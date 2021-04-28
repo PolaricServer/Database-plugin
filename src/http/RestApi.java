@@ -118,6 +118,15 @@ public class RestApi extends ServerBase implements JsonPoints
             /* Get tracker info from request */
             Tracker.Info tr = (Tracker.Info) 
                 ServerBase.fromJson(req.body(), Tracker.Info.class);
+                
+            /* 
+             * Check if user is allowed to post this for a tracker. Note that this check 
+             * is only for active trackers. Non-active trackers will be allowed.
+             * FIXME: Need to improve this check? 
+             */
+            var item = _api.getDB().getItem(tr.id, null);
+            if (item != null && !auth.isTrackerAllowed(tr.id, item.getSourceId()))
+                return ERROR(resp, 403, "Not allowed to use this tracker: "+tr.id);
             
             /* Database transaction */
             try {
@@ -321,10 +330,24 @@ public class RestApi extends ServerBase implements JsonPoints
         }, ServerBase::toJson );
         
         
+        
+        /***************************************************************************** 
+         * REST Service
+         * Get a list of usernames with which the given object is shared.  
+         *****************************************************************************/
+         
+        get("/objects/*/*/share", "application/json", (req, resp) -> {
+            /* TBD */
+            return null;
+        }, ServerBase::toJson );
+    
     }
 
+
       
-      
+   
+   
+   
     public TrackerPoint updateItem(String id, String alias, String icon, Request req) {
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
         if (pt != null) {
