@@ -1,0 +1,29 @@
+#!/bin/bash
+
+
+# We have to be the superuser
+if [ $(whoami) != "root" ]; then
+    echo "ERROR: This script must be run as the superuser (root)"
+    exit 1
+fi
+
+echo 
+echo "This script will check the version of the database schema on this host and "
+echo "if necessary, upgrade it. If the schema is up-to-date no changes will be done"
+echo
+read -p "Do you want to continue? [Y/n]" -n 1 -r
+
+if [[ $REPLY =~ ^[^Yy]$ ]]
+then
+    exit 0
+fi
+
+
+#
+# Run the upgrade script as postgres user
+#
+echo
+echo "Upgrading database.."
+su -c "polaric-upgrade-pguser - postgres
+[ $? -eq 0 ] || exit 1 
+

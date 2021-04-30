@@ -1,0 +1,38 @@
+#!/bin/bash
+
+   DBNAME=polaric
+ USERNAME=polaric
+
+
+
+# We have to be the postgres user
+if [ $(whoami) != "postgres" ]; then
+    echo "ERROR: This script must be run as the 'postgres' user"
+    exit 1
+fi
+
+
+
+
+VERSION=$(psql -t -c 'select version from "MetaData"' polaric | xargs)
+
+echo "Version is $VERSION"
+if ((VERSION < 2)); then
+    echo "Upgrading schema to version 2"
+    
+    psql -t -c 
+       "BEGIN;  \
+        CREATE TABLE \"ObjectAccess\" ( \
+        id  integer REFERENCES \"JsObject\" (id) ON DELETE CASCADE, \
+        readonly boolean DEFAULT 'false', \
+        userid  varchar(20) ); \
+        \
+        INSERT INTO \"ObjectAccess\" ( id, userid, readonly) \
+        SELECT id, userid, 'false' FROM \"JsObject\";
+        \
+        ALTER TABLE \"JsObject\" DROP COLUMN \"userid\"; \
+        ALTER TABLE \"ObjectAccess\" owner TO polaric; \ 
+        UPDATE \"MetaData\" SET version=2; \
+        COMMIT " polaric
+fi
+
