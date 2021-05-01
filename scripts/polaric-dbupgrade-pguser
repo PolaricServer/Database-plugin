@@ -20,18 +20,17 @@ echo "Version is $VERSION"
 if ((VERSION < 2)); then
     echo "Upgrading schema to version 2"
     
-    psql -t -c 
-       "BEGIN;  \
+    psql -t -c "BEGIN;  \
         CREATE TABLE \"ObjectAccess\" ( \
         id  integer REFERENCES \"JsObject\" (id) ON DELETE CASCADE, \
         readonly boolean DEFAULT 'false', \
         userid  varchar(20) ); \
         \
         INSERT INTO \"ObjectAccess\" ( id, userid, readonly) \
-        SELECT id, userid, 'false' FROM \"JsObject\";
+        SELECT id, userid, 'false' FROM \"JsObject\"; \
         \
         ALTER TABLE \"JsObject\" DROP COLUMN \"userid\"; \
-        ALTER TABLE \"ObjectAccess\" owner TO polaric; \ 
+        ALTER TABLE \"ObjectAccess\" owner TO polaric; \
         UPDATE \"MetaData\" SET version=2; \
         COMMIT " polaric
 fi

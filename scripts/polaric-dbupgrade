@@ -24,6 +24,6 @@ fi
 #
 echo
 echo "Upgrading database.."
-su -c "polaric-upgrade-pguser - postgres
+su -c polaric-dbupgrade-pguser - postgres
 [ $? -eq 0 ] || exit 1 
 

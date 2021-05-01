@@ -1,3 +1,9 @@
+polaric-db-plugin (2.7) stable; urgency=medium
+
+  * Schema upgrade to allow sharing of jsobjects.
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Sat, 01 May 2021 15:42:47 +0200
+
 polaric-db-plugin (2.6) stable; urgency=medium
 
   * Various additions and fixes..

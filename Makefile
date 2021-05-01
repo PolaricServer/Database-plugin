@@ -47,7 +47,8 @@ install: polaric-aprsd.jar
 	install -m 644 database.ini $(INSTALL_CONFIG)
 	install -m 755 scripts/polaric-dbsetup-first $(INSTALL_BIN)
 	install -m 755 scripts/polaric-dbsetup $(INSTALL_BIN)
-
+	install -m 755 scripts/polaric-dbupgrade $(INSTALL_BIN)
+	install -m 755 scripts/polaric-dbupgrade-pguser $(INSTALL_BIN)
 
 aprs: $(LIBDIR)
 	@make TDIR=$(LIBDIR) CLASSPATH=$(LIBDIR):$(CLASSPATH) compile     
