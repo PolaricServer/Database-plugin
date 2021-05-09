@@ -518,21 +518,6 @@ public class MyDBSession extends DBSession
     
     
     
-    public void shareJsObject(long ident, String userid, boolean readonly)
-            throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"ObjectAccess\" (id, readonly, userid)" +
-                " VALUES (?, ?, ?)" );
-        stmt.setLong(1, ident);
-        stmt.setBoolean(2, readonly);
-        stmt.setString(3, userid);
-        stmt.executeUpdate();
-    }
-    
-    
-    
-    
     public void updateJsObject(long ident, String data)  
             throws java.sql.SQLException
     {
@@ -562,15 +547,118 @@ public class MyDBSession extends DBSession
           throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT id, data FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
+            ( " SELECT id, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
               " WHERE userid=? AND tag=? ORDER BY data ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, user);
          stmt.setString(2, tag);
          return new DbList( stmt.executeQuery(), rs ->
-            { return new JsObject(rs.getLong("id"), rs.getString("data"));  }
+            { return new JsObject(rs.getLong("id"), rs.getBoolean("readonly"), rs.getString("data"));  }
         );
     }
+    
+    
+    public void shareJsObject(long ident, String owner, String userid, boolean readonly)
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"ObjectAccess\" (id, readonly, userid)" +
+                " SELECT id, ?, ? "+
+                " FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" "+
+                "   WHERE id=? AND userid=? AND readonly=false AND NOT EXISTS "+
+                "       (SELECT userid FROM \"ObjectAccess\" WHERE id=? AND userid=?) limit 1");
+        stmt.setBoolean(1, readonly);
+        stmt.setString(2, userid);
+        stmt.setLong(3, ident);
+        stmt.setString(4, owner);
+        stmt.setLong(5, ident);
+        stmt.setString(6, userid);
+        stmt.executeUpdate();
+    }
+    
+    
+    public void shareJsObjects(String tag, String owner, String userid, boolean readonly)
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"ObjectAccess\" (id, readonly, userid)" +
+                " SELECT id, readonly, ? "+
+                " FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" "+
+                "   WHERE tag=? AND userid=? AND readonly=false ");
+        stmt.setString(1, userid);
+        stmt.setString(2, tag);
+        stmt.setString(3, owner);   
+        stmt.executeUpdate();
+    }
+    
+    
+    public void unlinkJsObject(long ident, String owner, String userid)
+            throws java.sql.SQLException
+    {
+        /* First, remove links from users */
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " DELETE FROM \"ObjectAccess\" WHERE id=? AND userid=? "+
+                " AND EXISTS " +
+                "   ( SELECT id FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " + 
+                "     WHERE userid=? " + 
+                (userid.equals(owner) ? ")" : " AND readonly=false) ")  
+              );
+        stmt.setLong(1, ident);
+        stmt.setString(2, userid);
+        stmt.setString(3, owner);
+        stmt.executeUpdate();
+        
+        /* Now if no user-links left, remove JsObject */
+        stmt = getCon().prepareStatement
+              ( " DELETE FROM \"JsObject\" WHERE id=? AND NOT EXISTS "+
+                "  ( SELECT id FROM \"ObjectAccess\" where id=? ) ");
+        stmt.setLong(1, ident);
+        stmt.setLong(2, ident);
+        stmt.executeUpdate();
+    }
+    
+    
+    public void unlinkJsObjects(String tag, String owner, String userid)
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " DELETE FROM \"ObjectAccess\" WHERE userid=? AND id IN" +
+                " ( SELECT id FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
+                "   WHERE tag=? AND userid=? AND EXISTS " +
+                "     ( SELECT id FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " + 
+                "       WHERE userid=? AND tag=? AND readonly=false) ) " );
+                
+        stmt.setString(1, userid);
+        stmt.setString(2, tag);
+        stmt.setString(3, userid);
+        stmt.setString(4, owner);
+        stmt.setString(5, tag);
+        stmt.executeUpdate();
+        
+        /* Now if no user-links left, remove JsObject */
+        stmt = getCon().prepareStatement
+              ( " DELETE FROM \"JsObject\" WHERE id IN "+
+                "  ( SELECT id FROM \"JsObject\" WHERE tag=? AND NOT EXISTS "+
+                "    ( SELECT id FROM \"ObjectAccess\" WHERE id=\"JsObject\".id ) ) ");
+        stmt.setString(1, tag);
+        stmt.executeUpdate();
+        
+    }
+    
+    
+    public DbList<JsObject.User> getJsUsers(long id)
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT userid, readonly from \"ObjectAccess\" "+
+              " WHERE id=? ",  
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setLong(1, id);
+        return new DbList( stmt.executeQuery(), rs ->
+            { return new JsObject.User(rs.getString("userid"), rs.getBoolean("readonly"));  }
+        );
+    }
+    
     
     
     public String getFileObject(long id)         

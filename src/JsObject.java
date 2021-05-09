@@ -7,6 +7,17 @@ import com.fasterxml.jackson.annotation.JsonRawValue;
 /* JSON object from user's client */
  
 public class JsObject implements Serializable {
+
+    public static class User {
+        public String userid; 
+        public boolean readOnly; 
+        public User() 
+            {}
+        public User(String u, boolean ro) 
+            {userid=u; readOnly=ro; }
+    }
+    
+
     public long id; 
     public boolean readOnly=false;
     

@@ -198,38 +198,120 @@ public class RestApi extends ServerBase implements JsonPoints
             finally { db.close();}  
         } );
         
-        
-        
-        /************************************************************************** 
-         * REST Service: 
-         * Add an object for the logged in user. 
-         * We assume that this is a JSON object but do not parse it. 
-         **************************************************************************/
+                
+        /***************************************************************************** 
+         * REST Service
+         * Get a list of users (and readonly attribute) with which the given object 
+         * is shared.  
+         *****************************************************************************/
          
-        post("/objects/*", (req, resp) -> {
+        get("/objects/*/*/share", "application/json", (req, resp) -> {
             String tag = req.splat()[0];
-            
-            /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-        
-            /* Note: this is JSON but we do NOT deserialize it. We store it. */
-            String data = req.body(); 
-            
+            String id = req.splat()[1];
+          
+            /* Database transaction */
             MyDBSession db = _dbp.getDB();
             try {
-                long id = db.addJsObject(auth.userid, tag, data);
+                long oid = Long.parseLong(id);
+                var tr =  db.getJsUsers(oid);
+                List<JsObject.User> usr = tr.toList();
                 db.commit();
-                return ""+id;
+                return usr;
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /objects/"+tag+": SQL error:"+e.getMessage(),
-                    500, "SQL error: "+e.getMessage());
+                return ABORT(resp, db, "GET /objects/*/*/share: SQL error:"+e.getMessage(), 500, null);
             }
-            finally { db.close(); }
-        });
+            catch (java.lang.NumberFormatException e) {
+                return ABORT(resp, db, "GET /objects/*/*/share: Object id must be numeric", 400, null);
+            }
+            finally { 
+                db.close(); 
+            }
+        }, ServerBase::toJson );
         
+        
+                
+        /***************************************************************************** 
+         * REST Service
+         * Add a user that share this object.  
+         *****************************************************************************/
+         
+        post("/objects/*/*/share", (req, resp) -> {         
+            String tag = req.splat()[0];
+            String id = req.splat()[1];
+            var auth = getAuthInfo(req); 
+            
+            /* Get user info from request */
+            var u = (JsObject.User) 
+                ServerBase.fromJson(req.body(), JsObject.User.class);
+        
+            /* Database transaction */
+            // FIXME: Do not allow if readonly is set
+            MyDBSession db = _dbp.getDB();
+            try {                 
+                if (u==null) 
+                    return ABORT(resp, db, "POST /objects/*/*/share: cannot parse input", 
+                        500, "Cannot parse input");     
+                        
+                if (id.equals("_ALL_")) 
+                    db.shareJsObjects(tag, auth.userid, u.userid, u.readOnly);
+                else {
+                    long oid = Long.parseLong(id);
+                    db.shareJsObject(oid, auth.userid,  u.userid, u.readOnly);
+                
+                    /* Notify receiving user */
+                    _api.getWebserver().notifyUser(u.userid, 
+                        new ServerAPI.Notification("system", "share", 
+                            auth.userid+" shared '"+tag+"' object with you" , new Date(), 4));
+                }
+                db.commit();
+                return "Ok";
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, null);
+            }        
+            catch (java.lang.NumberFormatException e) {
+                return ABORT(resp, db, "POST /objects/*/*/share: Object id must be numeric", 400, null);
+            }
+            finally { 
+                db.close(); 
+            }   
+        });
+                
+                
+        /***************************************************************************** 
+         * REST Service
+         * Remove a user that share this object.  
+         *****************************************************************************/
+         
+        delete("/objects/*/*/share/*", (req, resp) -> {         
+            String tag = req.splat()[0];
+            String id = req.splat()[1];
+            String uid = req.splat()[2];
+            var auth = getAuthInfo(req); 
+                        
+            /* Database transaction */
+            MyDBSession db = _dbp.getDB();
+            try {        
+                if (id.equals("_ALL_"))
+                    db.unlinkJsObjects(tag, auth.userid, uid);
+                else {
+                    long oid = Long.parseLong(id);
+                    db.unlinkJsObject(oid, auth.userid, uid);
+                }
+                db.commit();
+                return "Ok";
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, null);
+            }        
+            catch (java.lang.NumberFormatException e) {
+                return ABORT(resp, db, "POST /objects/*/*/share: Object id must be numeric", 400, null);
+            }
+            finally { 
+                db.close(); 
+            }   
+        });
         
         
         /***************************************************************************
@@ -280,7 +362,7 @@ public class RestApi extends ServerBase implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 long ident = Long.parseLong(id);
-                db.deleteJsObject(auth.userid, tag, ident);
+                db.unlinkJsObject(ident, auth.userid, auth.userid);
                 db.commit();
                 return "OK";
             }
@@ -295,9 +377,9 @@ public class RestApi extends ServerBase implements JsonPoints
             }
             finally { db.close();}
         } );
-        
-        
-        
+                
+                
+                
         /***************************************************************************** 
          * REST Service
          * Get a list of (JSON) objects for the logged in user. 
@@ -328,24 +410,41 @@ public class RestApi extends ServerBase implements JsonPoints
             }
 
         }, ServerBase::toJson );
-        
-        
-        
-        /***************************************************************************** 
-         * REST Service
-         * Get a list of usernames with which the given object is shared.  
-         *****************************************************************************/
+     
+                
+                
+        /************************************************************************** 
+         * REST Service: 
+         * Add an object for the logged in user. 
+         * We assume that this is a JSON object but do not parse it. 
+         **************************************************************************/
          
-        get("/objects/*/*/share", "application/json", (req, resp) -> {
-            /* TBD */
-            return null;
-        }, ServerBase::toJson );
+        post("/objects/*", (req, resp) -> {
+            String tag = req.splat()[0];
+            
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+        
+            /* Note: this is JSON but we do NOT deserialize it. We store it. */
+            String data = req.body(); 
+            
+            MyDBSession db = _dbp.getDB();
+            try {
+                long id = db.addJsObject(auth.userid, tag, data);
+                db.commit();
+                return ""+id;
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "POST /objects/"+tag+": SQL error:"+e.getMessage(),
+                    500, "SQL error: "+e.getMessage());
+            }
+            finally { db.close(); }
+        });
     
     }
 
-
-      
-   
    
    
     public TrackerPoint updateItem(String id, String alias, String icon, Request req) {

@@ -170,7 +170,6 @@ public class DbInstaller
                                
         createClass("JsObject", null, 
                         "id      SERIAL PRIMARY KEY, " +
-                    //    "userid  varchar(20), " +   Remve field in schema v.2 */
                         "tag     varchar(20), " +
                         "data    text" );
                         
