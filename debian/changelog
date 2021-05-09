@@ -1,3 +1,9 @@
+polaric-db-plugin (2.7+) UNRELEASED; urgency=medium
+
+  * Hacking..
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Sun, 02 May 2021 23:54:35 +0200
+
 polaric-db-plugin (2.7) stable; urgency=medium
 
   * Schema upgrade to allow sharing of jsobjects.
