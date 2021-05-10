@@ -30,7 +30,8 @@ import org.eclipse.jetty.server.*;
  
 public class RestApi extends ServerBase implements JsonPoints
 {
-    private ServerAPI _api; 
+    private ServerAPI _api;
+    private PubSub _psub;
     private PluginApi _dbp;
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
@@ -69,6 +70,10 @@ public class RestApi extends ServerBase implements JsonPoints
         _api.getWebserver().protectUrl("/trackers/*");
         _api.getWebserver().protectUrl("/objects/*");
                 
+        _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        _psub.createRoom("sharing", (Class) null); 
+        
+        
         
         /**************************************************************************** 
          * REST Service
@@ -260,6 +265,7 @@ public class RestApi extends ServerBase implements JsonPoints
                     db.shareJsObject(oid, auth.userid,  u.userid, u.readOnly);
                 
                     /* Notify receiving user */
+                    _psub.put("sharing", null, u.userid);
                     _api.getWebserver().notifyUser(u.userid, 
                         new ServerAPI.Notification("system", "share", 
                             auth.userid+" shared '"+tag+"' object with you" , new Date(), 4));
@@ -298,6 +304,8 @@ public class RestApi extends ServerBase implements JsonPoints
                 else {
                     long oid = Long.parseLong(id);
                     db.unlinkJsObject(oid, auth.userid, uid);
+                    /* Notify receiving user */
+                    _psub.put("sharing", null, uid);
                 }
                 db.commit();
                 return "Ok";
