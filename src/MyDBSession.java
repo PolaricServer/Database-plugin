@@ -246,7 +246,7 @@ public class MyDBSession extends DBSession
     
         
         
-    public void deleteSign(int id)
+    public int deleteSign(int id)
           throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "deleteSign: "+id);
@@ -254,7 +254,7 @@ public class MyDBSession extends DBSession
               ( "DELETE FROM \"Signs\"" + 
                 "WHERE id=?" );
          stmt.setInt(1, id);
-         stmt.executeUpdate();
+         return stmt.executeUpdate();
     }
     
     
@@ -451,7 +451,7 @@ public class MyDBSession extends DBSession
     
     
     
-    public void deleteTracker(String id)
+    public int deleteTracker(String id)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "deleteTracker: "+id);
@@ -459,7 +459,7 @@ public class MyDBSession extends DBSession
             ( " DELETE FROM \"Tracker\" "+
               " WHERE id=?; ");
         stmt.setString(1, id);
-        stmt.executeUpdate();
+        return stmt.executeUpdate();
     }
          
     
@@ -531,7 +531,7 @@ public class MyDBSession extends DBSession
     
     
     
-    public void deleteJsObject(String user, String tag, long id)
+    public int deleteJsObject(String user, String tag, long id)
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
@@ -539,7 +539,7 @@ public class MyDBSession extends DBSession
               " WHERE tag=? AND id=?; ");
         stmt.setString(1, tag);
         stmt.setLong(2, id);
-        stmt.executeUpdate();
+        return stmt.executeUpdate();
     }
     
     
@@ -555,6 +555,23 @@ public class MyDBSession extends DBSession
          return new DbList( stmt.executeQuery(), rs ->
             { return new JsObject(rs.getLong("id"), rs.getBoolean("readonly"), rs.getString("data"));  }
         );
+    }
+    
+    
+    public String getJsObject(String user, String tag, long id)
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT data FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
+              " WHERE userid=? AND tag=? AND id=?", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, user);
+        stmt.setString(2, tag);
+        stmt.setLong(3, id);
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next())
+            return rs.getString("data");
+        return null;
     }
     
     
@@ -592,7 +609,7 @@ public class MyDBSession extends DBSession
     }
     
     
-    public void unlinkJsObject(long ident, String owner, String userid)
+    public int unlinkJsObject(long ident, String owner, String userid)
             throws java.sql.SQLException
     {
         /* First, remove links from users */
@@ -614,11 +631,11 @@ public class MyDBSession extends DBSession
                 "  ( SELECT id FROM \"ObjectAccess\" where id=? ) ");
         stmt.setLong(1, ident);
         stmt.setLong(2, ident);
-        stmt.executeUpdate();
+        return stmt.executeUpdate();
     }
     
     
-    public void unlinkJsObjects(String tag, String owner, String userid)
+    public int unlinkJsObjects(String tag, String owner, String userid)
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
@@ -641,8 +658,7 @@ public class MyDBSession extends DBSession
                 "  ( SELECT id FROM \"JsObject\" WHERE tag=? AND NOT EXISTS "+
                 "    ( SELECT id FROM \"ObjectAccess\" WHERE id=\"JsObject\".id ) ) ");
         stmt.setString(1, tag);
-        stmt.executeUpdate();
-        
+        return stmt.executeUpdate();
     }
     
     
@@ -689,14 +705,14 @@ public class MyDBSession extends DBSession
     }
     
     
-    public void deleteFileObject(long id)   
+    public int deleteFileObject(long id)   
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
             ( " DELETE FROM \"FileObject\" " +
               " WHERE id=?; ");
         stmt.setLong(1, id);
-        stmt.executeUpdate();
+        return stmt.executeUpdate();
     }
     
     

@@ -288,6 +288,7 @@ public class RestApi extends ServerBase implements JsonPoints
         /***************************************************************************** 
          * REST Service
          * Remove a user that share this object.  
+         * return number of actual objects removed from database. 
          *****************************************************************************/
          
         delete("/objects/*/*/share/*", (req, resp) -> {         
@@ -298,17 +299,18 @@ public class RestApi extends ServerBase implements JsonPoints
                         
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
-            try {        
+            try {  
+                int n = 0;
                 if (id.equals("_ALL_"))
-                    db.unlinkJsObjects(tag, auth.userid, uid);
+                    n = db.unlinkJsObjects(tag, auth.userid, uid);
                 else {
                     long oid = Long.parseLong(id);
-                    db.unlinkJsObject(oid, auth.userid, uid);
+                    n = db.unlinkJsObject(oid, auth.userid, uid);
                     /* Notify receiving user */
                     _psub.put("sharing", null, uid);
                 }
                 db.commit();
-                return "Ok";
+                return ""+n;
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, null);
@@ -355,7 +357,7 @@ public class RestApi extends ServerBase implements JsonPoints
         /***************************************************************************
          * REST Service: 
          * Delete an object for the logged in user.
-         * FIXME: Sanitize input? 
+         * Return number of objects actually deleted from database. 
          ***************************************************************************/
          
         delete("/objects/*/*", (req, resp) -> {
@@ -370,9 +372,9 @@ public class RestApi extends ServerBase implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 long ident = Long.parseLong(id);
-                db.unlinkJsObject(ident, auth.userid, auth.userid);
+                int n = db.unlinkJsObject(ident, auth.userid, auth.userid);
                 db.commit();
-                return "OK";
+                return ""+n;
             }
             catch (java.lang.NumberFormatException e) {
                 return ABORT(resp, db, "DELETE /objects/"+tag+"/"
@@ -386,7 +388,44 @@ public class RestApi extends ServerBase implements JsonPoints
             finally { db.close();}
         } );
                 
-                
+        
+        /***************************************************************************** 
+         * REST Service
+         * Get a single (raw text) object. 
+         *****************************************************************************/
+         
+        get("/objects/*/*", "application/json", (req, resp) -> {
+            String tag = req.splat()[0];
+            String id = req.splat()[1];
+            
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+            
+            MyDBSession db = _dbp.getDB();
+            try {
+                String a =  db.getJsObject(auth.userid, tag, Long.parseLong(id));            
+                if (a == null)
+                    return ABORT(resp, db, "GET /objects/"+tag+"/"+id+": Item not found: ",
+                        404, "Item not found: "+tag+": "+id);
+                db.commit();
+                return a;
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "GET /objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
+                    500, null);
+            }      
+            catch (java.lang.NumberFormatException e) {
+                return ABORT(resp, db, "GET /objects/*/*: Object id must be numeric", 400, null);
+            }
+            finally { 
+                db.close(); 
+            }
+
+        } );
+        
+        
                 
         /***************************************************************************** 
          * REST Service
