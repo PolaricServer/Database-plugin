@@ -20,6 +20,7 @@ public class JsObject implements Serializable {
 
     public long id; 
     public boolean readOnly=false;
+    public boolean noRemove=false; 
     
     @JsonRawValue
     public String data; 
@@ -29,6 +30,9 @@ public class JsObject implements Serializable {
     
     public JsObject(long id, boolean ro, String data)
        { this.id=id; this.data=data; this.readOnly=ro; }
+       
+    public JsObject(long id, boolean ro, boolean nr, String data)
+       { this.id=id; this.data=data; this.readOnly=ro; this.noRemove=nr; }   
 }
 
 

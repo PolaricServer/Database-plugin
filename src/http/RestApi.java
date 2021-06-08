@@ -265,10 +265,12 @@ public class RestApi extends ServerBase implements JsonPoints
                     db.shareJsObject(oid, auth.userid,  u.userid, u.readOnly);
                 
                     /* Notify receiving user */
-                    _psub.put("sharing", null, u.userid);
-                    _api.getWebserver().notifyUser(u.userid, 
-                        new ServerAPI.Notification("system", "share", 
-                            auth.userid+" shared '"+tag+"' object with you" , new Date(), 4));
+                    if (!"#ALL".equals(u.userid)) {
+                        _psub.put("sharing", null, u.userid);
+                        _api.getWebserver().notifyUser(u.userid, 
+                            new ServerAPI.Notification("system", "share", 
+                                auth.userid+" shared '"+tag+"' object with you" , new Date(), 4));
+                    }
                 }
                 db.commit();
                 return "Ok";

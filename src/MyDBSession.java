@@ -547,13 +547,18 @@ public class MyDBSession extends DBSession
           throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT id, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
-              " WHERE userid=? AND tag=? ORDER BY data ASC", 
+            ( " SELECT id, userid, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
+              " WHERE (userid=? OR userid='#ALL') AND tag=? ORDER BY userid, data ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, user);
          stmt.setString(2, tag);
-         return new DbList( stmt.executeQuery(), rs ->
-            { return new JsObject(rs.getLong("id"), rs.getBoolean("readonly"), rs.getString("data"));  }
+         return new DbList( stmt.executeQuery(), rs -> {
+                boolean ro = rs.getBoolean("readonly");
+                if ("#ALL".equals(user))
+                    ro = true;
+                boolean nr = rs.getString("userid").equals("#ALL");
+                return new JsObject(rs.getLong("id"), ro, nr, rs.getString("data"));  
+            }
         );
     }
     
