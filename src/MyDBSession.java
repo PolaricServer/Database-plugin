@@ -543,20 +543,22 @@ public class MyDBSession extends DBSession
     }
     
     
-    public DbList<JsObject> getJsObjects(String user, String tag)
+    public DbList<JsObject> getJsObjects(String user, String group, String tag)
           throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT id, userid, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
-              " WHERE (userid=? OR userid='#ALL') AND tag=? ORDER BY userid, data ASC", 
+              " WHERE (userid=? OR userid='#ALL' OR userid=?) AND tag=? ORDER BY userid, data ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, user);
-         stmt.setString(2, tag);
+         stmt.setString(2, "@"+group);
+         stmt.setString(3, tag);
+         
          return new DbList( stmt.executeQuery(), rs -> {
                 boolean ro = rs.getBoolean("readonly");
-                if ("#ALL".equals(user))
+                if (user.matches("(#ALL)|(@.*)"))
                     ro = true;
-                boolean nr = rs.getString("userid").equals("#ALL");
+                boolean nr = rs.getString("userid").matches("(#ALL)|(@.*)");
                 return new JsObject(rs.getLong("id"), ro, nr, rs.getString("data"));  
             }
         );
@@ -613,21 +615,32 @@ public class MyDBSession extends DBSession
         stmt.executeUpdate();
     }
     
-    
+
+                
     public int unlinkJsObject(long ident, String owner, String userid)
             throws java.sql.SQLException
     {
-        /* First, remove links from users */
+        /* First, remove links from users where owner has a non-readonly link */
         PreparedStatement stmt = getCon().prepareStatement
-              ( " DELETE FROM \"ObjectAccess\" WHERE id=? AND userid=? "+
+              ( " DELETE FROM \"ObjectAccess\" WHERE id=? "+
+                " AND userid=? "+
                 " AND EXISTS " +
-                "   ( SELECT id FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " + 
-                "     WHERE userid=? " + 
-                (userid.equals(owner) ? ")" : " AND readonly=false) ")  
+                "   ( SELECT id FROM \"ObjectAccess\" " + 
+                "     WHERE id=? AND userid=? AND readonly=false ) " 
               );
         stmt.setLong(1, ident);
         stmt.setString(2, userid);
-        stmt.setString(3, owner);
+        stmt.setLong(3, ident);
+        stmt.setString(4, owner);
+        stmt.executeUpdate();
+        
+        /* Remove dangling @group and #ALL links */
+        stmt = getCon().prepareStatement
+              ( " DELETE FROM \"ObjectAccess\" WHERE id=? AND userid ~ '[@#].+' "+
+                " AND NOT EXISTS "+
+                "    ( SELECT id FROM \"ObjectAccess\" WHERE id=? AND NOT userid ~ '[@#].+') " );
+        stmt.setLong(1,ident);
+        stmt.setLong(2, ident);
         stmt.executeUpdate();
         
         /* Now if no user-links left, remove JsObject */
@@ -640,6 +653,8 @@ public class MyDBSession extends DBSession
     }
     
     
+    
+    
     public int unlinkJsObjects(String tag, String owner, String userid)
             throws java.sql.SQLException
     {
@@ -649,7 +664,6 @@ public class MyDBSession extends DBSession
                 "   WHERE tag=? AND userid=? AND EXISTS " +
                 "     ( SELECT id FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " + 
                 "       WHERE userid=? AND tag=? AND readonly=false) ) " );
-                
         stmt.setString(1, userid);
         stmt.setString(2, tag);
         stmt.setString(3, userid);
@@ -657,7 +671,21 @@ public class MyDBSession extends DBSession
         stmt.setString(5, tag);
         stmt.executeUpdate();
         
-        /* Now if no user-links left, remove JsObject */
+        
+        /* Remove dangling @group and #ALL links */
+        stmt = getCon().prepareStatement
+              ( " DELETE FROM \"ObjectAccess\" WHERE userid ~ '[@#].+' AND id IN "+
+                "   ( SELECT id FROM \"JsObject\" xx NATURAL JOIN \"ObjectAccess\" " +
+                "     WHERE tag=? AND userid ~ '[@#].+' "+
+                "     AND NOT EXISTS "+
+                "      ( SELECT id FROM \"ObjectAccess\" "+
+                "        WHERE id=xx.id AND NOT userid ~ '[@#].+') " );
+        stmt.setString(1, tag);
+        stmt.setString(2, tag);
+        stmt.executeUpdate();
+        
+        
+        /* Now if no user-links left, remove JsObjects */
         stmt = getCon().prepareStatement
               ( " DELETE FROM \"JsObject\" WHERE id IN "+
                 "  ( SELECT id FROM \"JsObject\" WHERE tag=? AND NOT EXISTS "+
@@ -665,6 +693,7 @@ public class MyDBSession extends DBSession
         stmt.setString(1, tag);
         return stmt.executeUpdate();
     }
+    
     
     
     public DbList<JsObject.User> getJsUsers(long id)

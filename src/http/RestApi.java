@@ -72,7 +72,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
         _psub.createRoom("sharing", (Class) null); 
-        
+        _psub.createRoom("object", String.class /* tag */); 
         
         
         /**************************************************************************** 
@@ -238,7 +238,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 
         /***************************************************************************** 
          * REST Service
-         * Add a user that share this object.  
+         * Add a user or group that share this object.  
          *****************************************************************************/
          
         post("/objects/*/*/share", (req, resp) -> {         
@@ -250,8 +250,10 @@ public class RestApi extends ServerBase implements JsonPoints
             var u = (JsObject.User) 
                 ServerBase.fromJson(req.body(), JsObject.User.class);
         
+            if (u.userid.matches("[@#].+") && !auth.sar && !auth.admin)
+                return ERROR(resp, 402, "You are not authorized to share with groups or #ALL");
+        
             /* Database transaction */
-            // FIXME: Do not allow if readonly is set
             MyDBSession db = _dbp.getDB();
             try {                 
                 if (u==null) 
@@ -265,7 +267,7 @@ public class RestApi extends ServerBase implements JsonPoints
                     db.shareJsObject(oid, auth.userid,  u.userid, u.readOnly);
                 
                     /* Notify receiving user */
-                    if (!"#ALL".equals(u.userid)) {
+                    if (!u.userid.matches("(#ALL)|(@.+)")) {
                         _psub.put("sharing", null, u.userid);
                         _api.getWebserver().notifyUser(u.userid, 
                             new ServerAPI.Notification("system", "share", 
@@ -339,10 +341,16 @@ public class RestApi extends ServerBase implements JsonPoints
             /* Note: this is JSON but we do NOT deserialize it. We store it. */
             String data = req.body();   
                 
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+                
             MyDBSession db = _dbp.getDB();
             try {
                 long ident = Long.parseLong(id);
                 db.updateJsObject(ident, data);
+                _psub.put("object", tag, auth.userid);
                 db.commit();
                 return "Ok";
             }
@@ -374,7 +382,8 @@ public class RestApi extends ServerBase implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 long ident = Long.parseLong(id);
-                int n = db.unlinkJsObject(ident, auth.userid, auth.userid);
+                int n = db.unlinkJsObject(ident, auth.userid, auth.userid);              
+                _psub.put("object", tag, auth.userid);
                 db.commit();
                 return ""+n;
             }
@@ -445,7 +454,7 @@ public class RestApi extends ServerBase implements JsonPoints
             MyDBSession db = _dbp.getDB();
             DbList<JsObject> a = null; 
             try {
-                a =  db.getJsObjects(auth.userid, tag);
+                a =  db.getJsObjects(auth.userid, auth.groupid, tag);
                 List<JsObject> aa = a.toList().stream().collect(Collectors.toList());
                 db.commit();
                 return aa;
@@ -482,6 +491,7 @@ public class RestApi extends ServerBase implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 long id = db.addJsObject(auth.userid, tag, data);
+                _psub.put("object", tag, auth.userid);
                 db.commit();
                 return ""+id;
             }
