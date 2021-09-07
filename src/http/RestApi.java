@@ -56,8 +56,11 @@ public class RestApi extends ServerBase implements JsonPoints
         return ERROR(resp, status, msg);
     }
       
-
-
+    
+    
+    protected boolean sarAuthForItem(Request req, PointObject x) {
+        return (getAuthInfo(req).itemSarAuth(x));
+    }
     
     /** 
      * Set up the webservices. 
@@ -130,7 +133,7 @@ public class RestApi extends ServerBase implements JsonPoints
              * FIXME: Need to improve this check? 
              */
             var item = _api.getDB().getItem(tr.id, null);
-            if (item != null && !auth.isTrackerAllowed(tr.id, item.getSourceId()))
+            if (item != null && sarAuthForItem(req, item))
                 return ERROR(resp, 403, "Not allowed to use this tracker: "+tr.id);
             
             /* Database transaction */
