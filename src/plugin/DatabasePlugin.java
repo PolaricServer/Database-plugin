@@ -10,8 +10,8 @@ import java.sql.*;
 import javax.sql.*;
 import org.postgis.PGgeometry;
     
-     import com.zaxxer.hikari.HikariConfig;
-     import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 
 public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, StationDB.Hist, PluginApi
@@ -79,8 +79,6 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             api1.start();
             HistApi api2 = new HistApi(api);
             api2.start();
-            GpxFileApi api3 = new GpxFileApi(api);
-            api3.start();
             SignsApi api4 = new SignsApi(api);
             api4.start();
             
