@@ -548,33 +548,35 @@ public class MyDBSession extends DBSession
     {
          PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT id, userid, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
-              " WHERE (userid=? OR userid='#ALL' OR userid=?) AND tag=? ORDER BY userid, data ASC", 
+              " WHERE (userid=? OR userid='#ALL' OR userid=?) AND tag=? ORDER BY readonly DESC, userid ASC, data ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-         stmt.setString(1, user);
-         stmt.setString(2, "@"+group);
+         stmt.setString(1, (user==null ? "_NO-USER_" : user));
+         stmt.setString(2, "@"+(group==null ? "NOLOGIN": group));
          stmt.setString(3, tag);
          
          return new DbList( stmt.executeQuery(), rs -> {
                 boolean ro = rs.getBoolean("readonly");
-                if (user.matches("(#ALL)|(@.*)"))
+                if (rs.getString("userid").matches("(#ALL)|(@.*)"))
                     ro = true;
                 boolean nr = rs.getString("userid").matches("(#ALL)|(@.*)");
+                
                 return new JsObject(rs.getLong("id"), ro, nr, rs.getString("data"));  
             }
         );
     }
     
     
-    public String getJsObject(String user, String tag, long id)
+    public String getJsObject(String user, String group, String tag, long id)
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT data FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
-              " WHERE userid=? AND tag=? AND id=?", 
+              " WHERE (userid=? OR userid='#ALL' OR userid=?) AND tag=? AND id=?", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-        stmt.setString(1, user);
-        stmt.setString(2, tag);
-        stmt.setLong(3, id);
+        stmt.setString(1, (user==null ? "NO-USER" : user));
+        stmt.setString(2, "@"+(group==null ? "NOLOGIN": group));
+        stmt.setString(3, tag);
+        stmt.setLong(4, id);
         ResultSet rs = stmt.executeQuery();
         if (rs.next())
             return rs.getString("data");
@@ -708,47 +710,6 @@ public class MyDBSession extends DBSession
             { return new JsObject.User(rs.getString("userid"), rs.getBoolean("readonly"));  }
         );
     }
-    
-    
-    
-    public String getFileObject(long id)         
-        throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT * from \"FileObject\" "  +
-              " WHERE id=?", 
-              ResultSet.CONCUR_READ_ONLY );
-        stmt.setLong(1, id);
-        ResultSet rs = stmt.executeQuery(); 
-        if (rs.next())
-            return rs.getString("data");
-        return null;
-    }
-    
-    
-    public long addFileObject(InputStream data)        
-        throws java.sql.SQLException
-    {
-         PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"FileObject\" (data)" + 
-                " VALUES (?) RETURNING id" );
-         stmt.setCharacterStream(1, new InputStreamReader(data));
-         ResultSet rs = stmt.executeQuery(); 
-         rs.next();
-         return rs.getLong("id");
-    }
-    
-    
-    public int deleteFileObject(long id)   
-        throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " DELETE FROM \"FileObject\" " +
-              " WHERE id=?; ");
-        stmt.setLong(1, id);
-        return stmt.executeUpdate();
-    }
-    
     
 }
 

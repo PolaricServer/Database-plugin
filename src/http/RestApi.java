@@ -71,7 +71,7 @@ public class RestApi extends ServerBase implements JsonPoints
         _api.getWebserver().corsEnable("/objects/*");
         _api.getWebserver().protectUrl("/trackers");
         _api.getWebserver().protectUrl("/trackers/*");
-        _api.getWebserver().protectUrl("/objects/*");
+        _api.getWebserver().protectUrl("/objects/*/*/share");
                 
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
         _psub.createRoom("sharing", (Class) null); 
@@ -98,7 +98,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 return tri;
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /users/*/trackers: SQL error:"+e.getMessage(), 500, null);
+                return ABORT(resp, db, "GET /users/*/trackers: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }
             finally { 
                 db.close(); 
@@ -201,7 +201,7 @@ public class RestApi extends ServerBase implements JsonPoints
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "DELETE /trackers/*: SQL error:"+e.getMessage(),
-                    500, "SQL error: "+e.getMessage());
+                    500, "Server error (SQL");
             }
             finally { db.close();}  
         } );
@@ -227,10 +227,10 @@ public class RestApi extends ServerBase implements JsonPoints
                 return usr;
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /objects/*/*/share: SQL error:"+e.getMessage(), 500, null);
+                return ABORT(resp, db, "GET /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "GET /objects/*/*/share: Object id must be numeric", 400, null);
+                return ABORT(resp, db, "GET /objects/*/*/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
@@ -281,10 +281,10 @@ public class RestApi extends ServerBase implements JsonPoints
                 return "Ok";
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, null);
+                return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }        
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "POST /objects/*/*/share: Object id must be numeric", 400, null);
+                return ABORT(resp, db, "POST /objects/*/*/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
@@ -320,10 +320,10 @@ public class RestApi extends ServerBase implements JsonPoints
                 return ""+n;
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, null);
+                return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }        
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "POST /objects/*/*/share: Object id must be numeric", 400, null);
+                return ABORT(resp, db, "POST /objects/*/*/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
@@ -348,6 +348,8 @@ public class RestApi extends ServerBase implements JsonPoints
             var auth = getAuthInfo(req); 
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
+            if (!auth.login())
+                return ERROR(resp, 401, "Authentication required");
                 
             MyDBSession db = _dbp.getDB();
             try {
@@ -359,7 +361,7 @@ public class RestApi extends ServerBase implements JsonPoints
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "PUT /objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
-                    500, "SQL error: "+e.getMessage());
+                    500, "Server error (SQL)");
             }
             finally { db.close(); }
             
@@ -381,7 +383,9 @@ public class RestApi extends ServerBase implements JsonPoints
             var auth = getAuthInfo(req); 
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
-            
+            if (!auth.login())
+                return ERROR(resp, 401, "Authentication required");
+                
             MyDBSession db = _dbp.getDB();
             try {
                 long ident = Long.parseLong(id);
@@ -397,7 +401,7 @@ public class RestApi extends ServerBase implements JsonPoints
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "DELETE /users/"+tag+"/"+id+": SQL error:"+e.getMessage(),
-                    500, "SQL error: "+e.getMessage());
+                    500, "Server error (SQL)");
             }
             finally { db.close();}
         } );
@@ -419,7 +423,7 @@ public class RestApi extends ServerBase implements JsonPoints
             
             MyDBSession db = _dbp.getDB();
             try {
-                String a =  db.getJsObject(auth.userid, tag, Long.parseLong(id));            
+                String a =  db.getJsObject(auth.userid, auth.groupid, tag, Long.parseLong(id));            
                 if (a == null)
                     return ABORT(resp, db, "GET /objects/"+tag+"/"+id+": Item not found: ",
                         404, "Item not found: "+tag+": "+id);
@@ -428,10 +432,10 @@ public class RestApi extends ServerBase implements JsonPoints
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "GET /objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
-                    500, null);
+                    500, "Server error (SQL)");
             }      
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "GET /objects/*/*: Object id must be numeric", 400, null);
+                return ABORT(resp, db, "GET /objects/*/*: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
@@ -464,7 +468,7 @@ public class RestApi extends ServerBase implements JsonPoints
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "GET /objects/"+tag+": SQL error:"+e.getMessage(),
-                    500, null);
+                    500, "Server error (SQL)");
             }
             finally { 
                 db.close(); 
@@ -487,7 +491,9 @@ public class RestApi extends ServerBase implements JsonPoints
             var auth = getAuthInfo(req); 
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
-        
+            if (!auth.login())
+                return ERROR(resp, 401, "Authentication required");
+            
             /* Note: this is JSON but we do NOT deserialize it. We store it. */
             String data = req.body(); 
             
