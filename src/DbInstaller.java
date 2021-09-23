@@ -177,7 +177,7 @@ public class DbInstaller
         createClass("ObjectAccess", null, 
                         "id       integer REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
                         "readonly boolean DEFAULT 'false', " + 
-                        "userid   varchar(20), " );
+                        "userid   varchar(20) " );
                                 
         createClass("SignClass", null, 
                         "id      SERIAL PRIMARY KEY, "+

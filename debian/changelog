@@ -1,8 +1,9 @@
-polaric-db-plugin (2.7+) UNRELEASED; urgency=medium
+polaric-db-plugin (2.8) stable; urgency=medium
 
-  * Hacking..
+  * Sharing of objects between users, groups, et..
+  * Fixes.. Remove unneccesary table and code..
 
- -- Oyvind Hanssen <ohanssen@acm.org>  Sun, 02 May 2021 23:54:35 +0200
+ -- Oyvind Hanssen <ohanssen@acm.org>  Mon, 20 Sep 2021 11:41:55 +0200
 
 polaric-db-plugin (2.7) stable; urgency=medium
 
