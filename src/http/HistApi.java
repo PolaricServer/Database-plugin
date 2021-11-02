@@ -39,6 +39,17 @@ public class HistApi extends ServerBase implements JsonPoints
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
     }
+    
+    
+    public class RawPacket {
+        public Date time;
+        public String source, from, to;
+        public String via, report;
+        
+        public RawPacket(Date tm, String src, String fr, String to, String via, String rep)
+         {time=tm; source=src; from=fr; this.to=to; this.via=via; report=rep;}
+    }
+        
         
         
     /** 
@@ -65,7 +76,40 @@ public class HistApi extends ServerBase implements JsonPoints
     
         _api.getWebserver().corsEnable("/hist/*");
     
-    
+        /**************************************************************************
+         * REST service:  
+         * /hist/<callsign>/aprs?n=..   
+         * Get last APRS raw packets for a given callsign. 
+         * Number is given as request parameter n 
+         **************************************************************************/
+        
+        get("/hist/*/aprs", "application/json", (req, resp) -> {
+            
+            String src = req.splat()[0].toUpperCase();
+            QueryParamsMap parms = req.queryMap();
+            MyDBSession db = _dbp.getDB();
+            
+            try {
+                String nn = parms.value("n");
+                int n = 25; 
+                if (nn != null)
+                    n = Integer.parseInt(nn);
+                DbList<AprsPacket> list = db.getAprsPackets(src, n);
+                List<RawPacket> res = new ArrayList(); 
+                for (AprsPacket x: list)
+                    res.add(new RawPacket(x.time, x.source.getIdent(), x.from, x.to, x.via, x.report));
+                db.commit();
+                return res;
+            }
+            catch(java.lang.NumberFormatException e) {  
+                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 500,  null);
+            }
+            catch(java.sql.SQLException e) { 
+                return ABORT(resp, db, "GET /hist/*/aprs: SQL error:"+e.getMessage(), 500, null); 
+            }
+            finally { db.close(); }
+        }, ServerBase::toJson );
+         
     
         /**************************************************************************
          * REST service:  
