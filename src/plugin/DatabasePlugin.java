@@ -19,8 +19,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      protected DataSource _dsrc;
      private ServerAPI _api; 
      private DbMaintenance _maint; 
-     private String _filter_chan;
-     private String _filter_src;
+     private String _filter_chan, _filter1_chan, _filter2_chan;
+     private String _filter_src, _filter1_src, _filter2_src;
      private boolean _isActive = false;
      private boolean _isOwner = false; 
      private boolean _enableHist = false;
@@ -59,9 +59,15 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             config.setConnectionTimeout(1000);
             _dsrc = new HikariDataSource(config);
            
+           _filter_chan = api.getProperty("db.filter.chan", "");
+           _filter_src = api.getProperty("db.filter.src", "");
+             
+           _filter1_chan = api.getProperty("db.filter1.chan", "");
+           _filter1_src = api.getProperty("db.filter1.src", "");
+
+           _filter2_chan = api.getProperty("db.filter2.chan", "");
+           _filter2_src = api.getProperty("db.filter2.src", "");
            
-           _filter_chan = api.getProperty("db.filter.chan", ".*");
-           _filter_src = api.getProperty("db.filter.src", ".*");
            _enableHist = api.getBoolProperty("db.hist.on", true);
            boolean signs = api.getBoolProperty("db.signs.on", true);  
            api.properties().put("aprsdb.plugin", this); 
@@ -223,6 +229,18 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
         else return "'" + x + "'";
      }
               
+    
+     /* Accept packet or posreport for storage */
+     private boolean isAccepted(Source chan, String sender) {
+        if (chan.getIdent().matches(_filter_chan) && sender.matches(_filter_src))
+            return true;
+        if (chan.getIdent().matches(_filter1_chan) && sender.matches(_filter1_src))
+            return true;
+        if (chan.getIdent().matches(_filter2_chan) && sender.matches(_filter2_src))
+            return true;
+            
+        return false;
+     }
 
          
       
@@ -235,8 +253,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      {
        if (!_enableHist)
           return;
-       if (!chan.getIdent().matches(_filter_chan) || !sender.matches(_filter_src))
-          return; 
+       if (!isAccepted(chan, sender))
+            return;
+            
        MyDBSession db = null;   
        try {
            db = getDB();
@@ -320,10 +339,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      public synchronized void handlePacket(AprsPacket p)
      {
        if (!_enableHist)
-          return;
-       if (!p.source.getIdent().matches(_filter_chan) || !p.from.matches(_filter_src)) 
-          return;
-       
+            return;
+       if (!isAccepted(p.source, p.from))
+            return;
+            
        MyDBSession db = null;
        String path = p.via;
        String[] pp = path.split(",q",2);

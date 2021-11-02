@@ -1,3 +1,9 @@
+polaric-db-plugin (2.8+) UNRELEASED; urgency=medium
+
+  * Development 
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Fri, 15 Oct 2021 16:25:24 +0200
+
 polaric-db-plugin (2.8) stable; urgency=medium
 
   * Sharing of objects between users, groups, et..
