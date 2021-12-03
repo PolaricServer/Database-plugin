@@ -32,7 +32,7 @@ INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd/config.d
 ##################################################
     LIBDIR = _lib
  JAVAFLAGS =
- PACKAGES  = core http scala plugin
+ PACKAGES  = core http plugin
 
 
 
@@ -72,7 +72,7 @@ core:
 
 	
 .PHONY : plugin 
-plugin: core http scala
+plugin: core http
 	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/plugin/*.java
 
 	
@@ -80,11 +80,6 @@ plugin: core http scala
 http: core
 	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/http/*.java
 	
-	
-.PHONY : scala
-scala: core          
-	scalac -d $(TDIR) -classpath $(LIBDIR):$(CLASSPATH) src/http/*.scala
-
 
 clean:
 	@if [ -e ${LIBDIR} ]; then \
