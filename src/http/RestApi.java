@@ -66,145 +66,13 @@ public class RestApi extends ServerBase implements JsonPoints
      * Set up the webservices. 
      */
     public void start() {   
-        _api.getWebserver().corsEnable("/trackers");
-        _api.getWebserver().corsEnable("/trackers/*");
         _api.getWebserver().corsEnable("/objects/*");
-        _api.getWebserver().protectUrl("/trackers");
-        _api.getWebserver().protectUrl("/trackers/*");
         _api.getWebserver().protectUrl("/objects/*/*/share");
                 
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
         _psub.createRoom("sharing", (Class) null); 
         _psub.createRoom("object", String.class /* tag */); 
         
-        
-        /**************************************************************************** 
-         * REST Service
-         * Get "my trackers" for the logged in user. 
-         ****************************************************************************/
-         
-        get("/trackers", "application/json", (req, resp) -> {
-            DbList<Tracker> tr = null; 
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-                
-            /* Database transaction */
-            MyDBSession db = _dbp.getDB();
-            try {
-                tr =  db.getTrackers(auth.userid);
-                List<Tracker.Info> tri = tr.toList().stream().map(x -> x.info).collect(Collectors.toList());
-                db.commit();
-                return tri;
-            }
-            catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /users/*/trackers: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
-            }
-            finally { 
-                db.close(); 
-            }
-
-        }, ServerBase::toJson );
-        
-        
-        
-        
-        /**************************************************************************** 
-         * REST Service: 
-         * Save a tracker for the logged in user. Update if it exists in the database 
-         * and is owned by the user. 
-         ****************************************************************************/
-         
-        post("/trackers", (req, resp) -> {
-            MyDBSession db = _dbp.getDB();
-            
-            /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-            
-            /* Get tracker info from request */
-            Tracker.Info tr = (Tracker.Info) 
-                ServerBase.fromJson(req.body(), Tracker.Info.class);
-                
-            /* 
-             * Check if user is allowed to post this for a tracker. Note that this check 
-             * is only for active trackers. Non-active trackers will be allowed.
-             * FIXME: Need to improve this check? 
-             */
-            var item = _api.getDB().getItem(tr.id, null);
-            if (item != null && sarAuthForItem(req, item))
-                return ERROR(resp, 403, "Not allowed to use this tracker: "+tr.id);
-            
-            /* Database transaction */
-            try {
-                if (tr==null) 
-                    return ABORT(resp, db, "POST /users/*/trackers: cannot parse input", 
-                        500, "Cannot parse input");
-                
-                tr.id = tr.id.toUpperCase();
-                Tracker dbtr = db.getTracker(tr.id);
-                
-                if (dbtr == null)                     
-                    db.addTracker(tr.id, auth.userid, tr.alias, tr.icon);
-   
-                /* If we own the tracker, we can update it */
-                else if (auth.userid.equals(dbtr.info.user)) 
-                    db.updateTracker(tr.id, tr.alias, tr.icon);
-                else {
-                    return ABORT(resp, db, "POST /users/*/trackers: Item is owned by another user",
-                        403, "Item is owned by another user");
-                }
-                var pt = updateItem(tr.id, tr.alias, tr.icon, req);
-                db.commit();
-                return (pt==null ? "OK" : "OK-ACTIVE");
-            }
-            catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /users/*/trackers: SQL error:"+e.getMessage(),
-                    500, "SQL error: "+e.getMessage());
-            }
-            finally { db.close(); }
-        } );
-        
-        
-        
-        /**************************************************************************
-         * REST Service: 
-         * Delete a tracker for the logged in user. 
-         **************************************************************************/
-         
-        delete("/trackers/*", (req, resp) -> {
-            String call = req.splat()[0];
-            
-            /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-            
-            MyDBSession db = _dbp.getDB();
-            try {
-                call = call.toUpperCase();
-                Tracker dbtr = db.getTracker(call);
-                if (dbtr == null)
-                    return ABORT(resp, db, "DELETE /trackers/*: Item not found: ",
-                        404, "Item not found"+call);
-                        
-                if (!auth.userid.equals(dbtr.info.user))
-                    return ABORT(resp, db, "DELETE /trackers/*: Item is owned by another user",
-                        403, "Item is owned by another user");
-                 
-                db.deleteTracker(call);
-                updateItem(call, null, null, req);
-                removeItem(call);
-                db.commit();
-                return "OK";
-            }
-            catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "DELETE /trackers/*: SQL error:"+e.getMessage(),
-                    500, "Server error (SQL");
-            }
-            finally { db.close();}  
-        } );
         
                 
         /***************************************************************************** 
@@ -512,30 +380,6 @@ public class RestApi extends ServerBase implements JsonPoints
         });
     
     }
-
-   
-   
-    public TrackerPoint updateItem(String id, String alias, String icon, Request req) {
-        TrackerPoint pt = _api.getDB().getItem(id, null, false);
-        if (pt != null) {
-            pt.setTag("MANAGED");
-            if ( pt.setAlias(alias) ) 
-                notifyAlias(id, alias, req); 
-            if ( pt.setIcon(icon) )
-                notifyIcon(id, icon, req);
-        }
-        return pt; 
-    }
-    
-    
-    
-    public void removeItem(String id) {
-        TrackerPoint pt = _api.getDB().getItem(id, null, false);
-        if (pt != null)
-            pt.removeTag("MANAGED");
-    }
-    
-   
-    
+ 
 
 }
