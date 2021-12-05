@@ -77,14 +77,16 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            _log = new Logfile(api, "db", "database.log");
            _api.log().info("DatabasePlugin", "Activate...");
            
+           
            /*
             * Start REST API.
             */
-            
             RestApi api1 = new RestApi(api);
             api1.start();
-            HistApi api2 = new HistApi(api);
+            TrackerApi api2 = new TrackerApi(api);
             api2.start();
+            HistApi api3 = new HistApi(api);
+            api3.start();
             SignsApi api4 = new SignsApi(api);
             api4.start();
             

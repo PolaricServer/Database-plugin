@@ -102,20 +102,58 @@ public class TrackerApi extends ServerBase implements JsonPoints
         
         
         
+        /**************************************************************************** 
+         * REST Service: 
+         * Update a tracker if it exists in the database and is owned by the user. 
+         ****************************************************************************/
+        
         put("/trackers",  (req, resp) -> {
-            /* TBD */
-            return "Ok";
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+            
+            /* Get tracker info from request */
+            Tracker.Info tr = (Tracker.Info) 
+                ServerBase.fromJson(req.body(), Tracker.Info.class);
+            if (tr==null) 
+                return ERROR(resp, 500, "Cannot parse input");   
+            
+            /* Database transaction */
+            MyDBSession db = _dbp.getDB();
+            try {
+                tr.id = tr.id.toUpperCase();
+                Tracker dbtr = db.getTracker(tr.id);
+                
+                // FIXME: If ownership is transferred, is receiver allowed to have it? 
+                
+                /* If we own the tracker, we can update it */
+                if (auth.userid.equals(dbtr.info.user)) 
+                    db.updateTracker(tr.id, tr.alias, tr.icon);
+                else {
+                    return ABORT(resp, db, "POST /users/*/trackers: Item is owned by another user",
+                        403, "Item is owned by another user");
+                }
+                // FIXME: If ownership is transferred, notify receiver. 
+                
+                var pt = updateItem(tr.id, tr.alias, tr.icon, req);
+                db.commit();
+                return (pt==null ? "OK" : "OK-ACTIVE");
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "POST /users/*/trackers: SQL error:"+e.getMessage(),
+                    500, "SQL error: "+e.getMessage());
+            }
+            finally { db.close(); }
         });
         
         
         /**************************************************************************** 
          * REST Service: 
-         * Save a tracker for the logged in user. Update if it exists in the database 
-         * and is owned by the user. 
+         * Save a tracker for the logged in user.
          ****************************************************************************/
          
         post("/trackers", (req, resp) -> {
-        
             /* Get user info */
             var auth = getAuthInfo(req); 
             if (auth == null)
@@ -133,7 +171,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
              */
             var item = _api.getDB().getItem(tr.id, null); 
             if (item != null && !sarAuthForItem(req, item))
-                return ERROR(resp, 403, "Not allowed to use/change this tracker: "+tr.id);
+                return ERROR(resp, 403, "Not allowed to manage this tracker: "+tr.id);
             
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
@@ -143,13 +181,9 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 
                 if (dbtr == null)                     
                     db.addTracker(tr.id, auth.userid, tr.alias, tr.icon);
-   
-                /* If we own the tracker, we can update it */
-                else if (auth.userid.equals(dbtr.info.user)) 
-                    db.updateTracker(tr.id, tr.alias, tr.icon);
                 else {
-                    return ABORT(resp, db, "POST /users/*/trackers: Item is owned by another user",
-                        403, "Item is owned by another user");
+                    return ABORT(resp, db, "POST /users/*/trackers: Item is managed already",
+                        403, "Item is managed already (by "+dbtr.info.user+")");
                 }
                 var pt = updateItem(tr.id, tr.alias, tr.icon, req);
                 db.commit();
