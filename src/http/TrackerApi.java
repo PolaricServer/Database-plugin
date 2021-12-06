@@ -107,7 +107,9 @@ public class TrackerApi extends ServerBase implements JsonPoints
          * Update a tracker if it exists in the database and is owned by the user. 
          ****************************************************************************/
         
-        put("/trackers",  (req, resp) -> {
+        put("/trackers/*",  (req, resp) -> {
+            String call = req.splat()[0];
+            
             /* Get user info */
             var auth = getAuthInfo(req); 
             if (auth == null)
@@ -122,21 +124,21 @@ public class TrackerApi extends ServerBase implements JsonPoints
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
             try {
-                tr.id = tr.id.toUpperCase();
-                Tracker dbtr = db.getTracker(tr.id);
+                call = call.toUpperCase();
+                Tracker dbtr = db.getTracker(call);
                 
                 // FIXME: If ownership is transferred, is receiver allowed to have it? 
                 
                 /* If we own the tracker, we can update it */
                 if (auth.userid.equals(dbtr.info.user)) 
-                    db.updateTracker(tr.id, tr.alias, tr.icon);
+                    db.updateTracker(call, tr.alias, tr.icon);
                 else {
                     return ABORT(resp, db, "POST /users/*/trackers: Item is owned by another user",
                         403, "Item is owned by another user");
                 }
                 // FIXME: If ownership is transferred, notify receiver. 
                 
-                var pt = updateItem(tr.id, tr.alias, tr.icon, req);
+                var pt = updateItem(call, tr.alias, tr.icon, req);
                 db.commit();
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
