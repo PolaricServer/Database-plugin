@@ -436,16 +436,21 @@ public class MyDBSession extends DBSession
     }
     
     
-    public void updateTracker(String id, String alias, String icon)
+    public void updateTracker(String id, String user, String alias, String icon)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "updateTracker: "+id);
         PreparedStatement stmt = getCon().prepareStatement
-            ( "UPDATE \"Tracker\" SET alias=?, icon=?"+
+            ( "UPDATE \"Tracker\" SET alias=?, icon=? "+(user!= null ? ", userid=? ":"") +
               "WHERE id=?" );
         stmt.setString(1, alias);
         stmt.setString(2, icon);
-        stmt.setString(3, id);
+        if (user!=null) { 
+            stmt.setString(3, user);
+            stmt.setString(4, id);
+        }
+        else
+            stmt.setString(3, id);
         stmt.executeUpdate();
     }  
     

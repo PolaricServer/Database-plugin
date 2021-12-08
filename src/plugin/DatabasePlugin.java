@@ -411,7 +411,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                 if (t==null)
                     ses.addTracker(tp.getIdent(), tp.getUser(), tp.getAlias(), icon);
                 else
-                    ses.updateTracker(tp.getIdent(), tp.getAlias(),icon);
+                    ses.updateTracker(tp.getIdent(), null, tp.getAlias(), icon);
                 return null;
             });
         }

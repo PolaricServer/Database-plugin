@@ -39,6 +39,8 @@ public class TrackerApi extends ServerBase implements JsonPoints
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
+        _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+    //    _psub.createRoom("trackers:"+uid, Message.class); 
     }
         
         
@@ -88,6 +90,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
             try {
                 tr =  db.getTrackers(auth.userid);
                 List<Tracker.Info> tri = tr.toList().stream().map(x -> x.info).collect(Collectors.toList());
+                _psub.createRoom("trackers:"+auth.userid, (Class) null);
                 db.commit();
                 return tri;
             }
@@ -120,24 +123,37 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 ServerBase.fromJson(req.body(), Tracker.Info.class);
             if (tr==null) 
                 return ERROR(resp, 500, "Cannot parse input");   
-            
+                
+            if (tr.user.equals(""))
+                tr.user=null;
+            if ( tr.user != null && !_api.getWebserver().getUserDb().hasUser(tr.user) )
+                return ERROR(resp, 400, "User '"+tr.user+"' not found");
+                
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
             try {
                 call = call.toUpperCase();
                 Tracker dbtr = db.getTracker(call);
-                
-                // FIXME: If ownership is transferred, is receiver allowed to have it? 
-                
+            
                 /* If we own the tracker, we can update it */
                 if (auth.userid.equals(dbtr.info.user)) 
-                    db.updateTracker(call, tr.alias, tr.icon);
+                    db.updateTracker(call, tr.user, tr.alias, tr.icon);
                 else {
                     return ABORT(resp, db, "POST /users/*/trackers: Item is owned by another user",
                         403, "Item is owned by another user");
                 }
-                // FIXME: If ownership is transferred, notify receiver. 
-                
+                /* 
+                 * If ownership is transferred, notify receiver. 
+                 * FIXME: Handle transfer to/from incident
+                 */ 
+                if (tr.user != null && !tr.user.equals(auth.userid)) {
+                    _api.getWebserver().notifyUser(tr.user, 
+                        new ServerAPI.Notification("system", "system", 
+                           "Tracker '"+call+"' transferred from "+auth.userid, new Date(), 60));
+                    _psub.put("trackers:"+tr.user, null);
+                }
+                _psub.put("trackers:"+auth.userid, null);
+                    
                 var pt = updateItem(call, tr.alias, tr.icon, req);
                 db.commit();
                 return (pt==null ? "OK" : "OK-ACTIVE");
@@ -188,6 +204,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                         403, "Item is managed already (by "+dbtr.info.user+")");
                 }
                 var pt = updateItem(tr.id, tr.alias, tr.icon, req);
+                 _psub.put("trackers:"+auth.userid, null);
                 db.commit();
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
@@ -228,6 +245,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 db.deleteTracker(call);
                 updateItem(call, null, null, req);
                 removeItem(call);
+                 _psub.put("trackers:"+auth.userid, null);
                 db.commit();
                 return "OK";
             }
