@@ -139,7 +139,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 if (auth.userid.equals(dbtr.info.user)) 
                     db.updateTracker(call, tr.user, tr.alias, tr.icon);
                 else {
-                    return ABORT(resp, db, "POST /users/*/trackers: Item is owned by another user",
+                    return ABORT(resp, db, "POST /trackers/*: Item is owned by another user",
                         403, "Item is owned by another user");
                 }
                 /* 
@@ -159,7 +159,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /users/*/trackers: SQL error:"+e.getMessage(),
+                return ABORT(resp, db, "POST /trackers/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close(); }
@@ -200,7 +200,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 if (dbtr == null)                     
                     db.addTracker(tr.id, auth.userid, tr.alias, tr.icon);
                 else {
-                    return ABORT(resp, db, "POST /users/*/trackers: Item is managed already",
+                    return ABORT(resp, db, "POST /trackers: Item is managed already",
                         403, "Item is managed already (by "+dbtr.info.user+")");
                 }
                 var pt = updateItem(tr.id, tr.alias, tr.icon, req);
@@ -209,10 +209,38 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /users/*/trackers: SQL error:"+e.getMessage(),
+                return ABORT(resp, db, "POST /trackers: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close(); }
+        } );
+        
+                
+        
+        /**************************************************************************
+         * REST Service: 
+         * Delete a tag for the logged in user. 
+         **************************************************************************/
+         
+        delete("/trackers/tags/*", (req, resp) -> {
+            String tag = req.splat()[0];
+            
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+            
+            MyDBSession db = _dbp.getDB();
+            try {
+                db.deleteTrackerTag(auth.userid, tag);
+                db.commit();
+                return "OK";
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "DELETE /trackers/tags/*: SQL error:"+e.getMessage(),
+                    500, "Server error (SQL");
+            }
+            finally { db.close();}  
         } );
         
         
@@ -236,7 +264,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 Tracker dbtr = db.getTracker(call);
                 if (dbtr == null)
                     return ABORT(resp, db, "DELETE /trackers/*: Item not found: ",
-                        404, "Item not found"+call);
+                        404, "Item not found: "+call);
                         
                 if (!auth.userid.equals(dbtr.info.user))
                     return ABORT(resp, db, "DELETE /trackers/*: Item is owned by another user",
@@ -256,7 +284,67 @@ public class TrackerApi extends ServerBase implements JsonPoints
             finally { db.close();}  
         } );
         
-    
+        
+        
+        /**************************************************************************** 
+         * REST Service
+         * Get tracker tags for the logged in user 
+         ****************************************************************************/
+         
+        get("/trackers/tags", "application/json", (req, resp) -> {
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+                
+            /* Database transaction */
+            MyDBSession db = _dbp.getDB();
+            try {
+                DbList<String> tags = db.getTrackerTagsUser(auth.userid);
+                db.commit();
+                return tags.toList();
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "GET /trackers/*/tags: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
+            }
+            finally { 
+                db.close(); 
+            }
+
+        }, ServerBase::toJson );
+        
+        
+        /**************************************************************************** 
+         * REST Service: 
+         * Add a tag to the logged in user's trackers
+         ****************************************************************************/
+         
+        post("/trackers/tags", (req, resp) -> {
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+            if (req.body() == null || !req.body().matches("[\\+\\-]?[A-Za-z0-9\\.\\-\\_]+"))
+                return ERROR(resp, 400, "Invalid characters in tag");
+                
+            /* Database transaction */
+            MyDBSession db = _dbp.getDB();
+            try { 
+                db.addTrackerTag(auth.userid, req.body());
+                db.commit();
+                return "OK";
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "POST /trackers: SQL error:"+e.getMessage(),
+                    500, "SQL error: "+e.getMessage());
+            }
+            finally { db.close(); }
+        } );
+        
+
+        
+        
+        
     }
 
    

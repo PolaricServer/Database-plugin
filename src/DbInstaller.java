@@ -167,6 +167,12 @@ public class DbInstaller
                         "userid  varchar(20), " +
                         "alias   varchar(30), " +
                         "icon    varchar " );
+                        
+        /* New in schema v. 4 */                
+        createClass("TrTags", null, 
+                        "userid  varchar(20) not null, " +
+                        "tag     varchar(20) not null" );
+                               
                                
         createClass("JsObject", null, 
                         "id      SERIAL PRIMARY KEY, " +

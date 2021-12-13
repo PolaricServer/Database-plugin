@@ -43,3 +43,14 @@ if ((VERSION < 3)); then
         UPDATE \"MetaData\" SET version=3; \
         COMMIT " polaric
 fi
+
+if ((VERSION < 4)); then
+    echo "Upgrading schema to version 4"
+    
+    psql -t -c "BEGIN;  \
+        CREATE TABLE \"TrTags\" ( \
+        userid  varchar(20) NOT NULL, \
+        tag varchar(20) NOT NULL ); \
+        ALTER TABLE \"TrTags\" owner to polaric; \
+        COMMIT " polaric
+fi

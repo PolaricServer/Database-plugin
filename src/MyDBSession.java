@@ -488,15 +488,70 @@ public class MyDBSession extends DBSession
     public DbList<Tracker> getTrackers(String user)
         throws java.sql.SQLException
     {
-         PreparedStatement stmt = getCon().prepareStatement
+        PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT id, alias, icon FROM \"Tracker\"" +
               " WHERE userid=? ORDER BY id ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-         stmt.setString(1, user);
-         return new DbList( stmt.executeQuery(), rs ->
+        stmt.setString(1, user);
+        return new DbList( stmt.executeQuery(), rs ->
             { return new Tracker(_api.getDB(), rs.getString("id"), user, rs.getString("alias"), rs.getString("icon"));  }
         );
     }
+     
+     
+    public DbList<String> getTrackerTags(String id)
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT tag FROM \"TrTags\" t, \"Tracker\" tr " +
+              " WHERE t.userid=tr.userid AND id=? ORDER BY tag ASC", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, id);
+        return new DbList( stmt.executeQuery(), rs ->
+            { return rs.getString("tag"); }
+        );
+    }
+    
+    
+    public DbList<String> getTrackerTagsUser(String id)
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT tag FROM \"TrTags\" t " +
+              " WHERE userid=? ORDER BY tag ASC", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, id);
+        return new DbList( stmt.executeQuery(), rs ->
+            { return rs.getString("tag"); }
+        );
+    }
+    
+    
+    public void addTrackerTag(String user, String tag)  
+            throws java.sql.SQLException
+    {
+        _log.debug("MyDbSession", "addTrackerTag: "+user);
+         PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"TrTags\" (userid, tag)" + 
+                " VALUES (?, ?)" );
+         stmt.setString(1, user);
+         stmt.setString(2, tag);
+         stmt.executeUpdate();
+    }
+    
+    
+    
+    public int deleteTrackerTag(String user, String tag)
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " DELETE FROM \"TrTags\" "+
+              " WHERE userid=? AND tag=?; ");
+        stmt.setString(1, user);
+        stmt.setString(2, tag);
+        return stmt.executeUpdate();
+    }
+    
     
     
     public long addJsObject(String user, String tag, String data)  

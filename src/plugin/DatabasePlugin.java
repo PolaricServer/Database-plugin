@@ -435,6 +435,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                     tp.setPersistent(true, t.info.user, false); 
                     tp.setAlias(t.info.alias);
                     tp.setIcon(t.info.icon);
+                    
+                    /* Get tags */
+                    ((MyDBSession)x).getTrackerTags(tp.getIdent())
+                        .forEach( tt -> tp.setTag(tt) );
                 }
                 return null;
             });
