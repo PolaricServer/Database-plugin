@@ -233,6 +233,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 db.deleteTrackerTag(auth.userid, tag);
+                removeActiveTag(db.getTrackers(auth.userid).toList(), tag);
                 db.commit();
                 return "OK";
             }
@@ -314,6 +315,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
         }, ServerBase::toJson );
         
         
+        
         /**************************************************************************** 
          * REST Service: 
          * Add a tag to the logged in user's trackers
@@ -324,13 +326,16 @@ public class TrackerApi extends ServerBase implements JsonPoints
             var auth = getAuthInfo(req); 
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
-            if (req.body() == null || !req.body().matches("[\\+\\-]?[A-Za-z0-9\\.\\-\\_]+"))
-                return ERROR(resp, 400, "Invalid characters in tag");
                 
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
             try { 
-                db.addTrackerTag(auth.userid, req.body());
+                DbList<Tracker> tr =  db.getTrackers(auth.userid);
+                String[] a = (String[]) ServerBase.fromJson(req.body(), String[].class);
+                for (String x : a) {
+                    db.addTrackerTag(auth.userid, x);
+                    updateActiveTag(tr.toList(), x);
+                }
                 db.commit();
                 return "OK";
             }
@@ -340,15 +345,28 @@ public class TrackerApi extends ServerBase implements JsonPoints
             }
             finally { db.close(); }
         } );
-        
-
-        
-        
-        
+    
     }
 
-   
-   
+
+    /* Remove tag on active items */
+    private void removeActiveTag(List<Tracker> tr, String tag) {
+        for (Tracker x : tr)
+            if (x.getStation() != null)
+                x.getStation().removeTag(tag);
+    }
+    
+    
+    /* Set tag on active items */
+    private void updateActiveTag(List<Tracker> tr, String tag) {
+        for (Tracker x : tr)
+            if (x.getStation() != null)
+                x.getStation().setTag(tag);
+    }
+    
+    
+
+    /* Set alias and/or icon on specific item (if active) */
     public TrackerPoint updateItem(String id, String alias, String icon, Request req) {
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
         if (pt != null) {
@@ -362,7 +380,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
     }
     
     
-    
+    /* Remove item from managed set */    
     public void removeItem(String id) {
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
         if (pt != null)
