@@ -190,6 +190,8 @@ public class TrackerApi extends ServerBase implements JsonPoints
             var item = _api.getDB().getItem(tr.id, null); 
             if (item != null && !sarAuthForItem(req, item))
                 return ERROR(resp, 403, "Not allowed to manage this tracker: "+tr.id);
+            if (item != null && item.hasTag("RMAN"))
+                return ERROR(resp, 403, "Item is managed already (on another server)");
             
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
@@ -273,7 +275,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                  
                 db.deleteTracker(call);
                 updateItem(call, null, null, req);
-                removeItem(call);
+                removeItem(call, req);
                  _psub.put("trackers:"+auth.userid, null);
                 db.commit();
                 return "OK";
@@ -370,21 +372,38 @@ public class TrackerApi extends ServerBase implements JsonPoints
     public TrackerPoint updateItem(String id, String alias, String icon, Request req) {
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
         if (pt != null) {
+            boolean mgd = pt.hasTag("MANAGED"); 
+            boolean setItem = (alias!=null || icon!=null); 
+            boolean changed = pt.setAlias(alias);
+            changed |= pt.setIcon(icon);
             pt.setTag("MANAGED");
-            if ( pt.setAlias(alias) ) 
-                notifyAlias(id, alias, req); 
-            if ( pt.setIcon(icon) )
-                notifyIcon(id, icon, req);
+            
+            /* Send RMAN message to other servers but only if alias or icon was 
+             * set when adding item to myTrackers OR
+             * changed on already managed item
+             */
+            if ((mgd && changed) || (!mgd && setItem)) {
+                pt.setTag("_srman");
+                if (_api.getRemoteCtl() != null) 
+                    _api.getRemoteCtl().sendRequestAll("RMAN", pt.getIdent()+" "+alias+" "+icon, null);
+            }
+                
         }
         return pt; 
     }
     
     
     /* Remove item from managed set */    
-    public void removeItem(String id) {
+    public void removeItem(String id, Request req) {
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
-        if (pt != null)
+        if (pt != null) {
             pt.removeTag("MANAGED");
+            if (pt.hasTag("_srman")) {
+                pt.removeTag("_srman");
+                if (_api.getRemoteCtl() != null) 
+                    _api.getRemoteCtl().sendRequestAll("RMRMAN", pt.getIdent(), null);
+            }
+        }
     }
     
    

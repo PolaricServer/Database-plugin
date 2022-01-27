@@ -422,37 +422,79 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      
     /**
      * Update item from database.
-     * Called from StationDBImp.
+     * Called from StationDBImp. 
+     *   in getItem() - when specifically requested for realtime items. NOT USED.
+     *   in addPoint() - called from newStation() - when packet is received and RT item is not active. 
      * @param tp Item to update
      */
     public void updateItem(TrackerPoint tp) 
     {
         try {
             getDB().simpleTrans("updateItem", x -> {
+                /* 
+                 * Get managed-tracker info from database.
+                 * If found, use this info to update item. Set MANAGED tag. 
+                 */
                 Tracker t = ((MyDBSession)x).getTracker(tp.getIdent());
-                if (t != null) { 
-                    tp.setTag("MANAGED");
-                    tp.setPersistent(true, t.info.user, false); 
+                if (t == null || tp.hasTag("MANAGED") || tp.hasTag("RMAN")) 
+                    return null; 
+                     
+                tp.setTag("MANAGED");
+                tp.setPersistent(true, t.info.user, false);
+                    
+                /* Set alias and/or icon based on info from database */
+                if (t.info.alias != null)
                     tp.setAlias(t.info.alias);
+                if (t.info.icon != null)
                     tp.setIcon(t.info.icon);
                     
-                    /* Get tags */
-                    ((MyDBSession)x).getTrackerTags(tp.getIdent())
-                        .forEach( tt -> tp.setTag(tt) );
+                /* if alias/icon set send RMAN message */
+                if (_api.getRemoteCtl() != null && (t.info.alias != null || t.info.icon!=null)) {
+                    tp.setTag("_srman");
+                    _api.getRemoteCtl().sendRequestAll("RMAN", tp.getIdent()+" "+t.info.alias+" "+t.info.icon, null);
                 }
+                
+                /* Get tags from database */
+                ((MyDBSession)x).getTrackerTags(tp.getIdent())
+                    .forEach( tt -> tp.setTag(tt) );
                 return null;
             });
         }
         catch (DBSession.SessionError e) { }
     }
         
-        
-        
+    
+    
+    /**
+     * Remove item from someone's myTrackers list
+     * @param id identifier (callsign) of item to remove. 
+     */
+    public void removeManagedItem(String id)
+    {
+        var psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        try {
+            getDB().simpleTrans("removeManagedItem", x -> {
+                Tracker t = ((MyDBSession)x).getTracker(id);
+                ((MyDBSession)x).deleteTracker(id);
+                
+                psub.put("trackers:"+t.info.user, null);
+                return null;
+            });
+        }
+        catch (DBSession.SessionError e) { }    
+    }
+    
+    
+    
+    
+    
+    
+    
     /**
      * Get an APRS item at a given point in time.
      */    
     public synchronized AprsPoint getItem(String src, java.util.Date at)
-    {
+    { 
         try {
             return (AprsPoint) getDB().simpleTrans("getItem", x->
                 { return ((MyDBSession)x).getItem(src, at); });
