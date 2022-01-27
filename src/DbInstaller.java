@@ -209,6 +209,7 @@ public class DbInstaller
         updateQuery("CREATE INDEX geoindex_s ON \"Signs\" USING GIST (position);");
         updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");
         updateQuery("CREATE INDEX posreport_time_src_idx on \"PosReport\" (time,src);");
+        updateQuery("CREATE INDEX aprspacket_src_time_idx on \"AprsPacket\" (src, time);");
      }
      
       

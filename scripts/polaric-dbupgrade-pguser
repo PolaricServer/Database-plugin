@@ -52,5 +52,18 @@ if ((VERSION < 4)); then
         userid  varchar(20) NOT NULL, \
         tag varchar(20) NOT NULL ); \
         ALTER TABLE \"TrTags\" owner to polaric; \
+        CREATE INDEX aprspacket_src_time_idx on \"AprsPacket\" (src, time); \
         COMMIT " polaric
 fi
+
+NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
+if ((NSCLASS == 0)); then
+    echo "Adding classes/icons in \"SignClass\""
+    echo "NOTE: You may change/add classes in the PostgreSQL database"
+    psql -t -c "BEGIN; \
+        INSERT INTO \"SignClass\" (id,name,icon) values (0, 'Default', 'signs/point.png'); \
+        INSERT INTO \"SignClass\" (id,name,icon) values (1, 'Info', 'signs/info.png'); \
+        INSERT INTO \"SignClass\" (id,name,icon) values (8, 'Radio installation', 'signs/signal.png'); \
+        COMMIT " polaric
+fi
+
