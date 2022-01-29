@@ -1,8 +1,14 @@
-polaric-db-plugin (2.8+) UNRELEASED; urgency=medium
+polaric-db-plugin (2.9) stable; urgency=medium
 
-  * Development 
+  * Allow multiple filters for what to store in db
+  * API for getting raw packet info
+  * Remove obsolete code 
+  * Tracker REST API work..
+  * Support transfer of trackers between users
+  * Work on tags for "My Trackers"
+  * Various fixes..
 
- -- Oyvind Hanssen <ohanssen@acm.org>  Fri, 15 Oct 2021 16:25:24 +0200
+ -- Oyvind Hanssen <ohanssen@acm.org>  Thu, 27 Jan 2022 22:00:30 +0100
 
 polaric-db-plugin (2.8) stable; urgency=medium
 

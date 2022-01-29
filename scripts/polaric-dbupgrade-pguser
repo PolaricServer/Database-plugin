@@ -53,6 +53,7 @@ if ((VERSION < 4)); then
         tag varchar(20) NOT NULL ); \
         ALTER TABLE \"TrTags\" owner to polaric; \
         CREATE INDEX aprspacket_src_time_idx on \"AprsPacket\" (src, time); \
+        UPDATE \"MetaData\" SET version=4; \
         COMMIT " polaric
 fi
 
