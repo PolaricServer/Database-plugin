@@ -6,9 +6,11 @@ time. It is originally targeted for use by radio amateurs in voluntary search
 and rescue service in Norway. It consists of a web application and a server 
 program (APRS daemon). 
  
-This is a _plugin_ that provides database storage using PostgreSQL. It is 
-optional and is primarily meant for online servers having sufficient 
-memory and storage. It is used on aprs.no.
+This is a _plugin_ that provides database storage using PostgreSQL (With PostGIS extension). It is 
+optional and is primarily meant for online servers having sufficient memory and storage. 
+It is used on aprs.no. 
+
+It can also be useful on more portable servers, for instance on a Raspberry PI. 
 
 
 ### Features
@@ -18,7 +20,8 @@ It is configurable what callsigns are stored and for how long. Queries
 include movement trails, positions covered by digipeaters, etc. 
 
 Client/user-owned data like trackers, static position objects, 
-map-extents, map-layer setups, etc through a REST API.
+map-extents, map-layer setups, etc through a REST API. Also, the drawing tool
+uses it to store features. 
 
 Future uses may include (SAR) mission information, users, etc. 
 
@@ -26,9 +29,9 @@ Future uses may include (SAR) mission information, users, etc.
 
 Linux/Java platform (tested on Debian/Ubuntu platforms, including Raspbian Buster) with
 * Java Runtime environment version 11 or later. 
-* scala-library version 2.11 or later. You will also need scala-xml
-  and scala-parser-combinators packages. 
 * polaric-aprsd installed.
+
+From version 2.9, Scala is no longer needed. 
 
 ## Installation and use
 A deb package is available. For information on getting started on a Debian based platform please see: 
@@ -41,6 +44,9 @@ When installed for the first time, run the script 'polaric-dbsetup'
 It will install database software and the PostGIS extension, it will create
 the necessary tables and it will configure polaric-aprsd to use the
 plugin. 
+
+When upgrading, run the script 'polaric-dbupgrade' to make necessary updates to 
+the database schema and setup. 
 
 Please edit the plugin configuration to suit your needs: /etc/polaric-aprsd/config.d/database.ini
 It is fairly self-explained. Database name is 'polaric' and is owned by a database user 'polaric'. 
