@@ -89,7 +89,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             api3.start();
             SignsApi api4 = new SignsApi(api);
             api4.start();
-            
+            TrackLogApi api5 = new TrackLogApi(api);
+            api5.start();
             
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
