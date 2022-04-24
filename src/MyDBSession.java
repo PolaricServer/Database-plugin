@@ -409,7 +409,11 @@ public class MyDBSession extends DBSession
                 p.source = _api.getChanManager().get( rs.getString("channel") );
                 p.from = rs.getString("src");
                 p.to = rs.getString("dest");
-                p.via = (path==null ? "" : rs.getString("path") + ", ") + rs.getString("ipath");
+                
+                p.via = (path==null ? "" : path); 
+                if (ipath != null && !ipath.equals(""))
+                    p.via += (!p.via.equals("") ? "," : "") + ipath;
+                
                 p.report = rs.getString("info");
                 p.time = rs.getTimestamp("time");
                 return p;

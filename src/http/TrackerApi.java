@@ -76,19 +76,24 @@ public class TrackerApi extends ServerBase implements JsonPoints
         
         /**************************************************************************** 
          * REST Service
-         * Get "my trackers" for the logged in user. 
+         * Get "my trackers" for the logged in user or for the user given as request
+         * parameter 'user'.
          ****************************************************************************/
          
         get("/trackers", "application/json", (req, resp) -> {
             DbList<Tracker> tr = null; 
+            var userid = req.queryParams("user");
             var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-                
+            if (userid==null || userid=="") {
+                if (auth == null)
+                    return ERROR(resp, 500, "No authorization info found");
+                userid = auth.userid;
+            }    
+            
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
             try {
-                tr =  db.getTrackers(auth.userid);
+                tr =  db.getTrackers(userid);
                 List<Tracker.Info> tri = tr.toList().stream().map(x -> x.info).collect(Collectors.toList());
                 _psub.createRoom("trackers:"+auth.userid, (Class) null);
                 db.commit();
@@ -136,20 +141,28 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 Tracker dbtr = db.getTracker(call);
             
                 /* If we own the tracker, we can update it */
-                if (auth.userid.equals(dbtr.info.user)) 
+                if (auth.admin || auth.userid.equals(dbtr.info.user)) 
                     db.updateTracker(call, tr.user, tr.alias, tr.icon);
                 else {
-                    return ABORT(resp, db, "POST /trackers/*: Item is owned by another user",
-                        403, "Item is owned by another user");
+                    return ABORT(resp, db, "PUT /trackers/*: Item isn't owned by the user",
+                        403, "Item must be owned by you to allow update (or you must be admin)");
                 }
+                
                 /* 
-                 * If ownership is transferred, notify receiver. 
+                 * If ownership is transferred, notify receiver and previous user . 
                  * FIXME: Handle transfer to/from incident
                  */ 
                 if (tr.user != null && !tr.user.equals(auth.userid)) {
+                    /* notify receiver */
                     _api.getWebserver().notifyUser(tr.user, 
                         new ServerAPI.Notification("system", "system", 
-                           "Tracker '"+call+"' transferred from "+auth.userid, new Date(), 60));
+                           "Tracker '"+call+"' transferred TO you from "+auth.userid, new Date(), 60));
+                    
+                    /* notify previous user */
+                    _api.getWebserver().notifyUser(auth.userid, 
+                        new ServerAPI.Notification("system", "system", 
+                           "Tracker '"+call+"' transferred FROM you to "+tr.user, new Date(), 60));
+                    
                     _psub.put("trackers:"+tr.user, null);
                 }
                 _psub.put("trackers:"+auth.userid, null);
@@ -159,7 +172,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /trackers/*: SQL error:"+e.getMessage(),
+                return ABORT(resp, db, "PUT /trackers/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close(); }
@@ -181,7 +194,8 @@ public class TrackerApi extends ServerBase implements JsonPoints
             Tracker.Info tr = (Tracker.Info) 
                 ServerBase.fromJson(req.body(), Tracker.Info.class);
             if (tr==null) 
-                    return ERROR(resp, 500, "Cannot parse input");   
+                return ERROR(resp, 500, "Cannot parse input");   
+                
             /* 
              * Check if user is allowed to post this for a tracker. Note that this check 
              * is only for active trackers. Non-active trackers will be allowed.
@@ -255,7 +269,9 @@ public class TrackerApi extends ServerBase implements JsonPoints
          
         delete("/trackers/*", (req, resp) -> {
             String call = req.splat()[0];
-            
+            var forcep = req.queryParams("force");
+            var force = ((forcep!=null && forcep.matches("true|TRUE")) ? true : false);
+             
             /* Get user info */
             var auth = getAuthInfo(req); 
             if (auth == null)
@@ -265,24 +281,36 @@ public class TrackerApi extends ServerBase implements JsonPoints
             try {
                 call = call.toUpperCase();
                 Tracker dbtr = db.getTracker(call);
-                if (dbtr == null)
+                if (dbtr == null && !force)
                     return ABORT(resp, db, "DELETE /trackers/*: Item not found: ",
-                        404, "Item not found: "+call);
+                        404, "Item not found (on this server): "+call);
                         
-                if (!auth.userid.equals(dbtr.info.user))
+                /* Do we own the tracker? */
+                if (dbtr!=null && !auth.userid.equals(dbtr.info.user) && !force)
                     return ABORT(resp, db, "DELETE /trackers/*: Item is owned by another user",
                         403, "Item is owned by another user");
                  
-                db.deleteTracker(call);
+                if (dbtr != null)
+                    db.deleteTracker(call);
                 updateItem(call, null, null, req);
                 removeItem(call, req);
-                 _psub.put("trackers:"+auth.userid, null);
+                
+                if (force && dbtr!=null)
+                    _api.getWebserver().notifyUser(dbtr.info.user, 
+                        new ServerAPI.Notification("system", "system", "Your Tracker '"+call+"' was removed by "+auth.userid, new Date(), 60));
+                        
+                _psub.put("trackers:"+(dbtr==null ? auth.userid : dbtr.info.user), null);
                 db.commit();
                 return "OK";
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "DELETE /trackers/*: SQL error:"+e.getMessage(),
-                    500, "Server error (SQL");
+                    500, "Server error (SQL)");
+            }           
+            catch (java.lang.Exception e) {
+                e.printStackTrace(System.out);
+                return ABORT(resp, db, "DELETE /trackers/*: Server error:"+e.getMessage(),
+                    500, "Server error");
             }
             finally { db.close();}  
         } );
@@ -396,14 +424,15 @@ public class TrackerApi extends ServerBase implements JsonPoints
     /* Remove item from managed set */    
     public void removeItem(String id, Request req) {
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
-        if (pt != null) {
+        if (pt != null) 
             pt.removeTag("MANAGED");
-            if (pt.hasTag("_srman")) {
-                pt.removeTag("_srman");
-                if (_api.getRemoteCtl() != null) 
-                    _api.getRemoteCtl().sendRequestAll("RMRMAN", pt.getIdent(), null);
-            }
-        }
+         
+        pt.removeTag("RMAN"); 
+        pt.removeTag("_srman");
+        
+        if (_api.getRemoteCtl() != null) 
+            _api.getRemoteCtl().sendRequestAll("RMRMAN", pt.getIdent(), null);
+            
     }
     
    

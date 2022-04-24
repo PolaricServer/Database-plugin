@@ -110,6 +110,7 @@ public class HistApi extends ServerBase implements JsonPoints
             finally { db.close(); }
         }, ServerBase::toJson );
          
+         
     
         /**************************************************************************
          * REST service:  
@@ -150,6 +151,10 @@ public class HistApi extends ServerBase implements JsonPoints
             }
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/*/trail: SQL error:"+e.getMessage(), 500, null); 
+            }            
+            catch(Exception e) { 
+                e.printStackTrace(System.out);
+                return ABORT(resp, db, "GET /hist/*/trail: Error:"+e.getMessage(), 500, null); 
             }
             finally { db.close(); }
         }, ServerBase::toJson );
@@ -170,12 +175,14 @@ public class HistApi extends ServerBase implements JsonPoints
             JsOverlay mu = null;
             
             try {
-                Date dfrom = df.parse(parms.value("tfrom"));
+                String tfrom = parms.value("tfrom");
+                String tto = parms.value("tto");
+                Date dfrom = df.parse(tfrom);
                 Date dto = null; 
-                if (parms.value("tto").equals("-/-"))
+                if (tto.equals("-/-"))
                     dto = new Date(); 
                 else
-                    dto = df.parse(parms.value("tto"));
+                    dto = df.parse(tto);
 
                 Station s = (Station) db.getItem(src, dto);
                 DbList<TPoint> h = db.getPointsVia(src, null, null, dfrom, dto);          
@@ -197,7 +204,11 @@ public class HistApi extends ServerBase implements JsonPoints
             }
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/*/hrdvia: SQL error:"+e.getMessage(), 500, null); 
-            }            
+            }  
+            catch(Exception e) { 
+                e.printStackTrace(System.out);
+                return ABORT(resp, db, "GET /hist/*/hrdvia: Error:"+e.getMessage(), 500, null); 
+            }      
             finally { db.close(); }
         }, ServerBase::toJson );       
     
