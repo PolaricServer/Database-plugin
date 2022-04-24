@@ -1,3 +1,9 @@
+polaric-db-plugin (2.9+) UNRELEASED; urgency=medium
+
+  * Hacking.
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Tue, 22 Mar 2022 20:32:29 +0100
+
 polaric-db-plugin (2.9) stable; urgency=medium
 
   * Allow multiple filters for what to store in db

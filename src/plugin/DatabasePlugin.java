@@ -70,6 +70,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            
            _enableHist = api.getBoolProperty("db.hist.on", true);
            boolean signs = api.getBoolProperty("db.signs.on", true);  
+           boolean xdb = api.getBoolProperty("db.xqueries", true);
            api.properties().put("aprsdb.plugin", this); 
            
            api.addHttpHandlerCls("no.polaric.aprsdb.http.Webserver", null);
@@ -147,6 +148,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
               });
               _isActive = true;
               AuthInfo.addService("database");
+              if (xdb)
+                 AuthInfo.addService("xdatabase");
+                
               _log.info(null, "DatabasePlugin activated");
         }
         catch (ClassCastException e) {
@@ -477,7 +481,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             getDB().simpleTrans("removeManagedItem", x -> {
                 Tracker t = ((MyDBSession)x).getTracker(id);
                 ((MyDBSession)x).deleteTracker(id);
-                
+                                
+                _api.getWebserver().notifyUser(t.info.user, 
+                        new ServerAPI.Notification("system", "system", "Your Tracker '"+id+"' was removed", new java.util.Date(), 60));
+                        
                 psub.put("trackers:"+t.info.user, null);
                 return null;
             });

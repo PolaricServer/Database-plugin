@@ -31,9 +31,9 @@ fi
 # Install packages
 echo 
 echo "Installing software packages..."
-apt-get remove postgresql postgis
+apt-get remove postgresql postgis postgresql-postgis
 sleep 1
-apt-get -q -y install postgresql postgis
+apt-get -q -y install postgresql postgis postgresql-postgis
 [ $? -eq 0 ] || exit 1  
 
 #
