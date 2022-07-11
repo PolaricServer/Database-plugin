@@ -32,9 +32,8 @@ import  java.io.*;
  
 public class MyDBSession extends DBSession
 {
-   
-   private ServerAPI _api; 
    private DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
+   
    
    MyDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
     throws DBSession.SessionError
@@ -42,6 +41,7 @@ public class MyDBSession extends DBSession
       super(dsrc, autocommit, log); 
       _api = api; 
    }
+   
    
    
        
@@ -105,14 +105,33 @@ public class MyDBSession extends DBSession
     }
     
     
+    public String addSignIdent(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
+            throws java.sql.SQLException
+    {
+        _log.debug("MyDbSession", "addSignIdent: "+descr+", class="+cls);
+         PreparedStatement stmt = getCon().prepareStatement
+              ( "INSERT INTO \"Signs\" (id, maxscale, icon, url, description, position, class, userid)" + 
+                "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id" );
+         stmt.setString(1, id);
+         stmt.setLong(2, maxscale);
+         stmt.setString(3, icon);
+         stmt.setString(4, url);
+         stmt.setString(5, descr);
+         setRef(stmt, 6, pos);
+         stmt.setInt(7, cls);
+         stmt.setString(8, uid);
+         ResultSet rs = stmt.executeQuery(); 
+         rs.next();
+         return rs.getString("id");
+    }
     
-    public int addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
+    public String addSign(String srvid, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
             throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "addSign: "+descr+", class="+cls);
          PreparedStatement stmt = getCon().prepareStatement
-              ( "INSERT INTO \"Signs\" (maxscale, icon, url, description, position, class, userid)" + 
-                "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id" );
+              ( "INSERT INTO \"Signs\" (id, maxscale, icon, url, description, position, class, userid)" + 
+                "VALUES ( nextval('signs_seq') || '@" + srvid + "', ?, ?, ?, ?, ?, ?, ?) RETURNING id" );
          stmt.setLong(1, maxscale);
          stmt.setString(2, icon);
          stmt.setString(3, url);
@@ -122,48 +141,51 @@ public class MyDBSession extends DBSession
          stmt.setString(7, uid);
          ResultSet rs = stmt.executeQuery(); 
          rs.next();
-         return rs.getInt("id");
+         return rs.getString("id");
     }
-    public int addSign(long maxscale, String icon, String url, String descr, Reference pos, int cls)
+    
+    
+    public String addSign(String srvid, long maxscale, String icon, String url, String descr, Reference pos, int cls)
         throws java.sql.SQLException
-    { return addSign(maxscale, icon, url, descr, pos, cls, null); }
+    { return addSign(srvid, maxscale, icon, url, descr, pos, cls, null); }
     
     
     
-    public void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
+    public void updateSign(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "updateSign: "+id+", "+descr);
         PreparedStatement stmt = getCon().prepareStatement
-            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?, userid=?"+
-              "WHERE id=?" );
+            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
+              "WHERE id=?;" +
+              "UPDATE \"Signs\" SET userid=? WHERE id=? AND userid IS NULL");
         stmt.setLong(1, maxscale);
         setRef(stmt, 2, pos);
         stmt.setString(3, icon);
         stmt.setString(4, url);
         stmt.setString(5, descr);
         stmt.setInt(6, cls);      
-        stmt.setString(7, uid);
-        stmt.setInt(8, id);
+        stmt.setString(7, id);
+        stmt.setString(8, uid);
+        stmt.setString(9, id);
         stmt.executeUpdate();
     }  
-    public void updateSign(int id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
+    public void updateSign(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
         throws java.sql.SQLException
     { updateSign(id, maxscale, icon, url, descr, pos, cls, null); }
     
     
     
-    
-    public Sign getSign(int id)
+    public Sign getSign(String id)
           throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "getSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name AS cname, "+
-                " s.icon AS sicon, cl.icon AS cicon, class " +
+                " s.icon AS sicon, cl.icon AS cicon, class, userid " +
                 " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id " +
                  "WHERE s.id=?" );
-         stmt.setInt(1, id);
+         stmt.setString(1, id);
          ResultSet rs = stmt.executeQuery();
          if (rs.next()) {
             String icon = rs.getString("sicon");
@@ -171,8 +193,8 @@ public class MyDBSession extends DBSession
                 icon = rs.getString("cicon");
                     
             // Item (Reference r, long sc, String ic, String url, String txt)
-            return new Sign(rs.getInt("sid"), getRef(rs, "position"), rs.getLong("maxscale"), icon,
-                    rs.getString("url"), rs.getString("description"), rs.getInt("class"), rs.getString("cname")   ); 
+            return new Sign(rs.getString("sid"), getRef(rs, "position"), rs.getLong("maxscale"), icon,
+                    rs.getString("url"), rs.getString("description"), rs.getInt("class"), rs.getString("cname"), rs.getString("userid")  ); 
          }
          return null;
     }
@@ -207,7 +229,7 @@ public class MyDBSession extends DBSession
                     icon = rs.getString("cicon");
 
                 // Item (Reference r, long sc, String ic, String url, String txt)
-                return new Signs.Item(rs.getInt("sid"), getRef(rs, "position"), 0, icon,
+                return new Signs.Item(rs.getString("sid"), getRef(rs, "position"), 0, icon,
                     rs.getString("url"), rs.getString("description"));  
             });
     }
@@ -239,21 +261,21 @@ public class MyDBSession extends DBSession
                     icon = rs.getString("cicon");
 
                 // Item (Reference r, long sc, String ic, String url, String txt)
-                return new Sign(rs.getInt("sid"), getRef(rs, "position"), rs.getLong("maxscale"), icon,
+                return new Sign(rs.getString("sid"), getRef(rs, "position"), rs.getLong("maxscale"), icon,
                     rs.getString("url"), rs.getString("description"), rs.getInt("class"), rs.getString("cname")   );  
             });
     }
     
         
         
-    public int deleteSign(int id)
+    public int deleteSign(String id)
           throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "deleteSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( "DELETE FROM \"Signs\"" + 
                 "WHERE id=?" );
-         stmt.setInt(1, id);
+         stmt.setString(1, id);
          return stmt.executeUpdate();
     }
     
@@ -774,6 +796,22 @@ public class MyDBSession extends DBSession
             { return new JsObject.User(rs.getString("userid"), rs.getBoolean("readonly"));  }
         );
     }
+
+        
+    
+    public int setSeqNext(String seq, int next) 
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " SELECT setval(?, ?, false)" );
+        stmt.setString(1, seq);
+        stmt.setInt(2, next);
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next())
+             return rs.getInt("setval");
+        return -1;
+    }
+    
     
 }
 

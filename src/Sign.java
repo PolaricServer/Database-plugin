@@ -35,22 +35,31 @@ public class Sign extends Signs.Item
       }
   }
   private int cls; 
-  private String group;
+  private String userid;
+  private String group; 
   
   public int getCategory() 
     { return cls; }
     
   public String getGroup()
     { return group; }
+    
+  public String getUser()
+    { return userid; }
   
-  public Sign (int i, Reference r, long sc, String ic, String url, String txt, int cls) {
+  public Sign (String i, Reference r, long sc, String ic, String url, String txt, int cls) {
     this(i,r,sc,ic,url,txt,cls,null);
   }
+
+  public Sign (String i, Reference r, long sc, String ic, String url, String txt, int cls, String grp) {
+    this(i,r,sc,ic,url,txt,cls,grp,null);
+  }
   
-  public Sign (int i, Reference r, long sc, String ic, String url, String txt, int cls, String grp) {
+  public Sign (String i, Reference r, long sc, String ic, String url, String txt, int cls, String grp, String user) {
      super(i,r,sc,ic,url,txt); 
      this.cls = cls;
      this.group = grp;
+     this.userid = user;
   }
   
 }

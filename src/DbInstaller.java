@@ -29,7 +29,7 @@ public class DbInstaller
      private static Connection _db;
      
      /* Schema version - increase when changing schema and provide upgrade method */
-     private static final int _VERSION = 1; 
+     private static final int _VERSION = 6; 
      
          
      static {
@@ -167,31 +167,14 @@ public class DbInstaller
                         "userid  varchar(20), " +
                         "alias   varchar(30), " +
                         "icon    varchar " );
-                        
-        /* New in schema v. 4 */                
-        createClass("TrTags", null, 
-                        "userid  varchar(20) not null, " +
-                        "tag     varchar(20) not null" );
-                               
-                               
-        createClass("JsObject", null, 
-                        "id      SERIAL PRIMARY KEY, " +
-                        "tag     varchar(20), " +
-                        "data    text" );
-                        
-        /* new in schema v. 2 */
-        createClass("ObjectAccess", null, 
-                        "id       integer REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
-                        "readonly boolean DEFAULT 'false', " + 
-                        "userid   varchar(20) " );
-                                
+
         createClass("SignClass", null, 
                         "id      SERIAL PRIMARY KEY, "+
                         "name    text, "+
                         "icon    text ");
                                
         createClass("Signs", null,
-                        "id          SERIAL PRIMARY KEY, "+
+                        "id          varchar, "+
                         "class       integer REFERENCES \"SignClass\" (id) ON DELETE SET NULL, "+
                         "maxscale    integer, "+
                         "icon        text," +
@@ -203,13 +186,66 @@ public class DbInstaller
                         "approved    boolean default false, " +
                         "hidden      boolean default false ");
         addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */           
+                        
+                                
+        /* new in schema v. 2 */
+        createClass("JsObject", null, 
+                        "id      SERIAL PRIMARY KEY, " +
+                        "tag     varchar(20), " +
+                        "data    text" );
+
+        createClass("ObjectAccess", null, 
+                        "id       integer REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
+                        "readonly boolean DEFAULT 'false', " + 
+                        "userid   varchar(20) " );         
                                
+        /* New in schema v. 4 */                
+        createClass("TrTags", null, 
+                        "userid  varchar(20) not null, " +
+                        "tag     varchar(20) not null" );
+                               
+         
+        /* New in schema v. 5 */
+        createClass("DbSync", null, 
+                        "cid  varchar NOT NULL, " +
+                        "item varchar NOT NULL, " +
+                        "ts  timestamp without time zone NOT NULL, " +
+                        "PRIMARY KEY (cid,item) " );
+         
+         createClass("DbSyncQueue", null,
+                        "peer   varchar NOT NULL,  " +
+                        "cid    varchar NOT NULL, " +
+                        "item   varchar NOT NULL, " + 
+                        "userid varchar, " +
+                        "ts     timestamp without time zone NOT NULL, " +
+                        "cmd    varchar, " +
+                        "arg    text, " +
+                        "PRIMARY KEY (cid,item,ts) " ); 
+         
+         
+        /* new in schema v. 6 */
+        createClass("ServerStats", null, 
+                        "time           timestamp without time zone not null, " +
+                        "nclients       integer, " +
+                        "nloggedin      integer, " +
+                        "httpreq        integer, " +
+                        "visits         integer, " +
+                        "logins         integer, " +
+                        "posupdates     integer, " +
+                        "aprsposupdates integer, " +
+                        "mapupdates     integer ");
+                        
+        createClass("ServerStart", null, 
+                        "time           timestamp without time zone not null ");
+                        
             
         updateQuery("CREATE INDEX geoindex ON \"PosReport\" USING GIST (position);");
         updateQuery("CREATE INDEX geoindex_s ON \"Signs\" USING GIST (position);");
         updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");
         updateQuery("CREATE INDEX posreport_time_src_idx on \"PosReport\" (time,src);");
         updateQuery("CREATE INDEX aprspacket_src_time_idx on \"AprsPacket\" (src, time);");
+        updateQuery("CREATE SEQUENCE signs_seq START WITH 2000 owned by \"Signs\".id;");
+
      }
      
       

@@ -32,7 +32,7 @@ INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd/config.d
 ##################################################
     LIBDIR = _lib
  JAVAFLAGS =
- PACKAGES  = core http plugin
+ PACKAGES  = core http dbsync plugin
 
 
 
@@ -72,7 +72,7 @@ core:
 
 	
 .PHONY : plugin 
-plugin: core http
+plugin: core http dbsync stats
 	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/plugin/*.java
 
 	
@@ -80,7 +80,17 @@ plugin: core http
 http: core
 	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/http/*.java
 	
+	
+.PHONY : dbsync
+dbsync: core
+	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/dbsync/*.java
 
+	
+.PHONY : stats
+stats: core
+	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/stats/*.java
+	
+	
 clean:
 	@if [ -e ${LIBDIR} ]; then \
 		  rm -Rf $(LIBDIR); \

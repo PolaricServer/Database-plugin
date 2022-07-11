@@ -13,6 +13,7 @@
  */
 
 package no.polaric.aprsdb;
+import  no.polaric.aprsd.ServerAPI;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.*;
@@ -34,7 +35,8 @@ import  org.postgis.PGgeometry;
  */
  
 public class DBSession
-{
+{   
+     protected ServerAPI _api; 
      private Connection _con;
      private static Map<String, TransInfo> _inProgress = new HashMap();
      private static Timer _transTimer = new Timer("TransactionTimer");
@@ -125,9 +127,19 @@ public class DBSession
          }   
      }
 
+     
+     
+     public DBSession(DBSession s) 
+     {
+        _log = s._log;
+        _con = s._con; 
+        _api = s._api;
+     }
+     
+     
                    
      public static Timestamp date2ts(java.util.Date d, int offset)
-       { return new Timestamp ( (long) ( (long) (d.getTime()+offset)/100)*100 ); }
+       { return new Timestamp ( (long) ( (long) (d.getTime()+offset)    /100)*100 ); }
        
      public static Timestamp date2ts(java.util.Date d)
        { return date2ts(d, 0); }

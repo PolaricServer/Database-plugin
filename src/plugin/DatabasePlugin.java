@@ -1,6 +1,7 @@
 
 package no.polaric.aprsdb;
 import no.polaric.aprsdb.http.*;
+import no.polaric.aprsdb.dbsync.*;
 import no.polaric.aprsd.*;
 import no.polaric.aprsd.http.*;
 import java.util.*;
@@ -26,6 +27,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
      private boolean _enableHist = false;
      private Logfile _log;
      private String  _dburl;
+     private Sync  _dbsync;
 
 
 
@@ -50,12 +52,13 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             config.setJdbcUrl( _dburl );
             config.setUsername( api.getConfig().getProperty("db.login")  );
             config.setPassword( api.getConfig().getProperty("db.passwd") );
-            config.setMaximumPoolSize(10);
+            config.setMaximumPoolSize(16);
             config.setAutoCommit(false);
             config.addDataSourceProperty("dataSourceClassName","org.postgresql.ds.PGSimpleDataSource");
             config.addDataSourceProperty("cachePrepStmts", "true");
-            config.addDataSourceProperty("prepStmtCacheSize", "1000");
-            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            config.addDataSourceProperty("prepStmtCacheSize", "1500");
+            config.addDataSourceProperty("prepStmtCacheSqlLimit", "3000");
+            config.addDataSourceProperty("gssEncMode", "disable");
             config.setConnectionTimeout(1000);
             _dsrc = new HikariDataSource(config);
            
@@ -73,10 +76,25 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            boolean xdb = api.getBoolProperty("db.xqueries", true);
            api.properties().put("aprsdb.plugin", this); 
            
-           api.addHttpHandlerCls("no.polaric.aprsdb.http.Webserver", null);
            _isOwner = api.getBoolProperty("db.isowner", true);
            _log = new Logfile(api, "db", "database.log");
            _api.log().info("DatabasePlugin", "Activate...");
+           
+           
+           /*
+            * Statistics 
+            */
+            DbStatLogger stats = new DbStatLogger(_api);
+            
+           
+           /*
+            * Synchronisation 
+            */
+           _dbsync = (Sync) new DbSync(_api); 
+           
+           /* Add handlers */
+           _dbsync.addCid("signs", (Sync.Handler) new SignsSync(api, this)); 
+           
            
            
            /*
@@ -92,6 +110,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             api4.start();
             TrackLogApi api5 = new TrackLogApi(api);
             api5.start();
+            DbSyncApi api6 = new DbSyncApi(api, _dbsync);
+            api6.start();
             
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
@@ -201,6 +221,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
          return "DatabasePlugin ("+u+")"; 
       }
 
+        
+      public Sync getSync() 
+        { return _dbsync; }
+        
         
       public MyDBSession getDB() throws DBSession.SessionError
         { return getDB(false); }
@@ -497,7 +521,6 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
     
     
     
-    
     /**
      * Get an APRS item at a given point in time.
      */    
@@ -509,6 +532,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
         }
         catch (DBSession.SessionError e) { return null; }
     } 
+     
+     
      
      
      

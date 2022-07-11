@@ -57,6 +57,63 @@ if ((VERSION < 4)); then
         COMMIT " polaric
 fi
 
+
+if ((VERSION < 5)); then
+    echo "Upgrading schema to version 5"
+    
+    psql -t -c "BEGIN; \
+        CREATE TABLE \"DbSync\" ( \
+         cid varchar NOT NULL, \
+         item varchar NOT NULL, \
+         ts timestamp without time zone NOT NULL, \
+         PRIMARY KEY (cid,item) ); \
+        \
+        CREATE TABLE \"DbSyncQueue\" ( \
+         peer varchar NOT NULL, \
+         cid varchar NOT NULL, \
+         item varchar NOT NULL, \
+         userid varchar, \
+         ts timestamp without time zone NOT NULL, \
+         cmd varchar, \
+         arg text, \
+         PRIMARY KEY (cid,item,ts) ); \
+        \
+        UPDATE \"MetaData\" SET version=5; \
+        ALTER TABLE \"DbSync\" owner to polaric; \
+        ALTER TABLE \"DbSyncQueue\" owner to polaric; \
+        \
+        ALTER TABLE \"Signs\" ALTER COLUMN id DROP DEFAULT; \
+        ALTER TABLE \"Signs\" ALTER COLUMN id TYPE varchar; \
+        DROP SEQUENCE \"Signs_id_seq\"; \
+        CREATE SEQUENCE signs_seq START WITH 2000 owned by \"Signs\".id; \
+        COMMIT " polaric
+fi
+
+if ((VERSION < 6)); then
+    echo "Upgrading schema to version 6"
+    
+    psql -t -c "BEGIN;  \
+        CREATE TABLE \"ServerStats\" ( \
+        time timestamp WITHOUT TIME ZONE NOT NULL, \
+        nclients integer, \
+        nloggedin integer, \
+        httpreq integer, \
+        visits integer, \
+        logins integer, \
+        posupdates integer, \
+        aprsposupdates integer, \
+        mapupdates integer ); \
+        \
+        CREATE TABLE \"ServerStart\" ( \
+        time timestamp WITHOUT TIME ZONE NOT NULL ); \
+        \
+        ALTER TABLE \"ServerStats\" owner to polaric; \
+        ALTER TABLE \"ServerStart\" owner to polaric; \
+        UPDATE \"MetaData\" SET version=6; \
+        COMMIT " polaric
+fi
+
+
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then
     echo "Adding classes/icons in \"SignClass\""
@@ -67,4 +124,5 @@ if ((NSCLASS == 0)); then
         INSERT INTO \"SignClass\" (id,name,icon) values (8, 'Radio installation', 'signs/signal.png'); \
         COMMIT " polaric
 fi
+
 

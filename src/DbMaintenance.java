@@ -61,32 +61,42 @@ public class DbMaintenance implements Runnable
     {
         DBSession db = null;
         try {       
-           db = getDB();
+            db = getDB();
     
-           /* Delete old data */
-           PreparedStatement stmt = db.getCon().prepareStatement
+            /* Delete old data */
+            PreparedStatement stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsPacket\" " + 
                 "WHERE time + INTERVAL '"+_maxage_raw+" days' < 'now' OR" +
                      " (time + INTERVAL '"+_maxage_limited_raw+" days' < 'now' AND ("+_maxage_limited_filter+"))" );
-           long deleted = stmt.executeUpdate();
-           if (deleted > 0) 
+            long deleted = stmt.executeUpdate();
+            if (deleted > 0) 
               _log.info("DbMaintenance", "Deleted "+deleted+" old records from AprsPacket table"); 
            
-           stmt = db.getCon().prepareStatement
+            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"AprsMessage\" " + 
                 "WHERE (time + INTERVAL '"+_maxage_report+" days' < 'now') OR"+ 
                      " (time + INTERVAL '"+_maxage_limited+" days' < 'now' AND ("+_maxage_limited_filter+"))" );
-           deleted =  stmt.executeUpdate();
-           if (deleted > 0) 
+            deleted =  stmt.executeUpdate();
+            if (deleted > 0) 
                _log.info("DbMaintenance","Deleted "+deleted+" old records from AprsMesssage table");
            
-           /* Also delete data where time is in the future (because of bugs) */
-           db.getCon().prepareStatement
+            /* Also delete data where time is in the future (because of bugs) */
+            db.getCon().prepareStatement
               ( "DELETE FROM \"AprsMessage\" " + 
                 "WHERE time > 'now + INTERVAL 2 hours'" );
-           deleted = stmt.executeUpdate();
-           if (deleted > 0) 
+            deleted = stmt.executeUpdate();
+            if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
+               
+               
+            db.getCon().prepareStatement
+              ( "DELETE FROM \"ServerStats\" " + 
+                "WHERE time + INTERVAL '5 years' < 'now'" );
+            deleted = stmt.executeUpdate();
+            if (deleted > 0) 
+               _log.info("DbMaintenance", "Deleted "+deleted+" records from ServerStats table");
+               
+               
            db.commit();
        }
        catch (DBSession.SessionError e) {

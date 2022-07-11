@@ -24,8 +24,7 @@ import org.eclipse.jetty.server.*;
 
 
 /*
- * This will eventually replace the XML service for trail and point cloud. 
- * see XMLserver.java
+ * REST API for trackers
  */
  
 public class TrackerApi extends ServerBase implements JsonPoints
@@ -424,9 +423,12 @@ public class TrackerApi extends ServerBase implements JsonPoints
     /* Remove item from managed set */    
     public void removeItem(String id, Request req) {
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
-        if (pt != null) 
-            pt.removeTag("MANAGED");
-         
+        
+        /* pt is null if tracker is not active */
+        if (pt == null) 
+            return;
+            
+        pt.removeTag("MANAGED");
         pt.removeTag("RMAN"); 
         pt.removeTag("_srman");
         

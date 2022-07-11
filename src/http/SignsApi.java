@@ -31,18 +31,20 @@ public class SignsApi extends ServerBase implements JsonPoints
 {
     private ServerAPI _api; 
     private PluginApi _dbp;
+    private String    _myCall;
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
     public SignsApi(ServerAPI api) {
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
+        _myCall = api.getProperty("default.mycall", "NOCALL").toUpperCase();
     }
         
         
         
     public static class SignInfo {
-        public int id; 
+        public String id; 
         public String url;
         public String descr;
         public String icon;
@@ -50,8 +52,9 @@ public class SignsApi extends ServerBase implements JsonPoints
         public int type;
         public String tname;
         public double[] pos;
+        
         public SignInfo() {}
-        public SignInfo(int i, String u, String d, String ic, long sc, int t, String tn, Reference p)
+        public SignInfo(String i, String u, String d, String ic, long sc, int t, String tn, Reference p)
             {   
                 id=i;url=u; descr=d; icon=ic; scale=sc; type=t; tname=tn;
                 LatLng pp = p.toLatLng(); 
@@ -129,7 +132,7 @@ public class SignsApi extends ServerBase implements JsonPoints
             
             MyDBSession db = _dbp.getDB();
             try {
-                Sign x = db.getSign(Integer.parseInt(ident));
+                Sign x = db.getSign(ident);
                 if (x==null)
                     return ABORT(resp, db, "GET /signs/*: Object not found: "+ident,
                         404, "Object not found: "+ident);
@@ -141,10 +144,6 @@ public class SignsApi extends ServerBase implements JsonPoints
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "GET/signs/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
-            }
-            catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "GET /signs/*: ident must be a positive integer",
-                    400, "ident must be a positive integer");
             }
             finally { db.close();}  
         }, ServerBase::toJson);
@@ -219,9 +218,11 @@ public class SignsApi extends ServerBase implements JsonPoints
             /* Database transaction */
             try {
                 Reference ref = new LatLng(sc.pos[1], sc.pos[0]);
-                int id = db.addSign(sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, auth.userid);
+                String id = db.addSign(_myCall, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, auth.userid);
+                sc.id=id;
                 db.commit();
-                return ""+id; 
+                _dbp.getSync().localUpdate("signs", id, auth.userid, "ADD", ServerBase.toJson(sc));
+                return id; 
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "POST /signs: SQL error:"+e.getMessage(),
@@ -247,7 +248,7 @@ public class SignsApi extends ServerBase implements JsonPoints
             
             MyDBSession db = _dbp.getDB();
             try {
-                Sign x = db.getSign(Integer.parseInt(ident));
+                Sign x = db.getSign(ident);
                 if (x==null)
                     return ABORT(resp, db, "PUT /signs/*: Object not found: "+ident,
                         404, "Object not found: "+ident);
@@ -259,20 +260,22 @@ public class SignsApi extends ServerBase implements JsonPoints
                     return ABORT(resp, db, "PUT /signs: cannot parse input", 
                         500, "Cannot parse input");        
                         
-                Reference ref = new LatLng(sc.pos[1], sc.pos[0]);           
-                db.updateSign(Integer.parseInt(ident), sc.scale, sc.icon, sc.url, sc.descr, 
-                    ref, sc.type, auth.userid);        
-                        
+                Reference ref = new LatLng(sc.pos[1], sc.pos[0]);
+                
+                Sign s= db.getSign(ident);
+                String uid = s.getUser();
+                uid=(uid==null ? auth.userid : uid);
+                
+                db.updateSign(ident, sc.scale, sc.icon, sc.url, sc.descr, 
+                    ref, sc.type, uid);        
+                sc.id=ident;
                 db.commit();
+                _dbp.getSync().localUpdate("signs", ident, uid, "UPD", ServerBase.toJson(sc));
                 return "Ok";
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "PUT /signs/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
-            }
-            catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "PUT /signs/*: ident must be a positive integer",
-                    400, "ident must be a positive integer");
             }
             finally { db.close();}  
         });
@@ -292,8 +295,9 @@ public class SignsApi extends ServerBase implements JsonPoints
             
             MyDBSession db = _dbp.getDB();
             try {
-                db.deleteSign(Integer.parseInt(ident));
+                db.deleteSign(ident);
                 db.commit();
+                _dbp.getSync().localUpdate("signs", ident, "", "DEL", "");
                 return "OK";
             }
             catch (java.sql.SQLException e) {
