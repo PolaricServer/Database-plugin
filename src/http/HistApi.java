@@ -94,12 +94,26 @@ public class HistApi extends ServerBase implements JsonPoints
                 int n = 25; 
                 if (nn != null)
                     n = Integer.parseInt(nn);
-                DbList<AprsPacket> list = db.getAprsPackets(src, n);
+                
+                Date dto = null;
+                String dtos = parms.value("tto"); 
+                if (dtos != null) 
+                    dto = df.parse(dtos);
+                
+                Date dfrom = null;
+                String dfroms = parms.value("tfrom"); 
+                if (dfroms != null) 
+                    dfrom = df.parse(dfroms);
+                    
+                DbList<AprsPacket> list = db.getAprsPackets(src, n, dto, dfrom);
                 List<RawPacket> res = new ArrayList(); 
                 for (AprsPacket x: list)
                     res.add(new RawPacket(x.time, x.source.getIdent(), x.from, x.to, x.via, x.report));
                 db.commit();
                 return res;
+            }    
+            catch(java.text.ParseException e) {  
+                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse timestring", 500,  null);
             }
             catch(java.lang.NumberFormatException e) {  
                 return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 500,  null);

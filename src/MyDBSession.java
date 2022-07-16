@@ -408,19 +408,29 @@ public class MyDBSession extends DBSession
      *
      * @param src from callsign
      * @param n   number of elements of list
+     * @param at  time (search up to this time). If null, ignore
+     * @param tfrom  time (search from this time). If null, ignore
      */
-    public DbList<AprsPacket> getAprsPackets(String src, int n)
+    public DbList<AprsPacket> getAprsPackets(String src, int n, java.util.Date at,  java.util.Date tfrom)
        throws java.sql.SQLException
     {    
         _log.debug("MyDbSession", "getAprsPackets:  "+src);
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"AprsPacket\"" +
              " WHERE src=?"  + 
+             (at != null ? " AND time <= ?" : "") +
+             (tfrom != null ? " AND time >= ?" : "") +
              " ORDER BY time DESC LIMIT ?",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
        
-        stmt.setString(1, src);
-        stmt.setInt(2, n);
+        int i = 1;
+        stmt.setString(i++, src);
+        if (at != null) 
+            stmt.setTimestamp(i++, new Timestamp(at.getTime()));
+        if (tfrom != null) 
+            stmt.setTimestamp(i++, new Timestamp(tfrom.getTime()));
+        stmt.setInt(i, n);
+        
         
         return new DbList(stmt.executeQuery(), rs -> 
             {
@@ -441,8 +451,13 @@ public class MyDBSession extends DBSession
                 return p;
              });
     }
-    
-     
+ 
+    public DbList<AprsPacket> getAprsPackets(String src, int n)
+       throws java.sql.SQLException
+        { return getAprsPackets(src,n,null,null); } 
+ 
+ 
+ 
  
     /**
      * Add managed tracker to the database.
