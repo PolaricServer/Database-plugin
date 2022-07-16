@@ -20,7 +20,7 @@ import java.util.function.*;
 
 
 
-/* Denne er eksperimentell - just testing */
+/* Denne er eksperimentell */
 
 
 public class DbList<T> implements Iterable<T>, Iterator<T>

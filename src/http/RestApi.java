@@ -24,8 +24,7 @@ import org.eclipse.jetty.server.*;
 
 
 /*
- * This will eventually replace the XML service for trail and point cloud. 
- * see XMLserver.java
+ * REST API.
  */
  
 public class RestApi extends ServerBase implements JsonPoints
