@@ -78,7 +78,7 @@ public class DbSyncApi extends ServerBase
     
             
         /******************************************
-         * Test POST
+         * POST an update
          ******************************************/
         post("/dbsync", (req, resp) -> {   
             try {

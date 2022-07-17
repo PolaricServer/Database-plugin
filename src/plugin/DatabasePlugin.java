@@ -94,7 +94,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            
            /* Add handlers */
            _dbsync.addCid("signs", (Sync.Handler) new SignsSync(api, this)); 
+           _dbsync.addCid("user",  (Sync.Handler) new UserSync(api, this));
+           _dbsync.addCid("userts",(Sync.Handler) new UserTsSync(api, this));
            
+           /* Activate and register user sync client */
+           UserDb udb = (UserDb) _api.getWebserver().getUserDb(); 
+           udb.setSyncer( new ClientUserSyncer(_dbsync) );
            
            
            /*

@@ -31,6 +31,18 @@ public class SignsSync implements Sync.Handler
    
    
    
+    /**
+     * Handle an update from other node. 
+     * Arguments: 
+     *  upd - ItemUpdate structure: 
+     *      cmd    - Command as string (in this case: 'ADD', 'UPD' (update) or 'DEL' (delete). 
+     *      arg    - JSON encoded argument (application dependent). Typically the state of the item to be updated.
+     *               in this case it is a SignsApi.SignInfo object. 
+     *      userid - String. User that initiated the change.
+     *      itemid - String. Some identifier for the item to be updated (in the case of ADD, the item that contain the 
+     *               item to be added). 
+     */
+     
     public void handle(Sync.ItemUpdate upd)
         throws DBSession.SessionError
     {
@@ -51,10 +63,11 @@ public class SignsSync implements Sync.Handler
         else if ("DEL".equals(upd.cmd)) 
             _del(upd.itemid);
         else
-           // error("UNknown command");
+           // error("Unknown command");
            ;
     }
-    
+   
+   
     
     /*
      * We assign a unique id to the sign when it is created. When it is propagated we need to make sure that
@@ -104,7 +117,7 @@ public class SignsSync implements Sync.Handler
             Reference ref = new LatLng(sc.pos[1], sc.pos[0]);         
             Sign s = db.getSign(sc.id);
             if (s==null) {
-                _dbp.log().error("SignsSync", "Replica object doesn't exist. Adding: "+sc.id);
+                _dbp.log().warn("SignsSync", "Replica object doesn't exist. Adding: "+sc.id);
                 db.addSignIdent(sc.id, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, userid);
             }
             else
