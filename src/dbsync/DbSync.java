@@ -34,8 +34,9 @@ public class DbSync implements Sync
         public String cfilter; /* Regex */
         public int cnt = 0;
         
-        Peer(String u, String cf) 
-            { http = new RestClient(u); cfilter=cf;}
+        Peer(ServerAPI api, String u, String cf) 
+            { http = new RestClient(api, u, true); 
+              cfilter=cf;}
     }
     
     
@@ -58,7 +59,7 @@ public class DbSync implements Sync
         for (int i=1; i<=npeers; i++) {
             String url = api.getProperty("db.sync.peer"+i+".url", "");
             String filt = api.getProperty("db.sync.peer"+i+".filter", "");
-            Peer p = new Peer(url, filt);
+            Peer p = new Peer(_api, url, filt);
             _peers.add(p);
             _dbp.log().info("DbSync", "Peer node registered: "+url);
         }
@@ -81,6 +82,7 @@ public class DbSync implements Sync
         SyncDBSession db = null;
         try {
             db = new SyncDBSession(_dbp.getDB());
+            
             java.util.Date ts = db.getSync(upd.cid, upd.itemid);
             if (ts!=null && ts.getTime() > upd.ts) {
                 /* If timestamp is older than last local update, ignore the update */
@@ -139,7 +141,8 @@ public class DbSync implements Sync
         }
         catch(Exception e) {
             if (db != null) db.abort();
-            _dbp.log().error("DbSync", "Exception: "+e.getMessage());
+            _dbp.log().error("DbSync", "Exception: "+e.getMessage());   
+            e.printStackTrace(System.out);
         }
         finally {
             if (db != null) db.close();
@@ -180,7 +183,8 @@ public class DbSync implements Sync
                 }
             }    
             catch(Exception e) {
-                _dbp.log().error("DbSync", "Exception: "+e.getMessage());
+                _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
+                e.printStackTrace(System.out);
                 return;
             }     
             finally {

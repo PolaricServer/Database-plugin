@@ -30,7 +30,8 @@ public class DbSyncApi extends ServerBase
     private ServerAPI _api; 
     private PluginApi _dbp;
     private Sync    _dbsync;
-    
+    private DuplicateChecker _dup;
+      // We may want to move this to a superclass and make it static?
     
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
@@ -39,6 +40,7 @@ public class DbSyncApi extends ServerBase
         super (api); 
         _api = api;
         _dbsync = d;
+        _dup = new DuplicateChecker(2000);
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
     }
         
@@ -60,13 +62,15 @@ public class DbSyncApi extends ServerBase
     
     
     
-    private boolean authenticate(Sync.ItemUpdate upd) {
-        boolean result = upd.mac.equals( upd.generateMac(_api) );
-        return result; 
+    private boolean authenticate(Request req) {
+        String key = _api.getProperty("system.auth.key", "NOKEY");
+        String rmac = req.headers("Arctic-Hmac");
+        String nonce = req.headers("Arctic-Nonce");
+        if (_dup.contains(nonce)) 
+            return false;
+        _dup.add(nonce);
+        return SecUtils.hmacB64(nonce+req.body(), key, 44).equals(rmac); 
     }
-    
-    
-    
     
     
     /** 
@@ -75,10 +79,10 @@ public class DbSyncApi extends ServerBase
     public void start() {   
     
         _api.getWebserver().corsEnable("/dbsync");
-    
-            
+        
+        
         /******************************************
-         * POST an update
+         * POST an update new version
          ******************************************/
         post("/dbsync", (req, resp) -> {   
             try {
@@ -88,8 +92,8 @@ public class DbSyncApi extends ServerBase
                 if (upd == null)
                     return ERROR(resp, 400, "Invalid message body");
                 
-                if (!authenticate(upd))
-                    return ERROR(resp, 400, "Message authentication failed");
+                if (!authenticate(req))
+                    return ERROR(resp, 403, "Message authentication failed");
             
                 _dbsync.doUpdate(upd);
                 return "Ok";
@@ -99,7 +103,6 @@ public class DbSyncApi extends ServerBase
                 e.printStackTrace(System.out);
                 return "ERROR";
             }
-            
         });
     }
     
