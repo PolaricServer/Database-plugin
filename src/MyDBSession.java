@@ -101,7 +101,7 @@ public class MyDBSession extends DBSession
         stmt.setMaxRows(15000);
         
         return new DbList(stmt.executeQuery(), rs ->
-            { return new TPoint(null, getRef(rs, "position")); });
+            { return new TPoint(null, getRef(rs, "position"), null); });
     }
     
     
@@ -293,6 +293,28 @@ public class MyDBSession extends DBSession
     }
     
     
+        
+
+    private String getPath(ResultSet rs) 
+        throws java.sql.SQLException 
+    {
+        String p = ""; 
+        if (rs.getBoolean("nopkt")) 
+            p = "(ext)";
+        else {
+            String path = rs.getString("path");
+            String ipath = rs.getString("ipath");
+            if (path == null)
+                p = "?"; 
+            else {
+                p = path; 
+                if (ipath != null && ipath.length() > 1)
+                    p = p + (p.length() > 1 ? "," : "") + ipath;
+            }
+        }
+        return p;
+    }
+    
     
     
     /* FIXME: should true be default? */
@@ -310,21 +332,21 @@ public class MyDBSession extends DBSession
     {
         _log.debug("MyDbSession", "getTrail: "+src+ ", "+df.format(from)+" - "+df.format(to));
         PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT * FROM \"PosReport\"" +
-             " WHERE src=? AND time >= ? AND time <= ?" + 
-             " ORDER BY time "+(rev? "DESC" : "ASC")+" LIMIT 5000",
+           ( " SELECT pr.time, position, path, ipath, nopkt FROM \"PosReport\" AS pr" +
+             " LEFT JOIN \"AprsPacket\" AS ap ON pr.src = ap.src AND pr.rtime = ap.time " +
+             " WHERE pr.src=? AND pr.time >= ? AND pr.time <= ?" + 
+             " ORDER BY pr.time "+(rev? "DESC" : "ASC")+" LIMIT 5000",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, src);
         stmt.setTimestamp(2, date2ts(from));
         stmt.setTimestamp(3, date2ts(to));
         stmt.setMaxRows(5000);
-         
-        return new DbList(stmt.executeQuery(), rs ->
-            { return new TPoint(rs.getTimestamp("time"), getRef(rs, "position"));  });
+                
+        return new DbList(stmt.executeQuery(), rs -> { 
+            return new TPoint(rs.getTimestamp("time"), getRef(rs, "position"), getPath(rs));  
+        });
     }
-    
 
-    
     
    /**
      * Get trail poiint for a given station and a given time. 
@@ -344,23 +366,8 @@ public class MyDBSession extends DBSession
        stmt.setTimestamp(3, date2ts(t, +1200));
        ResultSet rs = stmt.executeQuery();
        if (rs.first()) {
-          String p = ""; 
-          if (rs.getBoolean("nopkt")) 
-             p = "(ext)";
-          else {
-              String path = rs.getString("path");
-              String ipath = rs.getString("ipath");
-              if (path == null)
-                  p = "?"; 
-              else {
-                  p = path; 
-                  if (ipath != null && ipath.length() > 1)
-                      p = p + (p.length() > 1 ? "," : "") + ipath;
-              }
-          }
-          
           return new Trail.Item(rs.getTimestamp("time"), getRef(rs, "position"), 
-                         rs.getInt("speed"), rs.getInt("course"), p );  
+                         rs.getInt("speed"), rs.getInt("course"), getPath(rs) );  
        }
        else
           return null;

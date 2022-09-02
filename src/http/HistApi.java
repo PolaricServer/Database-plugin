@@ -79,7 +79,10 @@ public class HistApi extends ServerBase implements JsonPoints
         /**************************************************************************
          * REST service:  
          * /hist/<callsign>/aprs?n=..   
-         * Get last APRS raw packets for a given callsign. 
+         * Get APRS raw packets for a given callsign.
+         *   - n - return the n last packets. 
+         *   - tto - to date/time
+         *   - tfrom from date/time
          * Number is given as request parameter n 
          **************************************************************************/
         
@@ -97,7 +100,9 @@ public class HistApi extends ServerBase implements JsonPoints
                 
                 Date dto = null;
                 String dtos = parms.value("tto"); 
-                if (dtos != null) 
+                if (dtos == null || "-/-".equals(dtos))
+                    dto = new Date();
+                else
                     dto = df.parse(dtos);
                 
                 Date dfrom = null;
@@ -113,13 +118,17 @@ public class HistApi extends ServerBase implements JsonPoints
                 return res;
             }    
             catch(java.text.ParseException e) {  
-                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse timestring", 500,  null);
+                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse timestring", 400,  null);
             }
             catch(java.lang.NumberFormatException e) {  
-                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 500,  null);
+                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 400,  null);
             }
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/*/aprs: SQL error:"+e.getMessage(), 500, null); 
+            }
+            catch(Exception e) { 
+                e.printStackTrace(System.out);
+                return ABORT(resp, db, "GET /hist/*/aprs: Exception:"+e, 500, null); 
             }
             finally { db.close(); }
         }, ServerBase::toJson );

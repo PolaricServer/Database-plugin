@@ -107,6 +107,12 @@ if ((VERSION < 6)); then
         CREATE TABLE \"ServerStart\" ( \
         time timestamp WITHOUT TIME ZONE NOT NULL ); \
         \
+        CREATE VIEW \"ServerStatsPerDay\" AS \
+        SELECT date_trunc('day', time) day, sum(httpreq) httpreq, \
+           sum(visits) visits, sum(logins) logins, sum(posupdates) posupdates, \
+           sum(aprsposupdates) aprsposupdates, sum(mapupdates) mapupdates \
+        FROM \"ServerStats\" GROUP BY day; \
+        \
         ALTER TABLE \"ServerStats\" owner to polaric; \
         ALTER TABLE \"ServerStart\" owner to polaric; \
         UPDATE \"MetaData\" SET version=6; \
