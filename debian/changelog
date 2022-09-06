@@ -1,8 +1,14 @@
-polaric-db-plugin (2.9+) UNRELEASED; urgency=medium
+polaric-db-plugin (2.10) stable; urgency=medium
 
-  * Hacking.
+  * Tracklog API for Arctic Tracker
+  * xqueries flag to indicate if server has resources for the heaviest queries
+  * DbSync - synchronisation between servers (using REST API) - supports signs and users
+  * Use HMAC based auth in DbSync
+  * Allow time in raw aprs packet search
+  * Trail fixes
+  * Various fixes..
 
- -- Oyvind Hanssen <ohanssen@acm.org>  Tue, 22 Mar 2022 20:32:29 +0100
+ -- Oyvind Hanssen <ohanssen@acm.org>  Tue, 06 Sep 2022 21:51:41 +0200
 
 polaric-db-plugin (2.9) stable; urgency=medium
 
