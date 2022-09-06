@@ -2,7 +2,7 @@ polaric-db-plugin (2.10) stable; urgency=medium
 
   * Tracklog API for Arctic Tracker
   * xqueries flag to indicate if server has resources for the heaviest queries
-  * DbSync - synchronisation between servers (using REST API) - supports signs and users
+  * DbSync - synchronisation between servers - supports signs and users
   * Use HMAC based auth in DbSync
   * Allow time in raw aprs packet search
   * Trail fixes
