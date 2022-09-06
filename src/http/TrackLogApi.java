@@ -54,9 +54,7 @@ public class TrackLogApi extends ServerBase implements JsonPoints
         public String mac;
         public TrkLog() {}
     }
-    
-    
-    
+     
     
     /** 
      * Return an error status message to client 
@@ -85,7 +83,7 @@ public class TrackLogApi extends ServerBase implements JsonPoints
                 " position, comment, nopkt)" + 
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)" );
 
-        stmt.setString(1, "(EXT)");
+        stmt.setString(1, "(int)");
         stmt.setString(2, src);
         java.util.Date now = new java.util.Date();
         stmt.setTimestamp(3, DBSession.date2ts(ts));
@@ -96,12 +94,20 @@ public class TrackLogApi extends ServerBase implements JsonPoints
         stmt.setString(8, null);
         stmt.setBoolean(9, true);
         stmt.executeUpdate();  
-        
-        /* FIXME: If report is recent, we may also add it to real-time trail. 
+
+        /* 
+         * If report is recent, we also add it to real-time trail. 
          */
+        TrackerPoint tp = _api.getDB().getItem(src, null);
+        if (tp==null)
+            return;
+        Trail t = tp.getTrail();
+        if (t != null && t.oldestPoint() != null && ts.getTime() > t.oldestPoint().getTime())
+            t.add(ts, pos, speed, course, "(int)");
     }
     
-    
+     
+     
     
     private boolean authenticate(String msg, TrkLog tr) {
         /*
@@ -133,8 +139,6 @@ public class TrackLogApi extends ServerBase implements JsonPoints
     
     
     
-    
-    
     /** 
      * Set up the webservices. 
      */
@@ -158,7 +162,7 @@ public class TrackLogApi extends ServerBase implements JsonPoints
                     return ERROR(resp, 400, "Message authentication failed");
                 for (LogItem x : tr.pos) 
                     insertPosReport(db, tr.call, new java.util.Date(x.time*1000), -1, -1, 
-                        new LatLng(x.lat/100000, x.lng/100000));
+                        new LatLng(((double) x.lat)/100000, ((double) x.lng)/100000));
                 db.commit();
                 return "Ok";
             }
@@ -173,6 +177,8 @@ public class TrackLogApi extends ServerBase implements JsonPoints
             }
             finally { db.close(); }
         });
+        
+
     }
     
 }
