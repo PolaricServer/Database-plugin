@@ -79,8 +79,8 @@ public class MyDBSession extends DBSession
              (uleft==null ? "": " AND  position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
              
              " AND  p.time > ? AND p.time < ? LIMIT 15000",
-
-             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY 
+        );
         stmt.setString(1, digi);
         stmt.setString(2, digi);
 

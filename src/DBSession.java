@@ -151,10 +151,14 @@ public class DBSession
      public static void setRef(PreparedStatement stmt, int index, Reference pos)
        throws SQLException 
      {
-        LatLng ll = pos.toLatLng();
-        org.postgis.Point p = new org.postgis.Point( ll.getLng(), ll.getLat() );
-        p.setSrid(4326);
-        stmt.setObject(index, new PGgeometry(p));
+        if (pos==null)
+            stmt.setNull(index, java.sql.Types.NULL);
+        else {
+            LatLng ll = pos.toLatLng();
+            org.postgis.Point p = new org.postgis.Point( ll.getLng(), ll.getLat() );
+            p.setSrid(4326);
+            stmt.setObject(index, new PGgeometry(p));
+        }
      }
         
        

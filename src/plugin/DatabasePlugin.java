@@ -122,20 +122,27 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
             * done by more than one concurrent client (the owner of the database). 
             */
-           if (_isOwner) {
-              _api.getAprsParser().subscribe(this);
-              _maint = new DbMaintenance(_dsrc, _api, _log);
-           }
-           else 
-              _api.log().info("DatabasePlugin", "Using remote database server");
+            if (_isOwner) {
+               _api.getAprsParser().subscribe(this);
+               _maint = new DbMaintenance(_dsrc, _api, _log);
+            }
+            else 
+               _api.log().info("DatabasePlugin", "Using remote database server");
               
-           StationDBImp dbi = (StationDBImp) api.getDB();
-           dbi.setHistDB(this);
+            
+            /* Set stationDB implementation */
+            boolean usert = api.getBoolProperty("db.rtdb", false);
+            StationDB dbi; 
+            if (usert) 
+                dbi = new DStationDBImp(api);
+            else {
+                dbi = new StationDBImp(api);
+                ((StationDBImp) dbi).setHistDB(this);
+            }
+            api.setDB(dbi);
            
            
-           
-           if (signs)                                   
-           
+            if (signs)                                   
               /* 
                * Create a anonymous class to offer search and close methods. 
                * FIXME: Consider to make a superclass to represent this pattern. Transaction?
@@ -297,24 +304,26 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            db = getDB();
            /* If change to comment, save it in database. */
            AprsPoint x = (AprsPoint) _api.getDB().getItem(sender, null);
-           String comment;
+           String comment = "";
            if ( x == null ||
-               (descr != null && !descr.equals("") && !descr.equals(x.getDescr()))) 
-               comment = "'"+descr+"'";
-           else {
+               (descr != null && !descr.equals("") && !descr.equals(x.getDescr()))) {
+               comment = "'"+descr+"'"; 
+               comment = comment.replaceAll("\u0000", "");
+           }
+           else if (x.getLastChanged() != null)  {
                comment = "NULL"; 
               /* 
                * If item has not changed its position and the time since last 
                * update is less than 3 hours, return. Important: We assume that this 
-               * method is called AFTER the in-memory AprsPoint object is updated. 
+               * method is called AFTER the realtime AprsPoint object is updated. 
                */
+               // FIXME: is x.getLastChanged null in some cases? Just check for it? 
                boolean recentUpdate = (new java.util.Date()).getTime() < x.getLastChanged().getTime() + 1000*60*60*3; 
                if (!x.isChanging() && recentUpdate) 
                    return;
                if (!recentUpdate)
                    x.setChanging();
            }
-           comment = comment.replaceAll("\u0000", "");
 
                
            PreparedStatement stmt = db.getCon().prepareStatement
@@ -431,11 +440,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
     
     
     /**
-     * Save item info to database. 
+     * Save item info to Tracker table in database. 
      * Called from StationDBImp.
      * @param tp Item to update
      */
-    public void saveItem(TrackerPoint tp) 
+    public void saveManagedItem(TrackerPoint tp) 
     {
         try {
             getDB().simpleTrans("saveItem", x -> {
@@ -455,13 +464,13 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
     
      
     /**
-     * Update item from database.
+     * Update item from database if it is managed.
      * Called from StationDBImp. 
-     *   in getItem() - when specifically requested for realtime items. NOT USED.
+     *   in getItem() - when specifically requested for realtime items.
      *   in addPoint() - called from newStation() - when packet is received and RT item is not active. 
      * @param tp Item to update
      */
-    public void updateItem(TrackerPoint tp) 
+    public void updateManagedItem(TrackerPoint tp) 
     {
         try {
             getDB().simpleTrans("updateItem", x -> {
@@ -474,8 +483,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                     return null; 
                      
                 tp.setTag("MANAGED");
-                tp.setPersistent(true, t.info.user, false);
-                    
+              //  tp.setPersistent(true);
+                if (tp.getUser() == null)
+                    tp.setUser(t.info.user);
+                saveManagedItem(tp);
+           
                 /* Set alias and/or icon based on info from database */
                 if (t.info.alias != null)
                     tp.setAlias(t.info.alias);

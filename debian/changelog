@@ -1,3 +1,9 @@
+polaric-db-plugin (2.10+) UNRELEASED; urgency=medium
+
+  * Development
+
+ -- Oyvind Hanssen <oivindh@la7eca>  Thu, 08 Sep 2022 11:04:10 +0200
+
 polaric-db-plugin (2.10) stable; urgency=medium
 
   * Tracklog API for Arctic Tracker
@@ -6,6 +12,7 @@ polaric-db-plugin (2.10) stable; urgency=medium
   * Use HMAC based auth in DbSync
   * Allow time in raw aprs packet search
   * Trail fixes
+  * Stats logging in database
   * Various fixes..
 
  -- Oyvind Hanssen <ohanssen@acm.org>  Tue, 06 Sep 2022 21:51:41 +0200
