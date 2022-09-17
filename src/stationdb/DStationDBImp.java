@@ -32,24 +32,13 @@ public class DStationDBImp extends StationDBBase implements StationDB
 {
     private PluginApi _dbp;
     private LRUCache<TrackerPoint> _cache;
-    static final FSTConfiguration fst = FSTConfiguration.createDefaultConfiguration();
-    
-    
+
     
     public DStationDBImp(ServerAPI api)
     {
         super(api);
         _cache = new LRUCache<TrackerPoint>(4000);
-        
-        /* 
-         * Register classes of objects that are serialized/deserialized with FST. 
-         * Remember that changes to this list invalidates the data stored and the order is 
-         * significant. 
-         */
-        fst.registerClass(LatLng.class, Trail.class, TPoint.class, Trail.Item.class, 
-            Station.Status.class, TrackerPoint.class, Station.class, AprsObject.class, 
-            HashMap.class, HashSet.class, TreeMap.class );
-        
+
         /* Get plugin API */
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
 
