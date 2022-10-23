@@ -119,6 +119,31 @@ if ((VERSION < 6)); then
         COMMIT " polaric
 fi
 
+if ((VERSION < 6)); then
+    echo "Upgrading schema to version 7"
+        psql -t -c "BEGIN;  \
+        CREATE TABLE \"RtPoint\" ( \
+          ident varchar(20) PRIMARY KEY, \
+          cls varchar NOT NULL, \
+          time timestamp WITHOUT TIME ZONE NOT NULL, \
+          descr varchar,  \ 
+          obj bytea ); \
+        \
+        SELECT AddGeometryColumn('RtPoint', 'pos', 4326, 'POINT', 2); \ 
+        \
+        CREATE TABLE \"SysObject\" ( \
+          key varchar(20) PRIMARY KEY, \
+          obj bytea ); \
+        \
+        CREATE INDEX geoindex_rt ON \"RtPoint\" USING  gist (pos); \
+        CLUSTER \"RtPoint\" USING geoindex_rt; \
+        \
+        ALTER TABLE \"RtPoint\" owner to polaric; \
+        ALTER TABLE \"SysObject\" owner to polaric; \
+        UPDATE \"MetaData\" SET version=6; \
+        COMMIT " polaric
+fi
+
 
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then

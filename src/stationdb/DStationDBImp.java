@@ -18,10 +18,11 @@ import java.util.*;
 import java.io.*;
 import uk.me.jstott.jcoord.*; 
 import java.util.concurrent.*;
+import java.util.Set;
 import java.util.regex.*;
 import java.util.stream.*;
 import org.nustaq.serialization.FSTConfiguration;
-
+import no.polaric.aprsd.filter.*;
 
 
 /**
@@ -37,7 +38,7 @@ public class DStationDBImp extends StationDBBase implements StationDB
     public DStationDBImp(ServerAPI api)
     {
         super(api);
-        _cache = new LRUCache<TrackerPoint>(4000);
+        _cache = new LRUCache<TrackerPoint>(5000);
 
         /* Get plugin API */
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
@@ -84,10 +85,30 @@ public class DStationDBImp extends StationDBBase implements StationDB
         TrackerPoint p = _cache.get(it.ident);
         if (p==null) { 
             p = (TrackerPoint) fst.asObject(it.obj);
-            _cache.put(it.ident, p);
+            if (p != null)
+                _cache.put(it.ident, p);        
         }
         return p;
     }
+    
+    
+    
+    private TrackerPoint _bin2point2(RtItemsDBSession.RsItem it) {
+        /* FIXME: if object binary data is invalid or not saved, use 
+         * the classname to create a new object.. */
+
+        if (it == null)
+            return null;
+        
+        TrackerPoint p = _cache.get(it.ident);
+        if (p==null) { 
+            p = (TrackerPoint) fst.asObject(it.getObj());
+            if (p != null)
+                _cache.put(it.ident, p);
+        }
+        return p;
+    }
+    
     
     
     /**
@@ -125,13 +146,14 @@ public class DStationDBImp extends StationDBBase implements StationDB
     /**
      * Add item (TrackerPoint) to database. 
      */
-    @Override protected void _addRtItem(TrackerPoint s) {
+    @Override protected void _addRtItem(TrackerPoint s) {  
         RtItemsDBSession db = null;
         try {
             db = new RtItemsDBSession(_dbp.getDB());
             var item = new RtItemsDBSession.Item(
                 s.getIdent(), s.getClass().getName(), 
-                s.getPosition(), _point2bin(s), s.expired(), s.getUpdated(), s.getDescr() );
+                s.getPosition(), _point2bin(s), s.expired(), 
+                s.getUpdated(), s.getDescr(), s.getTags().toArray(new String[0]) );
             db.removeRtItem(s.getIdent());
             db.addRtItem(item);
             db.commit();
@@ -163,7 +185,7 @@ public class DStationDBImp extends StationDBBase implements StationDB
             var item = new RtItemsDBSession.Item (
                 s.getIdent(), s.getClass().getName(), 
                 s.getPosition(), _point2bin(s), s.expired(),
-                s.getUpdated(), s.getDescr() );
+                s.getUpdated(), s.getDescr(), s.getTags().toArray(new String[0]) );
             db.updateRtItem(item);
             db.commit();
         }    
@@ -215,7 +237,7 @@ public class DStationDBImp extends StationDBBase implements StationDB
             db = new RtItemsDBSession(_dbp.getDB(true)); // Autocommit on
             List<TrackerPoint> res = new ArrayList();
             srch = srch.replaceAll("%", "");
-            for (RtItemsDBSession.Item x : db.searchMatch(srch+"%", false))  // Use SQL LIKE 
+            for (RtItemsDBSession.Item x : db.searchMatch(srch+"%", false, null)) 
                 res.add( _bin2point(x) ); 
             return res;
         }    
@@ -259,14 +281,10 @@ public class DStationDBImp extends StationDBBase implements StationDB
             db = new RtItemsDBSession(_dbp.getDB(true)); // Autocommit on
             List<TrackerPoint> res = new ArrayList();
 
-            for (RtItemsDBSession.Item it : db.searchMatch(srch, regex)) {
-                TrackerPoint p = _bin2point(it);
-                if ( tags==null || 
-                     (Arrays.stream(tags).map(x -> p.tagIsOn(x))
-                                         .reduce((x, y) -> (x && y))).get())                
+            for (RtItemsDBSession.Item it : db.searchMatch(srch, regex, tags)) {
+                TrackerPoint p = _bin2point(it);             
                     res.add(p); 
             }
- 
             return res;
         }    
         catch(Exception e) {
@@ -289,29 +307,31 @@ public class DStationDBImp extends StationDBBase implements StationDB
      * @param lright Lower right corner.
      */
     public List<TrackerPoint>
-        search(Reference uleft, Reference lright)
+        search(Reference uleft, Reference lright, RuleSet filter)
     { 
         RtItemsDBSession db = null;
         try {
             long start = System.nanoTime();
             _cache.hits=0; _cache.misses=0;
-            db = new RtItemsDBSession(_dbp.getDB(true)); // Autocommit on
+            db = new RtItemsDBSession(_dbp.getDB()); // Autocommit on
             List<TrackerPoint> res = new ArrayList();
-
-            int i=0;
-            for (RtItemsDBSession.Item x : db.searchGeo(uleft, lright)) {
-                res.add( _bin2point(x) ); 
-                i++;
-            }
+            String[] tags = filter.getTags(); 
+            if (tags.length == 0)
+                tags = null;
+            db.searchGeo(uleft, lright, filter.getTags(), x -> {
+               res.add( _bin2point2(x) ); 
+            });
                 
             long finish = System.nanoTime();
             long timeElapsed = finish - start;
-            System.out.println("Search Trackerpoints, n="+i+" - Time Elapsed (us): " + timeElapsed/1000);
+            System.out.println("Search Trackerpoints - Time Elapsed (us): " + timeElapsed/1000);
             System.out.println("  Cache hits="+_cache.hits+", misses="+_cache.misses);
             _cache.hits=0; _cache.misses=0;
+            db.commit();
             return res;
         }    
         catch(Exception e) {
+            db.abort();
             _dbp.log().error("StationDBImp", "Exception: "+e.getMessage());  
             e.printStackTrace(System.out);
             return null;
@@ -320,7 +340,6 @@ public class DStationDBImp extends StationDBBase implements StationDB
             if (db != null) db.close();
         }
     }
-    
     
     
     

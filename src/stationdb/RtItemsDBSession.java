@@ -23,8 +23,8 @@ import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
 import  org.postgis.PGgeometry;
 import  java.io.*;
-
-
+import  java.util.function.*;
+import java.util.Set;
 
 /**
  * Database transaction. 
@@ -46,10 +46,36 @@ public class RtItemsDBSession extends DBSession
         public boolean expired;
         public java.util.Date time;
         public byte[] obj;
+        public String[] tags;
         
-        public Item(String i, String c, Reference p, byte[] o, boolean exp, java.util.Date t, String ds)
-            { ident=i; cls=c; pos=p; obj=o; expired=exp; time=t; descr=ds;}
+        public Item(String i, String c, Reference p, byte[] o, boolean exp, 
+                    java.util.Date t, String ds, String[] tg)
+            { ident=i; cls=c; pos=p; obj=o; expired=exp; time=t; descr=ds; tags=tg;}
     }
+    
+    
+    public static class RsItem {
+        public String ident;
+        public boolean expired;
+        public ResultSet rs;
+        
+        public byte[] getObj() {
+            try {
+                return rs.getBytes("obj");
+            }
+            catch (SQLException ex) {return null;}
+        }
+        
+        public RsItem(ResultSet r) {
+            try {
+                rs= r;
+                ident = rs.getString("ident");
+                expired = rs.getBoolean("expired");
+            }
+            catch (SQLException ex) {}
+        }
+    }
+    
     
    
     RtItemsDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
@@ -63,7 +89,6 @@ public class RtItemsDBSession extends DBSession
    
    
     RtItemsDBSession(DBSession s) 
-       throws DBSession.SessionError
     {
        super(s);
        _api = s._api;
@@ -77,7 +102,7 @@ public class RtItemsDBSession extends DBSession
      * Get geographical point from PostGIS. 
      * Convert it to jcoord LatLng reference. 
      */  
-    private Reference getRef(ResultSet rs, String field)
+    private static Reference getRef(ResultSet rs, String field)
        throws java.sql.SQLException
     {
         PGgeometry geom = (PGgeometry) rs.getObject(field);
@@ -113,7 +138,8 @@ public class RtItemsDBSession extends DBSession
         if (rs.next())
             return new Item(
                 rs.getString("ident"), rs.getString("cls"), getRef(rs, "pos"), 
-                rs.getBytes("obj"), rs.getBoolean("expired"), rs.getDate("time"), rs.getString("descr")
+                rs.getBytes("obj"), rs.getBoolean("expired"), rs.getDate("time"), rs.getString("descr"),
+                null
             );
         return null;
     }
@@ -125,8 +151,8 @@ public class RtItemsDBSession extends DBSession
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"RtPoint\" (ident, cls, descr, pos, obj, time)" + 
-                " VALUES (?, ?, ?, ?, ?, 'now')" );
+              ( " INSERT INTO \"RtPoint\" (ident, cls, descr, pos, obj, time, tags)" + 
+                " VALUES (?, ?, ?, ?, ?, 'now', ?)" );
         it.ident.replaceAll("\u0000", "");
         stmt.setString(1, it.ident);
         stmt.setString(2, it.cls);
@@ -134,6 +160,7 @@ public class RtItemsDBSession extends DBSession
         stmt.setString(3, it.descr);
         setRef(stmt, 4, it.pos);
         stmt.setBytes(5, it.obj);
+        stmt.setArray(6, getCon().createArrayOf("VARCHAR", it.tags));
         stmt.executeUpdate();
     }
     
@@ -143,7 +170,7 @@ public class RtItemsDBSession extends DBSession
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-              ( " UPDATE \"RtPoint\" SET cls=?, descr=?, pos=?, obj=?, time=?" + 
+              ( " UPDATE \"RtPoint\" SET cls=?, descr=?, pos=?, obj=?, time=?, tags=?" + 
                 " WHERE ident=? " );
         stmt.setString(1, it.cls);
         it.descr.replaceAll("\u0000", "");
@@ -151,7 +178,8 @@ public class RtItemsDBSession extends DBSession
         setRef(stmt, 3, it.pos);
         stmt.setBytes(4, it.obj);
         stmt.setTimestamp(5, new java.sql.Timestamp(it.time.getTime()));  
-        stmt.setString(6, it.ident);
+        stmt.setArray(6, getCon().createArrayOf("VARCHAR", it.tags));
+        stmt.setString(7, it.ident);  
         stmt.executeUpdate();
     }
        
@@ -167,17 +195,19 @@ public class RtItemsDBSession extends DBSession
         stmt.executeUpdate();
     }
     
+ 
+ 
     
-
-    public DbList<Item> searchGeo(Reference uleft, Reference lright) 
+    public void searchGeo(Reference uleft, Reference lright, String[] tags, Consumer<RsItem> cons) 
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-              ( " SELECT ident,cls,descr,time,pos,obj,(time+'"+_exptime+" minutes' < 'now') as expired " +
+              ( " SELECT ident, obj, (time+'"+_exptime+" minutes' < 'now') as expired " +
                 " FROM \"RtPoint\" WHERE " +
                 " (time+'"+_exptime+" minutes' >= 'now') AND "+
                 " ST_Contains( " +
                 "    ST_MakeEnvelope(?, ?, ?, ?, 4326), pos) "+
+                ( tags!=null&&tags.length > 0 ? "AND tags && ?" : "") +
                 " ORDER BY time DESC LIMIT 2000 ", 
                 ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
                 
@@ -185,20 +215,19 @@ public class RtItemsDBSession extends DBSession
         stmt.setDouble( 2, lright.toLatLng().getLat() ); // ymin
         stmt.setDouble( 3, lright.toLatLng().getLng() ); // xmax
         stmt.setDouble( 4, uleft.toLatLng().getLat() );  // ymax
+        if (tags!= null && tags.length > 0) 
+            stmt.setArray ( 5, getCon().createArrayOf("VARCHAR", tags));
+        ResultSet rs = stmt.executeQuery();
         
-        return new DbList(stmt.executeQuery(), rs -> 
-            {
-                return new Item(
-                    rs.getString("ident"), rs.getString("cls"), getRef(rs, "pos"), 
-                    rs.getBytes("obj"), rs.getBoolean("expired"), rs.getDate("time"), rs.getString("descr")
-                );
-            });    
+        while (rs.next()) 
+            cons.accept(new RsItem(rs));    
     }
     
     
     
     
-    public DbList<Item> searchMatch(String srch, boolean regex) 
+    
+    public DbList<Item> searchMatch(String srch, boolean regex, String[] tags) 
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
@@ -206,15 +235,18 @@ public class RtItemsDBSession extends DBSession
                 " FROM \"RtPoint\" WHERE " +
                 " (time+'"+_exptime+" minutes' >= 'now') AND "+
                 " ( ident "+ (regex ? "~" : "LIKE") + " ?  OR descr "+ (regex ? "~" : "LIKE") + " ?) " +
+                ( tags!=null ? "AND tags @> ?" : "") +
                 " ORDER BY ident ASC, time DESC ", 
                 ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
         stmt.setString( 1, srch );
         stmt.setString( 2, srch );
+        stmt.setArray(3, getCon().createArrayOf("VARCHAR", tags));
         return new DbList(stmt.executeQuery(), rs -> 
             {
                 return new Item(
                     rs.getString("ident"), rs.getString("cls"), getRef(rs, "pos"), 
-                    rs.getBytes("obj"), rs.getBoolean("expired"), rs.getDate("time"), rs.getString("descr")
+                    rs.getBytes("obj"), rs.getBoolean("expired"), rs.getDate("time"), rs.getString("descr"), 
+                    null
                 );
             });    
     }
