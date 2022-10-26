@@ -33,6 +33,7 @@ public class HistApi extends ServerBase implements JsonPoints
     private ServerAPI _api; 
     private PluginApi _dbp;
     private ColourTable _colTab = null;
+    private HashMap<String, String[]> _colUsed = new HashMap();
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
     public HistApi(ServerAPI api) {
@@ -165,7 +166,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 JsPoint p = createPoint(s, true, null);
                 if (p==null)
                     return ABORT(resp, db, "GET /hist/*/trail: Point not found", 404,  null);
-                p.trail = createTrail(s, h, null); 
+                p.trail = createTrail(s, h, null, true); 
                 mu.points = new LinkedList<JsPoint>();
                 mu.points.add(p);
                 db.commit();
@@ -215,6 +216,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 double scale = Double.parseDouble(parms.value("scale"));
                 String filt = parms.value("filter");
                 RuleSet vfilt = ViewFilter.getFilter(filt, uid != null); 
+                boolean reset = (parms.value("reset") != null);
                 
                 mu = new JsOverlay("HISTORICAL");
                 mu.points = new LinkedList<JsPoint>();
@@ -223,7 +225,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 
                 for (MyDBSession.TrailItem it : items) {
                     if (!curr_ident.equals(it.ident)) {
-                        processPoint(mu, tp, trail, vfilt, scale);
+                        processPoint(mu, tp, trail, vfilt, scale, reset);
                         tp = it.toPoint();
                         trail.clear();
                         curr_ident = it.ident;
@@ -234,7 +236,7 @@ public class HistApi extends ServerBase implements JsonPoints
                             trail.add(x);
                     }
                 }
-                processPoint(mu, tp, trail, vfilt, scale);
+                processPoint(mu, tp, trail, vfilt, scale, reset);
                 db.commit();
                 return mu;
             }
@@ -318,13 +320,28 @@ public class HistApi extends ServerBase implements JsonPoints
     }
         
    
-   
-    private void processPoint(JsOverlay mu, TrackerPoint tp, List<TPoint> trail, RuleSet vfilt, double scale) {
+               
+               
+    int trail_maxpause = 15; // FIXME: Use config
+    int trail_maxage = 25;   // FIXME: Use config
+            
+    private boolean accept_tpoint(TPoint p, TrackerPoint tp, Date dto) {
+        if ( tp.getUpdated().getTime()  < dto.getTime() - trail_maxpause*1000*60 ||
+             p.getTS().getTime() <  tp.getUpdated().getTime() - trail_maxage*1000*60)  
+            return false; 
+        return true;
+    }
+    
+    
+    
+    
+    private void processPoint(JsOverlay mu, TrackerPoint tp, List<TPoint> trail, 
+                    RuleSet vfilt, double scale, boolean reset) {
         if (tp != null) {
             Action action = vfilt.apply(tp, (long) scale); 
             if (!action.hideAll()) {
                 JsPoint p = createPoint(tp, trail.size() > 1, action);        
-                p.trail = createTrail(tp, trail, action);
+                p.trail = createTrail(tp, trail, action, reset);
                 mu.points.add(p);
             }
         }
@@ -347,7 +364,6 @@ public class HistApi extends ServerBase implements JsonPoints
         x.ident  = s.getIdent();
         x.label  = createLabel(s, moving, action);
         x.pos    = new double[] {ref.getLongitude(), ref.getLatitude()};
-        x.trail = new JsTrail(_colTab.nextColour()); 
         
         String icon = s.getIcon(); 
         x.icon = "/icons/"+ icon; 
@@ -371,23 +387,20 @@ public class HistApi extends ServerBase implements JsonPoints
    
    
    
-    private JsTrail createTrail(TrackerPoint s, Iterable<TPoint> h, Action action) {
-        JsTrail res = new JsTrail(s.getTrailColor()); 
+    private JsTrail createTrail(TrackerPoint s, Iterable<TPoint> h, Action action, boolean reset) {
+    
+        String[] col = null;
+        if (!reset) 
+            col = _colUsed.get(s.getIdent());
+        if (col==null) {
+            col = s.getTrailColor();
+            _colUsed.put(s.getIdent(), col);
+        }
+        
+        JsTrail res = new JsTrail(col); 
         h.forEach( it -> res.linestring.add(new JsTPoint(it) ) );
         return res;
     }
-            
 
-            
-    int trail_maxpause = 15; // FIXME: Use config
-    int trail_maxage = 25;   // FIXME: Use config
-            
-    private boolean accept_tpoint(TPoint p, TrackerPoint tp, Date dto) {
-        if ( tp.getUpdated().getTime()  < dto.getTime() - trail_maxpause*1000*60 ||
-             p.getTS().getTime() <  tp.getUpdated().getTime() - trail_maxage*1000*60)  
-            return false; 
-        return true;
-    }
-    
 
 }
