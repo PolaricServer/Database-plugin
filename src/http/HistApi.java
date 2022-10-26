@@ -32,12 +32,14 @@ public class HistApi extends ServerBase implements JsonPoints
 {
     private ServerAPI _api; 
     private PluginApi _dbp;
+    private ColourTable _colTab = null;
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
     public HistApi(ServerAPI api) {
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
+        _colTab = new ColourTable (api, System.getProperties().getProperty("confdir", ".")+"/trailcolours");
     }
     
     
@@ -156,31 +158,103 @@ public class HistApi extends ServerBase implements JsonPoints
                 else
                     dto = df.parse(parms.value("tto"));
             
-                Station s = (Station) db.getItem(src, dto);
+                TrackerPoint s = db.getItem(src, dto);
                 DbList<TPoint> h = db.getTrail(src, dfrom, dto);
           
                 mu = new JsOverlay("HISTORICAL");
-                JsPoint p = createPoint(s);
+                JsPoint p = createPoint(s, true, null);
                 if (p==null)
                     return ABORT(resp, db, "GET /hist/*/trail: Point not found", 404,  null);
-                p.trail = createTrail(s, h); 
+                p.trail = createTrail(s, h, null); 
                 mu.points = new LinkedList<JsPoint>();
                 mu.points.add(p);
                 db.commit();
                 return mu;
             }
             catch(java.text.ParseException e) {  
-                return ABORT(resp, db, "GET /hist/*/trail: Cannot parse timestring", 500,  null);
+                return ABORT(resp, db, "GET /hist/*/trail: Cannot parse timestring", 500, 
+                   "Cannot parse timestring");
             }
             catch(java.sql.SQLException e) { 
-                return ABORT(resp, db, "GET /hist/*/trail: SQL error:"+e.getMessage(), 500, null); 
+                return ABORT(resp, db, "GET /hist/*/trail: SQL error: "+e.getMessage(), 500, 
+                   "SQL Error"); 
             }            
             catch(Exception e) { 
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET /hist/*/trail: Error:"+e.getMessage(), 500, null); 
+                return ABORT(resp, db, "GET /hist/*/trail: Error: "+e.getMessage(), 500, 
+                   e.getMessage()); 
             }
             finally { db.close(); }
         }, ServerBase::toJson );
+        
+        
+        
+        
+        
+        get("/hist/snapshot/*/*/*/*", "application/json", (req, resp) -> {
+            QueryParamsMap parms = req.queryMap();
+            MyDBSession db = _dbp.getDB();
+            JsOverlay mu = null;
+            TrackerPoint tp = null;
+            String curr_ident = "XXXXX";                
+            var uid = getAuthInfo(req).userid; 
+            
+            try {
+                double x1 = Double.parseDouble(req.splat()[0]);
+                double x2 = Double.parseDouble(req.splat()[1]);
+                double x3 = Double.parseDouble(req.splat()[2]);
+                double x4 = Double.parseDouble(req.splat()[3]);
+                if (x1 > 180.0) x1 = 180.0; if (x1 < -180.0) x1 = -180.0;
+                if (x2 > 180.0) x2 = 180.0; if (x2 < -180.0) x2 = -180.0;
+                if (x3 > 90.0) x3 = 90.0; if (x3 < -90.0) x3 = -90.0;
+                if (x4 > 90.0) x4 = 90.0; if (x4 < -90.0) x4 = -90.0;
+                Reference uleft  = new LatLng((double) x4, (double) x1); 
+                Reference lright = new LatLng((double) x2, (double) x3);
+                
+                Date dto = df.parse(parms.value("tto"));
+                double scale = Double.parseDouble(parms.value("scale"));
+                String filt = parms.value("filter");
+                RuleSet vfilt = ViewFilter.getFilter(filt, uid != null); 
+                
+                mu = new JsOverlay("HISTORICAL");
+                mu.points = new LinkedList<JsPoint>();
+                DbList<MyDBSession.TrailItem> items = db.getTrailsAt(uleft, lright, dto);
+                List<TPoint> trail = new ArrayList<TPoint>();
+                
+                for (MyDBSession.TrailItem it : items) {
+                    if (!curr_ident.equals(it.ident)) {
+                        processPoint(mu, tp, trail, vfilt, scale);
+                        tp = it.toPoint();
+                        trail.clear();
+                        curr_ident = it.ident;
+                    }
+                    else {
+                        TPoint x = new TPoint(it.time, it.pos, it.path);
+                        if (accept_tpoint(x, tp, dto))
+                            trail.add(x);
+                    }
+                }
+                processPoint(mu, tp, trail, vfilt, scale);
+                db.commit();
+                return mu;
+            }
+            catch(java.text.ParseException e) { 
+                return ABORT(resp, db, "GET /hist/snapshot: Cannot parse timestring", 500,  
+                    "Cannot parse timestring");
+            }
+            catch(java.sql.SQLException e) { 
+                return ABORT(resp, db, "GET /hist/snapshot: SQL error: "+e.getMessage(), 500, 
+                    "SQL Error"); 
+            }            
+            catch(Exception e) { 
+                e.printStackTrace(System.out);
+                return ABORT(resp, db, "GET /hist/snapshot: Error: "+e.getMessage(), 500, 
+                    "Exception - check log"); 
+            }
+            finally { db.close(); }
+        }, ServerBase::toJson );
+        
+        
         
         
      
@@ -238,13 +312,32 @@ public class HistApi extends ServerBase implements JsonPoints
     }
         
         
-
+        
+    private void addToTrail(TrackerPoint pt, MyDBSession.TrailItem it) {
+        /* TBD */
+    }
+        
+   
+   
+    private void processPoint(JsOverlay mu, TrackerPoint tp, List<TPoint> trail, RuleSet vfilt, double scale) {
+        if (tp != null) {
+            Action action = vfilt.apply(tp, (long) scale); 
+            if (!action.hideAll()) {
+                JsPoint p = createPoint(tp, trail.size() > 1, action);        
+                p.trail = createTrail(tp, trail, action);
+                mu.points.add(p);
+            }
+        }
+    }
+   
+   
+   
    
     /** 
      * Convert Tracker point to JSON point. 
      * Return null if point has no position.  
      */
-    private JsPoint createPoint(TrackerPoint s) {
+    private JsPoint createPoint(TrackerPoint s, boolean moving, Action action) {
         Reference rref = s.getPosition();
         LatLng ref; 
         if (rref == null) 
@@ -252,9 +345,10 @@ public class HistApi extends ServerBase implements JsonPoints
         ref=rref.toLatLng();  
         JsPoint x  = new JsPoint();
         x.ident  = s.getIdent();
-        x.label  = createLabel(s);
+        x.label  = createLabel(s, moving, action);
         x.pos    = new double[] {ref.getLongitude(), ref.getLatitude()};
-       
+        x.trail = new JsTrail(_colTab.nextColour()); 
+        
         String icon = s.getIcon(); 
         x.icon = "/icons/"+ icon; 
         return x;
@@ -263,28 +357,37 @@ public class HistApi extends ServerBase implements JsonPoints
    
    
     /** Create label or return null if label is to be hidden. */
-    private JsLabel createLabel(TrackerPoint s) {
+    private JsLabel createLabel(TrackerPoint s, boolean moving, Action action) {
         JsLabel lbl = new JsLabel();
     
-        lbl.style = "lmoving";
+        lbl.style = (moving ? "lmoving" : "lstill");
         if (s instanceof AprsObject)
             lbl.style = "lobject"; 
         lbl.id = s.getDisplayId(false);
+        if (action!=null) 
+            lbl.hidden = action.hideIdent();
         return lbl;
     }
    
    
    
-    private JsTrail createTrail(TrackerPoint s, DbList<TPoint> h) {
-
-        if (!h.isEmpty()) {
-            JsTrail res = new JsTrail(s.getTrailColor()); 
-            h.forEach( it -> res.linestring.add(new JsTPoint(it) ) );
-            return res;
-        }
-        else return null;
+    private JsTrail createTrail(TrackerPoint s, Iterable<TPoint> h, Action action) {
+        JsTrail res = new JsTrail(s.getTrailColor()); 
+        h.forEach( it -> res.linestring.add(new JsTPoint(it) ) );
+        return res;
     }
+            
 
+            
+    int trail_maxpause = 15; // FIXME: Use config
+    int trail_maxage = 25;   // FIXME: Use config
+            
+    private boolean accept_tpoint(TPoint p, TrackerPoint tp, Date dto) {
+        if ( tp.getUpdated().getTime()  < dto.getTime() - trail_maxpause*1000*60 ||
+             p.getTS().getTime() <  tp.getUpdated().getTime() - trail_maxage*1000*60)  
+            return false; 
+        return true;
+    }
     
 
 }
