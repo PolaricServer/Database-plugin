@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2014 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014-2022 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,19 +32,53 @@ import  java.io.*;
  
 public class MyDBSession extends DBSession
 {
-   private DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
-   
-   
-   MyDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
-    throws DBSession.SessionError
-   {
-      super(dsrc, autocommit, log); 
-      _api = api; 
-   }
-   
-   
-   
+    private DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
+    
+    public static class TrailItem {
+        public String ident;
+        public String channel;       
+        public Reference pos;
+        public java.util.Date time;
+        public char symbol, symtab;
+        public String path, ipath;
+    
+        
+        public TrackerPoint toPoint() {
+            String name[] = ident.split("@", 2);
+            AprsPoint x = null;
+            if (name.length > 1) {
+                Station owner = null; // FIXME 
+                x = new AprsObject(owner, name[0]);
+            } else {
+                x = new Station(ident);
+                if (path != null)
+                    ((Station)x).setPathInfo(path); // FIXME. Move pathinfo to superclass? 
+            }
+            x.updatePosition(time, pos); 
+            x.setSymbol(symbol);
+            x.setSymtab(symtab);
+            return x;
+        }     
+             
+             
+             
+        public TrailItem(String i, String c, Reference p, java.util.Date t, char sym, char stab, String pt, String ipt)
+            { ident=i; channel=c; pos=p; time=t; symbol=sym; symtab=stab; path=pt; ipath=ipt; }
+    }
+    
+   
+   
+   
+    MyDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
+      throws DBSession.SessionError
+    {
+       super(dsrc, autocommit, log); 
+       _api = api; 
+    }
+   
+   
+   
        
     /**
      * Get geographical point from PostGIS. 
@@ -105,195 +139,7 @@ public class MyDBSession extends DBSession
     }
     
     
-    public String addSignIdent(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
-            throws java.sql.SQLException
-    {
-        _log.debug("MyDbSession", "addSignIdent: "+descr+", class="+cls);
-         PreparedStatement stmt = getCon().prepareStatement
-              ( "INSERT INTO \"Signs\" (id, maxscale, icon, url, description, position, class, userid)" + 
-                "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id" );
-         stmt.setString(1, id);
-         stmt.setLong(2, maxscale);
-         stmt.setString(3, icon);
-         stmt.setString(4, url);
-         stmt.setString(5, descr);
-         setRef(stmt, 6, pos);
-         stmt.setInt(7, cls);
-         stmt.setString(8, uid);
-         ResultSet rs = stmt.executeQuery(); 
-         rs.next();
-         return rs.getString("id");
-    }
-    
-    public String addSign(String srvid, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
-            throws java.sql.SQLException
-    {
-         _log.debug("MyDbSession", "addSign: "+descr+", class="+cls);
-         PreparedStatement stmt = getCon().prepareStatement
-              ( "INSERT INTO \"Signs\" (id, maxscale, icon, url, description, position, class, userid)" + 
-                "VALUES ( nextval('signs_seq') || '@" + srvid + "', ?, ?, ?, ?, ?, ?, ?) RETURNING id" );
-         stmt.setLong(1, maxscale);
-         stmt.setString(2, icon);
-         stmt.setString(3, url);
-         stmt.setString(4, descr);
-         setRef(stmt, 5, pos);
-         stmt.setInt(6, cls);
-         stmt.setString(7, uid);
-         ResultSet rs = stmt.executeQuery(); 
-         rs.next();
-         return rs.getString("id");
-    }
-    
-    
-    public String addSign(String srvid, long maxscale, String icon, String url, String descr, Reference pos, int cls)
-        throws java.sql.SQLException
-    { return addSign(srvid, maxscale, icon, url, descr, pos, cls, null); }
-    
-    
-    
-    public void updateSign(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
-            throws java.sql.SQLException
-    {
-        _log.debug("MyDbSession", "updateSign: "+id+", "+descr);
-        PreparedStatement stmt = getCon().prepareStatement
-            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
-              "WHERE id=?;" +
-              "UPDATE \"Signs\" SET userid=? WHERE id=? AND userid IS NULL");
-        stmt.setLong(1, maxscale);
-        setRef(stmt, 2, pos);
-        stmt.setString(3, icon);
-        stmt.setString(4, url);
-        stmt.setString(5, descr);
-        stmt.setInt(6, cls);      
-        stmt.setString(7, id);
-        stmt.setString(8, uid);
-        stmt.setString(9, id);
-        stmt.executeUpdate();
-    }  
-    public void updateSign(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
-        throws java.sql.SQLException
-    { updateSign(id, maxscale, icon, url, descr, pos, cls, null); }
-    
-    
-    
-    public Sign getSign(String id)
-          throws java.sql.SQLException
-    {
-         _log.debug("MyDbSession", "getSign: "+id);
-         PreparedStatement stmt = getCon().prepareStatement
-              ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name AS cname, "+
-                " s.icon AS sicon, cl.icon AS cicon, class, userid " +
-                " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id " +
-                 "WHERE s.id=?" );
-         stmt.setString(1, id);
-         ResultSet rs = stmt.executeQuery();
-         if (rs.next()) {
-            String icon = rs.getString("sicon");
-            if (icon == null)
-                icon = rs.getString("cicon");
-                    
-            // Item (Reference r, long sc, String ic, String url, String txt)
-            return new Sign(rs.getString("sid"), getRef(rs, "position"), rs.getLong("maxscale"), icon,
-                    rs.getString("url"), rs.getString("description"), rs.getInt("class"), rs.getString("cname"), rs.getString("userid")  ); 
-         }
-         return null;
-    }
-    
 
-    
-    /**
-     * Get list of signs in a specified geographic area and above a specified scale 
-     */
-    public DbList<Signs.Item> getSigns(long scale, Reference uleft, Reference lright)
-       throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name, s.icon AS sicon, cl.icon AS cicon " +
-             " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id" +
-             " WHERE maxscale>=? AND position && ST_MakeEnvelope(?, ?, ?, ?, 4326) AND NOT s.hidden"+
-             " LIMIT 300",
-             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
-        stmt.setLong(1, scale);
-        LatLng ul = uleft.toLatLng();
-        LatLng lr = lright.toLatLng();
-        stmt.setDouble(2, ul.getLng());
-        stmt.setDouble(3, ul.getLat());
-        stmt.setDouble(4, lr.getLng());
-        stmt.setDouble(5, lr.getLat());
-        stmt.setMaxRows(300);
-         
-        return new DbList(stmt.executeQuery(), rs -> 
-            {
-                String icon = rs.getString("sicon");
-                if (icon == null)
-                    icon = rs.getString("cicon");
-
-                // Item (Reference r, long sc, String ic, String url, String txt)
-                return new Signs.Item(rs.getString("sid"), getRef(rs, "position"), 0, icon,
-                    rs.getString("url"), rs.getString("description"));  
-            });
-    }
-    
-    
-    
-    
-    /**
-     * Get list of signs 
-     */
-    public DbList<Sign> getAllSigns(int type, String user)
-       throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name AS cname, "+
-             " s.icon AS sicon, cl.icon AS cicon, class " +
-             " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id" +
-             " WHERE true"+
-             (type > -1 ? " AND class="+type : "") + 
-             (user != null ? " AND userid='"+user+"'" : "") + 
-             " LIMIT 5000",
-             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT ); 
-        stmt.setMaxRows(5000);
-         
-        return new DbList(stmt.executeQuery(), rs -> 
-            {
-                String icon = rs.getString("sicon");
-                if (icon == null)
-                    icon = rs.getString("cicon");
-
-                // Item (Reference r, long sc, String ic, String url, String txt)
-                return new Sign(rs.getString("sid"), getRef(rs, "position"), rs.getLong("maxscale"), icon,
-                    rs.getString("url"), rs.getString("description"), rs.getInt("class"), rs.getString("cname")   );  
-            });
-    }
-    
-        
-        
-    public int deleteSign(String id)
-          throws java.sql.SQLException
-    {
-         _log.debug("MyDbSession", "deleteSign: "+id);
-         PreparedStatement stmt = getCon().prepareStatement
-              ( "DELETE FROM \"Signs\"" + 
-                "WHERE id=?" );
-         stmt.setString(1, id);
-         return stmt.executeUpdate();
-    }
-    
-    
-    
-    public DbList<Sign.Category> getCategories()
-        throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT * from \"SignClass\" ORDER BY name ASC ", 
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-         
-        return new DbList(stmt.executeQuery(), rs ->
-            { return new Sign.Category(rs.getInt("id"), rs.getString("name"), rs.getString("icon")); });
-    }
-    
-    
-        
 
     private String getPath(ResultSet rs) 
         throws java.sql.SQLException 
@@ -410,6 +256,43 @@ public class MyDBSession extends DBSession
 
     
     
+    /**
+     * Get activity within a geographical area in a given timespan.  
+     */
+    public DbList<TrailItem> getTrailsAt(Reference uleft, Reference lright, java.util.Date tto)
+       throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+           ( " SELECT pr.src as ident, pr.channel, pr.time, position, symbol, symtab, path, ipath, nopkt FROM \"PosReport\" AS pr" +
+             " LEFT JOIN \"AprsPacket\" AS ap ON pr.src = ap.src AND pr.rtime = ap.time " +
+             " WHERE ST_Contains( " +
+             "    ST_MakeEnvelope(?, ?, ?, ?, 4326), position) "+
+             " AND pr.time <= ? AND pr.time + INTERVAL '2 hour' > ? " + 
+             " ORDER BY pr.src, pr.time DESC",
+             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+             
+        stmt.setDouble( 1, uleft.toLatLng().getLng() );  // xmin
+        stmt.setDouble( 2, lright.toLatLng().getLat() ); // ymin
+        stmt.setDouble( 3, lright.toLatLng().getLng() ); // xmax
+        stmt.setDouble( 4, uleft.toLatLng().getLat() );  // ymax
+        stmt.setTimestamp(5, date2ts(tto));
+        stmt.setTimestamp(6, date2ts(tto));
+        
+        return new DbList(stmt.executeQuery(), rs -> 
+            {
+                return new TrailItem (
+                    rs.getString("ident"), rs.getString("channel"), getRef(rs, "position"), 
+                    rs.getTimestamp("time"), rs.getString("symbol").charAt(0), rs.getString("symtab").charAt(0),  
+                    rs.getString("path"), rs.getString("ipath")
+                );
+            });  
+    }
+    
+    
+    
+    
+    
+    
     /** 
      *  Return a list of the last n APRS packets from a given call.
      *
@@ -464,144 +347,7 @@ public class MyDBSession extends DBSession
         { return getAprsPackets(src,n,null,null); } 
  
  
- 
- 
-    /**
-     * Add managed tracker to the database.
-     */
-    public void addTracker(String id, String user, String alias, String icon)  
-            throws java.sql.SQLException
-    {
-        _log.debug("MyDbSession", "addTracker: "+id);
-         PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"Tracker\" (id, userid, alias, icon)" + 
-                " VALUES (?, ?, ?, ?)" );
-         stmt.setString(1, id);
-         stmt.setString(2, user);
-         stmt.setString(3, alias);
-         stmt.setString(4, icon);
-         stmt.executeUpdate();
-    }
-    
-    
-    public void updateTracker(String id, String user, String alias, String icon)
-            throws java.sql.SQLException
-    {
-        _log.debug("MyDbSession", "updateTracker: "+id);
-        PreparedStatement stmt = getCon().prepareStatement
-            ( "UPDATE \"Tracker\" SET alias=?, icon=? "+(user!= null ? ", userid=? ":"") +
-              "WHERE id=?" );
-        stmt.setString(1, alias);
-        stmt.setString(2, icon);
-        if (user!=null) { 
-            stmt.setString(3, user);
-            stmt.setString(4, id);
-        }
-        else
-            stmt.setString(3, id);
-        stmt.executeUpdate();
-    }  
-    
-    
-    
-    public int deleteTracker(String id)
-            throws java.sql.SQLException
-    {
-        _log.debug("MyDbSession", "deleteTracker: "+id);
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " DELETE FROM \"Tracker\" "+
-              " WHERE id=?; ");
-        stmt.setString(1, id);
-        return stmt.executeUpdate();
-    }
-         
-    
-    
-    public Tracker getTracker(String id)
-        throws java.sql.SQLException
-    {      
-        _log.debug("MyDbSession", "getTracker: "+id);
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT * from \"Tracker\" "  +
-              " WHERE id=?", 
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-        stmt.setString(1, id);
-        return new DbList<Tracker> ( stmt.executeQuery(), rs->
-           { return new Tracker(_api.getDB(), rs.getString("id"), rs.getString("userid"), rs.getString("alias"), rs.getString("icon")); }
-        ).next();
-    }
-    
-    
 
-    public DbList<Tracker> getTrackers(String user)
-        throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT id, alias, icon FROM \"Tracker\"" +
-              " WHERE userid=? ORDER BY id ASC", 
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-        stmt.setString(1, user);
-        return new DbList( stmt.executeQuery(), rs ->
-            { return new Tracker(_api.getDB(), rs.getString("id"), user, rs.getString("alias"), rs.getString("icon"));  }
-        );
-    }
-     
-     
-    public DbList<String> getTrackerTags(String id)
-        throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT tag FROM \"TrTags\" t, \"Tracker\" tr " +
-              " WHERE t.userid=tr.userid AND id=? ORDER BY tag ASC", 
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-        stmt.setString(1, id);
-        return new DbList( stmt.executeQuery(), rs ->
-            { return rs.getString("tag"); }
-        );
-    }
-    
-    
-    public DbList<String> getTrackerTagsUser(String id)
-        throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT tag FROM \"TrTags\" t " +
-              " WHERE userid=? ORDER BY tag ASC", 
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-        stmt.setString(1, id);
-        return new DbList( stmt.executeQuery(), rs ->
-            { return rs.getString("tag"); }
-        );
-    }
-    
-    
-    public void addTrackerTag(String user, String tag)  
-            throws java.sql.SQLException
-    {
-        _log.debug("MyDbSession", "addTrackerTag: "+user);
-         PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"TrTags\" (userid, tag)" + 
-                " VALUES (?, ?)" );
-         stmt.setString(1, user);
-         stmt.setString(2, tag);
-         stmt.executeUpdate();
-    }
-    
-    
-    
-    public int deleteTrackerTag(String user, String tag)
-            throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-            ( " DELETE FROM \"TrTags\" "+
-              " WHERE userid=? AND tag=?; ");
-        stmt.setString(1, user);
-        stmt.setString(2, tag);
-        return stmt.executeUpdate();
-    }
-    
-    
-    
     public long addJsObject(String user, String tag, String data)  
             throws java.sql.SQLException
     {
@@ -820,20 +566,6 @@ public class MyDBSession extends DBSession
     }
 
         
-    
-    public int setSeqNext(String seq, int next) 
-                throws java.sql.SQLException
-    {
-        PreparedStatement stmt = getCon().prepareStatement
-              ( " SELECT setval(?, ?, false)" );
-        stmt.setString(1, seq);
-        stmt.setInt(2, next);
-        ResultSet rs = stmt.executeQuery();
-        if (rs.next())
-             return rs.getInt("setval");
-        return -1;
-    }
-    
-    
+
 }
 

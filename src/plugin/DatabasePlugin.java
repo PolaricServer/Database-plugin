@@ -148,13 +148,13 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                * FIXME: Consider to make a superclass to represent this pattern. Transaction?
                */
               Signs.setExtDb(new Signs.ExtDb() {
-                  MyDBSession db = null; 
+                  SignsDBSession db = null;
            
                   public Iterable<Signs.Item> search
                          (long scale, Reference uleft, Reference lright) {
 
                      try {                     
-                        db = getDB();
+                        db = db = new SignsDBSession(getDB());
                         Iterable<Signs.Item> x = db.getSigns(scale, uleft, lright);
                         db.commit();
                         if (x==null)
@@ -448,7 +448,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
     {
         try {
             getDB().simpleTrans("saveItem", x -> {
-                MyDBSession ses = (MyDBSession) x;
+                TrackerDBSession ses = new TrackerDBSession(x);
                 Tracker t = ses.getTracker(tp.getIdent());   
                 String icon = (tp.iconOverride() ? tp.getIcon() : null);
                 if (t==null)
@@ -478,7 +478,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                  * Get managed-tracker info from database.
                  * If found, use this info to update item. Set MANAGED tag. 
                  */
-                Tracker t = ((MyDBSession)x).getTracker(tp.getIdent());
+                TrackerDBSession ses = new TrackerDBSession(x);
+                Tracker t = ses.getTracker(tp.getIdent());
                 if (t == null || tp.hasTag("MANAGED") || tp.hasTag("RMAN")) 
                     return null; 
                      
@@ -501,7 +502,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                 }
                 
                 /* Get tags from database */
-                ((MyDBSession)x).getTrackerTags(tp.getIdent())
+                ses.getTrackerTags(tp.getIdent())
                     .forEach( tt -> tp.setTag(tt) );
                 return null;
             });
@@ -520,8 +521,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
         var psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
         try {
             getDB().simpleTrans("removeManagedItem", x -> {
-                Tracker t = ((MyDBSession)x).getTracker(id);
-                ((MyDBSession)x).deleteTracker(id);
+                TrackerDBSession ses = new TrackerDBSession(x);
+                Tracker t = ses.getTracker(id);
+                ses.deleteTracker(id);
                                 
                 _api.getWebserver().notifyUser(t.info.user, 
                         new ServerAPI.Notification("system", "system", "Your Tracker '"+id+"' was removed", new java.util.Date(), 60));

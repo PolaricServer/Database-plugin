@@ -74,7 +74,7 @@ public class SignsApi extends ServerBase implements JsonPoints
       
       
       
-    public String ABORT(Response resp, MyDBSession db, String logmsg, int status, String msg) {
+    public String ABORT(Response resp, SignsDBSession db, String logmsg, int status, String msg) {
         _dbp.log().warn("RestApi", logmsg);
         db.abort();
         return ERROR(resp, status, msg);
@@ -103,7 +103,7 @@ public class SignsApi extends ServerBase implements JsonPoints
         get("/signs/types", "application/json", (req, resp) -> {
             List<Sign.Category> res = new ArrayList(); 
             /* Database transaction */
-            MyDBSession db = _dbp.getDB();
+            SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 DbList<Sign.Category> rr = db.getCategories();
                 for (Sign.Category x : rr)
@@ -130,7 +130,7 @@ public class SignsApi extends ServerBase implements JsonPoints
         get ("/signs/*", "application/json", (req, resp) -> {
             String ident = req.splat()[0];
             
-            MyDBSession db = _dbp.getDB();
+            SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 Sign x = db.getSign(ident);
                 if (x==null)
@@ -167,7 +167,7 @@ public class SignsApi extends ServerBase implements JsonPoints
                 return ERROR(resp, 500, "No authorization info found");
             
             /* Database transaction */
-            MyDBSession db = _dbp.getDB();
+            SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 DbList<Sign> sgs = db.getAllSigns(
                     (type != null ? Integer.parseInt(type) : -1),
@@ -201,7 +201,7 @@ public class SignsApi extends ServerBase implements JsonPoints
          ****************************************************************************/
          
         post("/signs", (req, resp) -> {
-            MyDBSession db = _dbp.getDB();
+            SignsDBSession db = new SignsDBSession(_dbp.getDB());
             
             /* Get user info */
             var auth = getAuthInfo(req); 
@@ -246,7 +246,7 @@ public class SignsApi extends ServerBase implements JsonPoints
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
             
-            MyDBSession db = _dbp.getDB();
+            SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 Sign x = db.getSign(ident);
                 if (x==null)
@@ -293,7 +293,7 @@ public class SignsApi extends ServerBase implements JsonPoints
             
             /* FIXME: Only owners or superuser may delete signs */
             
-            MyDBSession db = _dbp.getDB();
+            SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 db.deleteSign(ident);
                 db.commit();

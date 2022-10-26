@@ -51,7 +51,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
       
       
       
-    public String ABORT(Response resp, MyDBSession db, String logmsg, int status, String msg) {
+    public String ABORT(Response resp, TrackerDBSession db, String logmsg, int status, String msg) {
         _dbp.log().warn("TrackerApi", logmsg);
         db.abort();
         return ERROR(resp, status, msg);
@@ -90,7 +90,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
             }    
             
             /* Database transaction */
-            MyDBSession db = _dbp.getDB();
+            TrackerDBSession db = new TrackerDBSession(_dbp.getDB());
             try {
                 tr =  db.getTrackers(userid);
                 List<Tracker.Info> tri = tr.toList().stream().map(x -> x.info).collect(Collectors.toList());
@@ -134,7 +134,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 return ERROR(resp, 400, "User '"+tr.user+"' not found");
                 
             /* Database transaction */
-            MyDBSession db = _dbp.getDB();
+            TrackerDBSession db = new TrackerDBSession(_dbp.getDB());
             try {
                 call = call.toUpperCase();
                 Tracker dbtr = db.getTracker(call);
@@ -200,22 +200,23 @@ public class TrackerApi extends ServerBase implements JsonPoints
              * is only for active trackers. Non-active trackers will be allowed.
              * FIXME: Need to improve this check? 
              */
-            var item = _api.getDB().getItem(tr.id, null); 
+            MyDBSession db = _dbp.getDB();
+            var item = db.getItem(tr.id, null); 
             if (item != null && !sarAuthForItem(req, item))
                 return ERROR(resp, 403, "Not allowed to manage this tracker: "+tr.id);
             if (item != null && item.hasTag("RMAN"))
                 return ERROR(resp, 403, "Item is managed already (on another server)");
             
             /* Database transaction */
-            MyDBSession db = _dbp.getDB();
+            TrackerDBSession tdb = new TrackerDBSession(_dbp.getDB());
             try {
                 tr.id = tr.id.toUpperCase();
-                Tracker dbtr = db.getTracker(tr.id);
+                Tracker dbtr = tdb.getTracker(tr.id);
                 
                 if (dbtr == null)                     
-                    db.addTracker(tr.id, auth.userid, tr.alias, tr.icon);
+                    tdb.addTracker(tr.id, auth.userid, tr.alias, tr.icon);
                 else {
-                    return ABORT(resp, db, "POST /trackers: Item is managed already",
+                    return ABORT(resp, tdb, "POST /trackers: Item is managed already",
                         403, "Item is managed already (by "+dbtr.info.user+")");
                 }
                 var pt = updateItem(tr.id, tr.alias, tr.icon, req);
@@ -224,10 +225,10 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /trackers: SQL error:"+e.getMessage(),
+                return ABORT(resp, tdb, "POST /trackers: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
-            finally { db.close(); }
+            finally { tdb.close(); }
         } );
         
                 
@@ -245,7 +246,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
             
-            MyDBSession db = _dbp.getDB();
+            TrackerDBSession db = new TrackerDBSession(_dbp.getDB());
             try {
                 db.deleteTrackerTag(auth.userid, tag);
                 removeActiveTag(db.getTrackers(auth.userid).toList(), tag);
@@ -276,7 +277,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
             
-            MyDBSession db = _dbp.getDB();
+            TrackerDBSession db = new TrackerDBSession(_dbp.getDB());
             try {
                 call = call.toUpperCase();
                 Tracker dbtr = db.getTracker(call);
@@ -328,7 +329,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 return ERROR(resp, 500, "No authorization info found");
                 
             /* Database transaction */
-            MyDBSession db = _dbp.getDB();
+            TrackerDBSession db = new TrackerDBSession(_dbp.getDB());
             try {
                 DbList<String> tags = db.getTrackerTagsUser(auth.userid);
                 db.commit();
@@ -357,7 +358,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 return ERROR(resp, 500, "No authorization info found");
                 
             /* Database transaction */
-            MyDBSession db = _dbp.getDB();
+            TrackerDBSession db = new TrackerDBSession(_dbp.getDB());
             try { 
                 DbList<Tracker> tr =  db.getTrackers(auth.userid);
                 String[] a = (String[]) ServerBase.fromJson(req.body(), String[].class);

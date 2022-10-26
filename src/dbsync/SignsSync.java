@@ -88,7 +88,7 @@ public class SignsSync implements Sync.Handler
     private void _add(SignsApi.SignInfo sc, String userid, String id) 
         throws DBSession.SessionError
     {
-        MyDBSession db = _dbp.getDB();
+        SignsDBSession db = new SignsDBSession(_dbp.getDB());
         try {
             Reference ref = new LatLng(sc.pos[1], sc.pos[0]);
             
@@ -112,7 +112,7 @@ public class SignsSync implements Sync.Handler
     private void _upd(String ident, SignsApi.SignInfo sc, String userid)
         throws DBSession.SessionError
     {        
-        MyDBSession db = _dbp.getDB();
+        SignsDBSession db = new SignsDBSession(_dbp.getDB());
         try {
             Reference ref = new LatLng(sc.pos[1], sc.pos[0]);         
             Sign s = db.getSign(sc.id);
@@ -137,7 +137,7 @@ public class SignsSync implements Sync.Handler
     private void _del(String ident) 
         throws DBSession.SessionError
     {
-        MyDBSession db = _dbp.getDB();
+        SignsDBSession db = new SignsDBSession(_dbp.getDB());
         try {
             db.deleteSign(ident);
             db.commit();
