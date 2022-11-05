@@ -172,7 +172,11 @@ public class DbSync implements Sync
                 for (ItemUpdate upd : msgs) {
                     upd.mac = upd.generateMac(_api);
                     HttpResponse res = p.http.POST("dbsync", ServerBase.toJson(upd) ); 
-       
+                    if (res==null) {
+                        _dbp.log().info("DbSync", "Post to "+p.http.getUrl()+" failed. Rescheduling..");
+                        p.cnt = 60; // 20 minutes   
+                        break;
+                    }
                     if (res.statusCode() != 200) {
                         _dbp.log().info("DbSync", "Post to "+p.http.getUrl()+" failed with code="+res.statusCode()+". Rescheduling..");
                         p.cnt = 60; // 20 minutes

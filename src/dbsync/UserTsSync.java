@@ -59,7 +59,7 @@ public class UserTsSync implements Sync.Handler
         User u = _users.get(ident);
         if (u==null) 
             _dbp.log().warn("UserTsSync", "Update user ts: non-existent: "+ident);
-        else if (ts.getTime() > u.getLastUsed().getTime())
+        else if (u.getLastUsed() == null || ts.getTime() > u.getLastUsed().getTime())
             u.setLastUsed(ts);
     }
      
