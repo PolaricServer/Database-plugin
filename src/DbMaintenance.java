@@ -88,7 +88,6 @@ public class DbMaintenance implements Runnable
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
                
-               
             db.getCon().prepareStatement
               ( "DELETE FROM \"ServerStats\" " + 
                 "WHERE time + INTERVAL '5 years' < 'now'" );
@@ -97,6 +96,24 @@ public class DbMaintenance implements Runnable
                _log.info("DbMaintenance", "Deleted "+deleted+" records from ServerStats table");
                
                
+            db.getCon().prepareStatement
+              ( "DELETE FROM \"DbSync\" " + 
+                "WHERE time + INTERVAL '6 months' < 'now'" );
+            deleted = stmt.executeUpdate();
+            if (deleted > 0) 
+               _log.info("DbMaintenance", "Deleted "+deleted+" records from DbSync table");
+               
+               
+            db.commit();
+                
+            db.getCon().prepareStatement
+              ( "VACUUM ANALYZE \"AprsPacket\" " );
+            stmt.executeUpdate();
+            
+            db.getCon().prepareStatement
+              ( "VACUUM ANALYZE \"PosReport\" " );
+            stmt.executeUpdate();
+            
            db.commit();
        }
        catch (DBSession.SessionError e) {
