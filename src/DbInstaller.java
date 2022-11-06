@@ -29,7 +29,7 @@ public class DbInstaller
      private static Connection _db;
      
      /* Schema version - increase when changing schema and provide upgrade method */
-     private static final int _VERSION = 6; 
+     private static final int _VERSION = 7; 
      
          
      static {
@@ -150,8 +150,24 @@ public class DbInstaller
         createClass("StatusReport", "AprsMessage",
                         "dest    varchar(10) not null, " +
                         "info    text ");           
-                                                     
-                                                     
+        
+        
+        /* New in schema v. 7 */
+        createClass("RtPoint", null, 
+                        "ident   varchar(20) PRIMARY KEY, " +
+                        "cls     varchar NOT NULL, " +
+                        "time    timestamp WITHOUT TIME ZONE NOT NULL, " +
+                        "descr   varchar, " +
+                        "obj     bytea ");
+        addGeoField("RtPoint", "pos", 4326, "POINT", 2); 
+        
+        
+        /* New in schema v. 7 */
+        createClass("SysObject", null, 
+                        "key varchar(20) PRIMARY KEY, "+
+                        "obj bytea ");
+        
+        
         createClass("Mission", null, 
                         "src    varchar(20) not null, " +
                         "alias  varchar(30), " +
@@ -190,12 +206,12 @@ public class DbInstaller
                                 
         /* new in schema v. 2 */
         createClass("JsObject", null, 
-                        "id      SERIAL PRIMARY KEY, " +
+                        "id      varchar, " +
                         "tag     varchar(20), " +
                         "data    text" );
 
         createClass("ObjectAccess", null, 
-                        "id       integer REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
+                        "id       varchar REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
                         "readonly boolean DEFAULT 'false', " + 
                         "userid   varchar(20) " );         
                                
@@ -244,8 +260,12 @@ public class DbInstaller
         updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");
         updateQuery("CREATE INDEX posreport_time_src_idx on \"PosReport\" (time,src);");
         updateQuery("CREATE INDEX aprspacket_src_time_idx on \"AprsPacket\" (src, time);");
+        
+        updateQuery("CREATE INDEX geoindex_rt ON \"RtPoint\" USING  gist (pos);");
+        updateQuery("CLUSTER \"RtPoint\" USING geoindex_rt;");
+        
         updateQuery("CREATE SEQUENCE signs_seq START WITH 2000 owned by \"Signs\".id;");
-
+        updateQuery("CREATE SEQUENCE jsobject_seq START WITH 5000 owned by \"JsObject\".id;");
      }
      
       

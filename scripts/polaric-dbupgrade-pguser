@@ -85,7 +85,8 @@ if ((VERSION < 5)); then
         ALTER TABLE \"Signs\" ALTER COLUMN id DROP DEFAULT; \
         ALTER TABLE \"Signs\" ALTER COLUMN id TYPE varchar; \
         DROP SEQUENCE \"Signs_id_seq\"; \
-        CREATE SEQUENCE signs_seq START WITH 2000 owned by \"Signs\".id; \
+        CREATE SEQUENCE signs_seq START WITH 2000 owned by; \
+        ALTER SEQUENCE signs_seq OWNER TO polaric; \
         COMMIT " polaric
 fi
 
@@ -119,17 +120,17 @@ if ((VERSION < 6)); then
         COMMIT " polaric
 fi
 
-if ((VERSION < 6)); then
+if ((VERSION < 7)); then
     echo "Upgrading schema to version 7"
         psql -t -c "BEGIN;  \
         CREATE TABLE \"RtPoint\" ( \
           ident varchar(20) PRIMARY KEY, \
           cls varchar NOT NULL, \
           time timestamp WITHOUT TIME ZONE NOT NULL, \
-          descr varchar,  \ 
+          descr varchar,  \
           obj bytea ); \
         \
-        SELECT AddGeometryColumn('RtPoint', 'pos', 4326, 'POINT', 2); \ 
+        SELECT AddGeometryColumn('RtPoint', 'pos', 4326, 'POINT', 2); \
         \
         CREATE TABLE \"SysObject\" ( \
           key varchar(20) PRIMARY KEY, \
@@ -140,7 +141,17 @@ if ((VERSION < 6)); then
         \
         ALTER TABLE \"RtPoint\" owner to polaric; \
         ALTER TABLE \"SysObject\" owner to polaric; \
-        UPDATE \"MetaData\" SET version=6; \
+        UPDATE \"MetaData\" SET version=7; \
+        \
+        ALTER TABLE \"JsObject\" ALTER COLUMN id DROP DEFAULT; \
+        ALTER TABLE \"ObjectAccess\" DROP CONSTRAINT \"ObjectAccess_id_fkey\"; \
+        ALTER TABLE \"ObjectAccess\" ALTER COLUMN id TYPE varchar; \
+        ALTER TABLE \"JsObject\" ALTER COLUMN id TYPE varchar; \
+        ALTER TABLE \"ObjectAccess\" ADD FOREIGN KEY(id) REFERENCES \"JsObject\"(id) ON DELETE CASCADE; \
+        DROP SEQUENCE \"JsObject_id_seq\"; \
+        CREATE SEQUENCE jsobject_seq START WITH 5000; \
+        ALTER SEQUENCE jsobject_seq OWNER TO polaric; \
+        \
         COMMIT " polaric
 fi
 
