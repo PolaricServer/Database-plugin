@@ -348,23 +348,23 @@ public class MyDBSession extends DBSession
  
  
 
-    public long addJsObject(String user, String tag, String data)  
+    public String addJsObject(String srvid, String user, String tag, String data)  
             throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"JsObject\" (tag, data)" + 
-                " VALUES (?, ?) RETURNING id" );
+              ( " INSERT INTO \"JsObject\" (id, tag, data)" + 
+                " VALUES ( nextval('jsobject_seq') || '@" + srvid + "', ?, ?) RETURNING id" );
          stmt.setString(1, tag);
          stmt.setString(2, data);
          ResultSet rs = stmt.executeQuery(); 
          rs.next();
-         long objid = rs.getLong("id");       
+         String objid = rs.getString("id");       
          
          /* Add user access to the object */
          PreparedStatement stmt2 = getCon().prepareStatement
               ( " INSERT INTO \"ObjectAccess\" (id, userid)" +
                 " VALUES (?, ?)" );
-         stmt2.setLong(1, objid);
+         stmt2.setString(1, objid);
          stmt2.setString(2, user);
          stmt2.executeUpdate();
          return objid;
@@ -372,27 +372,27 @@ public class MyDBSession extends DBSession
     
     
     
-    public void updateJsObject(long ident, String data)  
+    public void updateJsObject(String ident, String data)  
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
               ( " UPDATE \"JsObject\"" + 
                 " SET data=? WHERE id=?" );
         stmt.setString(1, data);
-        stmt.setLong(2, ident);
+        stmt.setString(2, ident);
         stmt.executeUpdate();
     }
     
     
     
-    public int deleteJsObject(String user, String tag, long id)
+    public int deleteJsObject(String user, String tag, String id)
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
             ( " DELETE FROM \"JsObject\" "+
               " WHERE tag=? AND id=?; ");
         stmt.setString(1, tag);
-        stmt.setLong(2, id);
+        stmt.setString(2, id);
         return stmt.executeUpdate();
     }
     
@@ -414,13 +414,13 @@ public class MyDBSession extends DBSession
                     ro = true;
                 boolean nr = rs.getString("userid").matches("(#ALL)|(@.*)");
                 
-                return new JsObject(rs.getLong("id"), ro, nr, rs.getString("data"));  
+                return new JsObject(rs.getString("id"), ro, nr, rs.getString("data"));  
             }
         );
     }
     
     
-    public String getJsObject(String user, String group, String tag, long id)
+    public String getJsObject(String user, String group, String tag, String id)
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
@@ -430,7 +430,7 @@ public class MyDBSession extends DBSession
         stmt.setString(1, (user==null ? "NO-USER" : user));
         stmt.setString(2, "@"+(group==null ? "NOLOGIN": group));
         stmt.setString(3, tag);
-        stmt.setLong(4, id);
+        stmt.setString(4, id);
         ResultSet rs = stmt.executeQuery();
         if (rs.next())
             return rs.getString("data");
@@ -438,7 +438,7 @@ public class MyDBSession extends DBSession
     }
     
     
-    public void shareJsObject(long ident, String owner, String userid, boolean readonly)
+    public void shareJsObject(String ident, String owner, String userid, boolean readonly)
             throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
@@ -449,9 +449,9 @@ public class MyDBSession extends DBSession
                 "       (SELECT userid FROM \"ObjectAccess\" WHERE id=? AND userid=?) limit 1");
         stmt.setBoolean(1, readonly);
         stmt.setString(2, userid);
-        stmt.setLong(3, ident);
+        stmt.setString(3, ident);
         stmt.setString(4, owner);
-        stmt.setLong(5, ident);
+        stmt.setString(5, ident);
         stmt.setString(6, userid);
         stmt.executeUpdate();
     }
@@ -473,7 +473,7 @@ public class MyDBSession extends DBSession
     
 
                 
-    public int unlinkJsObject(long ident, String owner, String userid)
+    public int unlinkJsObject(String ident, String owner, String userid)
             throws java.sql.SQLException
     {
         /* First, remove links from users where owner has a non-readonly link */
@@ -484,9 +484,9 @@ public class MyDBSession extends DBSession
                 "   ( SELECT id FROM \"ObjectAccess\" " + 
                 "     WHERE id=? AND userid=? AND readonly=false ) " 
               );
-        stmt.setLong(1, ident);
+        stmt.setString(1, ident);
         stmt.setString(2, userid);
-        stmt.setLong(3, ident);
+        stmt.setString(3, ident);
         stmt.setString(4, owner);
         stmt.executeUpdate();
         
@@ -495,16 +495,16 @@ public class MyDBSession extends DBSession
               ( " DELETE FROM \"ObjectAccess\" WHERE id=? AND userid ~ '[@#].+' "+
                 " AND NOT EXISTS "+
                 "    ( SELECT id FROM \"ObjectAccess\" WHERE id=? AND NOT userid ~ '[@#].+') " );
-        stmt.setLong(1,ident);
-        stmt.setLong(2, ident);
+        stmt.setString(1,ident);
+        stmt.setString(2, ident);
         stmt.executeUpdate();
         
         /* Now if no user-links left, remove JsObject */
         stmt = getCon().prepareStatement
               ( " DELETE FROM \"JsObject\" WHERE id=? AND NOT EXISTS "+
                 "  ( SELECT id FROM \"ObjectAccess\" where id=? ) ");
-        stmt.setLong(1, ident);
-        stmt.setLong(2, ident);
+        stmt.setString(1, ident);
+        stmt.setString(2, ident);
         return stmt.executeUpdate();
     }
     
@@ -552,14 +552,14 @@ public class MyDBSession extends DBSession
     
     
     
-    public DbList<JsObject.User> getJsUsers(long id)
+    public DbList<JsObject.User> getJsUsers(String id)
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT userid, readonly from \"ObjectAccess\" "+
               " WHERE id=? ",  
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-        stmt.setLong(1, id);
+        stmt.setString(1, id);
         return new DbList( stmt.executeQuery(), rs ->
             { return new JsObject.User(rs.getString("userid"), rs.getBoolean("readonly"));  }
         );
