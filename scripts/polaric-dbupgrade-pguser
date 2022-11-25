@@ -151,6 +151,12 @@ if ((VERSION < 7)); then
         DROP SEQUENCE \"JsObject_id_seq\"; \
         CREATE SEQUENCE jsobject_seq START WITH 5000; \
         ALTER SEQUENCE jsobject_seq OWNER TO polaric; \
+        \  
+        DELETE FROM \"DbSync\"; \
+        ALTER TABLE \"DbSync\" ADD COLUMN op varchar(10) NOT NULL; \
+        ALTER TABLE \"DbSync\" DROP CONSTRAINT \"DbSync_pkey\"; \
+        DELETE FROM \"DbSync\" WHERE op IS null; \
+        ALTER TABLE \"DbSyncQueue\" ADD COLUMN origin varchar; \
         \
         COMMIT " polaric
 fi

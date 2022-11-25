@@ -372,6 +372,28 @@ public class MyDBSession extends DBSession
     
     
     
+    public void addJsObjectIdent(String id, String user, String tag, String data)  
+            throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"JsObject\" (id, tag, data)" + 
+                " VALUES (?, ?, ?) " );
+         stmt.setString(1, id);
+         stmt.setString(2, tag);
+         stmt.setString(3, data);
+         stmt.executeUpdate(); 
+       
+         /* Add user access to the object */
+         PreparedStatement stmt2 = getCon().prepareStatement
+              ( " INSERT INTO \"ObjectAccess\" (id, userid)" +
+                " VALUES (?, ?)" );
+         stmt2.setString(1, id);
+         stmt2.setString(2, user);
+         stmt2.executeUpdate();
+    }
+    
+    
+    
     public void updateJsObject(String ident, String data)  
             throws java.sql.SQLException
     {
@@ -420,6 +442,23 @@ public class MyDBSession extends DBSession
     }
     
     
+    
+    
+    public boolean haveJsObject(String id)
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT data FROM \"JsObject\" WHERE id=? ",  ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, id);
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next())
+            return true;
+        return false;
+    }
+            
+            
+            
+            
     public String getJsObject(String user, String group, String tag, String id)
         throws java.sql.SQLException
     {

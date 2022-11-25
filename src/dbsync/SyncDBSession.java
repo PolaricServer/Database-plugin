@@ -38,6 +38,14 @@ public class SyncDBSession extends DBSession
    private DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
    
    
+   public static class SyncOp {
+        Date ts; 
+        String cmd;
+        SyncOp(Date t, String o) {
+            ts=t; cmd=o;
+        }
+   }
+   
    
    SyncDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
     throws DBSession.SessionError
@@ -58,18 +66,20 @@ public class SyncDBSession extends DBSession
     /* 
      * Get time when cid/item was last updated 
      */
-    public Date getSync(String cid, String item)
+    public SyncOp getSync(String cid, String item)
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT ts from \"DbSync\" "+
-              " WHERE cid=? AND item=?",  
+            ( " SELECT ts,op from \"DbSync\" "+
+              " WHERE cid=? AND item=? " +
+              " ORDER BY ts DESC ", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+              
         stmt.setString(1, cid);
         stmt.setString(2, item);
         ResultSet rs = stmt.executeQuery();
         if (rs.next())
-            return new Date(rs.getTimestamp("ts").getTime());
+            return new SyncOp(new Date(rs.getTimestamp("ts").getTime()), rs.getString("op")); ;
         return null;
     }
     
@@ -78,24 +88,26 @@ public class SyncDBSession extends DBSession
     /* 
      * Set last-update-time for cid/item .
      */
-    public void setSync(String cid, String item, java.util.Date ts)
+    public void setSync(String cid, String item, String cmd, java.util.Date ts)
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
               ( " UPDATE \"DbSync\"" + 
-                " SET ts=? WHERE cid=? AND item=?" );
+                " SET ts=?, op=? WHERE cid=? AND item=?" );
         stmt.setTimestamp(1, DBSession.date2ts(ts));
-        stmt.setString(2, cid);
-        stmt.setString(3, item);
+        stmt.setString(2, cmd);
+        stmt.setString(3, cid);
+        stmt.setString(4, item);
         int n = stmt.executeUpdate();
         
         if (n==0) {
             stmt = getCon().prepareStatement
-              ( " INSERT INTO \"DbSync\" (cid,item,ts)" + 
-                " VALUES (?, ?, ?)" );
+              ( " INSERT INTO \"DbSync\" (cid,item,op,ts)" + 
+                " VALUES (?, ?, ?, ?)" );
             stmt.setString(1, cid);
             stmt.setString(2, item);
-            stmt.setTimestamp(3, DBSession.date2ts(ts));
+            stmt.setString(3, cmd);
+            stmt.setTimestamp(4, DBSession.date2ts(ts));
             stmt.executeUpdate();
         }
         
@@ -116,7 +128,7 @@ public class SyncDBSession extends DBSession
         return new DbList( stmt.executeQuery(), rs ->
             { return new Sync.ItemUpdate
                (rs.getString("cid"), rs.getString("item"), rs.getString("userid"), rs.getString("cmd"), rs.getString("arg"), 
-               rs.getTimestamp("ts").getTime());  });      
+               rs.getTimestamp("ts").getTime(), rs.getString("origin"));  });      
     }
     
     
@@ -140,15 +152,16 @@ public class SyncDBSession extends DBSession
                 throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"DbSyncQueue\" (peer,cid,item,userid,ts,cmd,arg) " + 
-                " VALUES (?,?,?,?,?,?,?)" );
+              ( " INSERT INTO \"DbSyncQueue\" (peer,cid,item,userid,ts,cmd,origin,arg) " + 
+                " VALUES (?,?,?,?,?,?,?,?)" );
         stmt.setString(1, peer);
         stmt.setString(2, upd.cid);
         stmt.setString(3, upd.itemid);
         stmt.setString(4, upd.userid);
         stmt.setTimestamp(5, new Timestamp(upd.ts));
         stmt.setString(6, upd.cmd);
-        stmt.setString(7, upd.arg);
+        stmt.setString(7, upd.origin);
+        stmt.setString(8, upd.arg);
         stmt.executeUpdate();
     }
     

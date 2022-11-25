@@ -43,6 +43,7 @@ public class RestApi extends ServerBase implements JsonPoints
     }
         
         
+        
     /** 
      * Return an error status message to client 
      */
@@ -147,7 +148,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 db.commit();
                 if (id.equals("_ALL_"))
                     id += "@" + tag;
-             //   _dbp.getSync().localUpdate("objshare", id, auth.userid, "ADD", req.body());
+                _dbp.getSync().localUpdate("objshare", id, auth.userid, "ADD", req.body());
                 return "Ok";
             }
             catch (java.sql.SQLException e) {
@@ -188,7 +189,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 db.commit();    
                 if (id.equals("_ALL_"))
                     id += "@" + tag;
-            //    _dbp.getSync().localUpdate("objshare", id, auth.userid, "DEL", uid);
+                _dbp.getSync().localUpdate("objshare", id, auth.userid, "DEL", uid);
                 return ""+n;
             }
             catch (java.sql.SQLException e) {
@@ -228,7 +229,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 db.updateJsObject(id, data);
                 _psub.put("object", tag, auth.userid);
                 db.commit();
-            //    _dbp.getSync().localUpdate("object", id, auth.userid, "UPD", data);
+                _dbp.getSync().localUpdate("object", tag+":"+id, auth.userid, "UPD", data);
                 return "Ok";
             }
             catch (java.sql.SQLException e) {
@@ -263,7 +264,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 int n = db.unlinkJsObject(id, auth.userid, auth.userid);              
                 _psub.put("object", tag, auth.userid);
                 db.commit();
-            //    _dbp.getSync().localUpdate("object", id, auth.userid, "DEL", null);
+                _dbp.getSync().localUpdate("object", tag+":"+id, auth.userid, "DEL", null);
                 return ""+n;
             }
             catch (java.lang.NumberFormatException e) {
@@ -374,7 +375,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 String id = db.addJsObject(_myCall, auth.userid, tag, data);
                 _psub.put("object", tag, auth.userid);
                 db.commit();
-            //    _dbp.getSync().localUpdate("object", tag, auth.userid, "ADD", data);
+                _dbp.getSync().localUpdate("object", tag+":"+id, auth.userid, "ADD", data);
                 return id;
             }
             catch (java.sql.SQLException e) {

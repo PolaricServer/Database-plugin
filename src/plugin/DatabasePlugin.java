@@ -36,8 +36,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
       {
          _api = api;
          try {
-           boolean active = api.getBoolProperty("db.plugin.on", false);
-           if (!active)
+            boolean active = api.getBoolProperty("db.plugin.on", false);
+            if (!active)
                return; 
                
             /* Give PostgreSQL some time to start */
@@ -93,9 +93,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            _dbsync = (Sync) new DbSync(_api); 
            
            /* Add handlers */
-           _dbsync.addCid("signs", (Sync.Handler) new SignsSync(api, this)); 
-           _dbsync.addCid("user",  (Sync.Handler) new UserSync(api, this));
-           _dbsync.addCid("userts",(Sync.Handler) new UserTsSync(api, this));
+           _dbsync.addCid("signs",   (Sync.Handler) new SignsSync(api, this)); 
+           _dbsync.addCid("user",    (Sync.Handler) new UserSync(api, this));
+           _dbsync.addCid("userts",  (Sync.Handler) new UserTsSync(api, this));
+           _dbsync.addCid("object",  (Sync.Handler) new ObjectSync(api, this));
+           _dbsync.addCid("objshare",(Sync.Handler) new ObjectShareSync(api, this));
            
            /* Activate and register user sync client */
            UserDb udb = (UserDb) _api.getWebserver().getUserDb(); 

@@ -24,17 +24,17 @@ public interface Sync
         public long ts; 
         public String userid;
         public String cmd; // ADD, DEL, UPD
-        public String mac;
-        
+        public boolean propagate = true;
+        public String origin;
+        public String sender;
+
       //  @JsonRawValue
         public String arg;
-
-        @JsonIgnore
-        public String generateMac(ServerAPI api) {
-            String key = api.getProperty("system.auth.key", "NOKEY");
-            return SecUtils.xDigestB64(key + cid + itemid + cmd + ts, 24);
-        }
         
+        @JsonIgnore
+        public void stopPropagate() {
+            propagate=false;
+        }
     
         public ItemUpdate() {};
         public ItemUpdate(String c, String i, String u, String cm, String a) {
@@ -45,7 +45,10 @@ public interface Sync
              cid=c; itemid=i; userid=u; cmd=cm; arg=a;
              ts = t;
         }
-        
+        public ItemUpdate(String c, String i, String u, String cm, String a, long t, String org) {
+             cid=c; itemid=i; userid=u; cmd=cm; arg=a; origin=org;
+             ts = t;
+        }
     }
     
     

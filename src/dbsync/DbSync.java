@@ -19,6 +19,7 @@ import java.net.http.*;
 /*
  * Replication with relaxed/eventual consistency. 
  */
+ 
 public class DbSync implements Sync
 {
     private ServerAPI _api;   
@@ -26,25 +27,37 @@ public class DbSync implements Sync
     private Map<String, Handler> _handlers = new HashMap<String, Handler>();
     private List<Peer> _peers = new ArrayList();
     private Timer hb = new Timer();
+    private DuplicateChecker _dup = new DuplicateChecker(300);
+    private String _ident;
            
     
     /* Peer node to synchronize data with */
     public static class Peer {
+        /* Callsign or other identifier */
+        public String ident; 
+        
+        /* REST service */
         public RestClient http;
-        public String cfilter; /* Regex */
+        
+        /* Regex filter for selecting CRDT instances to synchronise */
+        public String cfilter;
+        
+        /* Wait count before next trial */
         public int cnt = 0;
         
-        Peer(ServerAPI api, String u, String cf) 
+        Peer(ServerAPI api, String id, String u, String cf) 
             { http = new RestClient(api, u, true); 
+              ident = id;
               cfilter=cf;}
     }
+    
     
     
     public DbSync(ServerAPI api) {
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
         
-        _dbp.log().info("DbSync", "Initializing replication (eventual/partial consistency)");
+        _dbp.log().info("DbSync", "Initializing replication (eventual consistency)");
      
         /* Schedule periodic task */
         hb.schedule( new TimerTask() 
@@ -54,25 +67,93 @@ public class DbSync implements Sync
         } , 40000, 20000); 
         
      
-        /* Set up of peer nodes */
+        /* Set up of ident for this node. Use mycall as default */
+        String mycall = api.getProperty("default.mycall", "NOCALL").toUpperCase();
+        _ident = api.getProperty("db.sync.ident", mycall);
+
+        /* Setup of peers */
         int npeers = api.getIntProperty("db.sync.npeers", 0);
         for (int i=1; i<=npeers; i++) {
-            String url = api.getProperty("db.sync.peer"+i+".url", "");
+            String id = api.getProperty("db.sync.peer"+i+".ident", null);
+            if (id==null) {
+                _dbp.log().warn("DbSync", "Peer node "+i+": No ident. Ignoring");
+                continue;
+            }
+            String url = api.getProperty("db.sync.peer"+i+".url", null);
+            if (url==null) {
+                _dbp.log().warn("DbSync", "Peer node "+i+": No url. Ignoring");
+                continue;
+            }
             String filt = api.getProperty("db.sync.peer"+i+".filter", "");
-            Peer p = new Peer(_api, url, filt);
+            Peer p = new Peer(_api, id, url, filt);
             _peers.add(p);
-            _dbp.log().info("DbSync", "Peer node registered: "+url);
+            _dbp.log().info("DbSync", "Peer node registered: "+id+", "+url);
         }
     }
         
+        
+        
+    public Peer url2peer(String url) {
+        for (Peer x: _peers)
+            if (x.http.getUrl().equals(url))
+                return x;
+        return null;
+    }
+    
+    
+    public Peer ident2peer(String id) {
+        for (Peer x: _peers)
+            if (x.ident.equals(id))
+                return x;
+        return null;
+    }
+        
+     
+    /**
+     * Decide if update transaction should be performed or not. This is the
+     * place for conflict resolution. By default we use a LWW strategy (last writer
+     * wins). 
+     */
+    public boolean shouldCommit(SyncDBSession db, ItemUpdate upd) 
+        throws SQLException
+    {
+        /* 
+         * If we detect that the same update-message has been here before, 
+         * we set the propagate flag to false.
+         */
+        if (_dup.contains(upd.origin+upd.ts)) {
+            upd.propagate = false;
+            return false;
+        }
+        else
+            _dup.add(upd.origin+upd.ts);
+        
+        SyncDBSession.SyncOp meta = db.getSync(upd.cid, upd.itemid);
+        if (meta!=null && upd.ts <= meta.ts.getTime())
+            return false; 
+
+        if ((meta==null || meta.cmd.equals("DEL")) && upd.cmd.equals("UPD")) {
+            _dbp.log().info("DbSync", "Convert UPD to ADD: "+upd.cid+":"+upd.itemid);
+            upd.cmd="ADD";
+        }
+            
+        if (meta!=null && meta.cmd.equals("ADD") && upd.cmd.equals("ADD")
+            || (meta!=null && meta.cmd.equals("UPD") && upd.cmd.equals("ADD"))) {
+            _dbp.log().info("DbSync", "Convert ADD to UPD: "+upd.cid+":"+upd.itemid);
+            upd.cmd="UPD";
+        }
+        return true;
+    }
  
+    
     
     /**
      * Perform an update. 
-     * This is called from REST API impl. when a POST request is received. 
+     * This is called from REST API impl (DbSyncApi). when a POST request is received, 
+     * i.e. when a update is received from another node.
      */
     public boolean doUpdate(ItemUpdate upd) 
-    {
+    {  
         Handler hdl = _handlers.get(upd.cid);
         if (hdl==null) {
             _dbp.log().warn("DbSync", "Handler not found for: "+upd.cid);
@@ -82,19 +163,15 @@ public class DbSync implements Sync
         SyncDBSession db = null;
         try {
             db = new SyncDBSession(_dbp.getDB());
-            
-            java.util.Date ts = db.getSync(upd.cid, upd.itemid);
-            if (ts!=null && ts.getTime() > upd.ts) {
-                /* If timestamp is older than last local update, ignore the update */
-                _dbp.log().info("DbSync", "Ignoring incoming update for: "+upd.cid+":"+upd.itemid);
+            if (!shouldCommit(db, upd)) {
+                _dbp.log().info("DbSync", "Ignoring incoming update for: "+upd.cid+":"+upd.itemid+" ["+upd.origin+"]");
                 db.abort();
                 return true;
             }
-            _dbp.log().info("DbSync", "Handling incoming update for: "+upd.cid+":"+upd.itemid);        
-            db.setSync(upd.cid, upd.itemid, new java.util.Date());
+            _dbp.log().info("DbSync", "Handling incoming update for: "+upd.cid+":"+upd.itemid+" ["+upd.origin+"]");        
+            db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date());
             db.commit(); 
             
-            /* FIXME: Maybe this should be part of the transaction - it may fail */
             hdl.handle(upd);
             return true;
         }
@@ -106,37 +183,51 @@ public class DbSync implements Sync
         }      
         finally {
             if (db != null) db.close();
+            /* 
+             * We need to propagate the update to the other peers. 
+             * But not if the propagate flag is set to false and not to node from where we got the message! 
+             */
+            propagate(upd, upd.sender);
         }
     }
     
  
-//  
+
+ 
+    public void localUpdate(String cid, String itemid, String userid, String cmd, String arg) {
+        ItemUpdate upd = new ItemUpdate(cid, itemid, userid, cmd, arg);
+        upd.origin = _ident;
+        propagate(upd, null); 
+    }
+    
+    
     /**
-     * Queue a local update for synchronizing to other nodes. .
+     * Register (queue) a local update for synchronizing to other nodes. .
      * This is called from various update methods.  
      */
-    public void localUpdate(String cid, String itemid, String userid, String cmd, String arg) 
+    public void propagate(ItemUpdate upd, String except) 
     {
+        if (!upd.propagate)
+            return;
         if (_peers.isEmpty()) {
-           _dbp.log().info("DbSync", "Outgoing update for: "+cid+":"+itemid+" - no peers");
+           _dbp.log().info("DbSync", "Outgoing update for: "+upd.cid+":"+upd.itemid+" - no peers");
             return;
         }
-        
-        
-        ItemUpdate upd = new ItemUpdate(cid, itemid, userid, cmd, arg);
-        _dbp.log().info("DbSync", "Queueing outgoing update for: "+cid+":"+itemid);
-        
+
         SyncDBSession db = null;
         try {
             db = new SyncDBSession(_dbp.getDB());
         
             /* Update timstamp locally for the item */
-            db.setSync(cid, itemid, new java.util.Date()); 
+            db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date()); 
             
-            /* Queue message for updating peers */
+            /* Queue message for updating peer nodes */
             for (Peer p : _peers)
-                if (cid.matches(p.cfilter)) 
+                if (upd.cid.matches(p.cfilter) && !p.ident.equals(except)) {   
+                    _dbp.log().info("DbSync", "Queueing outgoing update for: "+upd.cid+":"+upd.itemid+" ["+upd.origin
+                       + "] to: "+p.http.getUrl());
                     db.addSyncUpdate(p.http.getUrl(), upd);
+                }
             db.commit();
         }
         catch(Exception e) {
@@ -154,7 +245,11 @@ public class DbSync implements Sync
     /* 
      * This is called periodically. 20 second interval. It attempts to POST the updates
      * to the peer nodes. If request succeeds, it is deleted from the queue. If not, it 
-     * is rescheduled and we will retry after a while. 
+     * is rescheduled and we will retry after a while.   
+     *
+     * FIXME: Can we put more than one update in the same POST? 
+     * FIXME: Should mac be a part of the update? 
+     * FIXME: Could peers be updated in parallel?
      */
     protected void updatePeers() 
     {
@@ -168,9 +263,8 @@ public class DbSync implements Sync
             try {
                 db = new SyncDBSession(_dbp.getDB(true)); // Autocommit on
                 DbList<ItemUpdate> msgs = db.getSyncUpdates(p.http.getUrl());
-                
                 for (ItemUpdate upd : msgs) {
-                    upd.mac = upd.generateMac(_api);
+                    upd.sender = _ident;
                     HttpResponse res = p.http.POST("dbsync", ServerBase.toJson(upd) ); 
                     if (res==null) {
                         _dbp.log().info("DbSync", "Post to "+p.http.getUrl()+" failed. Rescheduling..");

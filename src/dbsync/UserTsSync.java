@@ -39,7 +39,7 @@ public class UserTsSync implements Sync.Handler
     public void handle(Sync.ItemUpdate upd)
         throws DBSession.SessionError
     {
-        if ("UPD".equals(upd.cmd)) {
+        if ("UPD".equals(upd.cmd) || "ADD".equals(upd.cmd)) {
             ClientUserSyncer.TimeUpdate tu = (ClientUserSyncer.TimeUpdate) ServerBase.fromJson(upd.arg, ClientUserSyncer.TimeUpdate.class);
             if (tu==null)
                 _dbp.log().error("UserTsSync", "TimeUpdate deserialisation failed");
