@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 import  java.sql.*;
 import  javax.sql.*;
 import java.net.http.*;
-
+import static spark.Spark.*;
 
 
 /*
@@ -25,31 +25,17 @@ public class DbSync implements Sync
     private ServerAPI _api;   
     private PluginApi _dbp;
     private Map<String, Handler> _handlers = new HashMap<String, Handler>();
-    private List<Peer> _peers = new ArrayList();
     private Timer hb = new Timer();
     private DuplicateChecker _dup = new DuplicateChecker(300);
     private String _ident;
-           
     
-    /* Peer node to synchronize data with */
-    public static class Peer {
-        /* Callsign or other identifier */
-        public String ident; 
-        
-        /* REST service */
-        public RestClient http;
-        
-        /* Regex filter for selecting CRDT instances to synchronise */
-        public String cfilter;
-        
-        /* Wait count before next trial */
-        public int cnt = 0;
-        
-        Peer(ServerAPI api, String id, String u, String cf) 
-            { http = new RestClient(api, u, true); 
-              ident = id;
-              cfilter=cf;}
-    }
+    
+    /* Websocket connected nodes */
+    private NodeWsApi<ItemUpdate> _wsNodes;
+    /* Configured nodes */
+    private Map<String, String> _nodes = new HashMap<String, String>();
+    /* Nodes on wait */
+    private Map<String, Integer> _pending = new HashMap<String, Integer>();       
     
     
     
@@ -59,54 +45,59 @@ public class DbSync implements Sync
         
         _dbp.log().info("DbSync", "Initializing replication (eventual consistency)");
      
-        /* Schedule periodic task */
+        
         hb.schedule( new TimerTask() 
             { public void run() {       
-                updatePeers();
+                updatePeers2();
             } 
-        } , 40000, 20000); 
+        } , 45000, 20000); 
+        
         
      
         /* Set up of ident for this node. Use mycall as default */
         String mycall = api.getProperty("default.mycall", "NOCALL").toUpperCase();
         _ident = api.getProperty("db.sync.ident", mycall);
+        
+        
+        /* Setup of servers for websocket comm. */
+        NodeWs ws = new NodeWs(_api, null);
+        webSocket("/dbsync", ws);
+        
+        _wsNodes = new NodeWsApi(_ident, ws, ItemUpdate.class);
+        _wsNodes.setHandler( (nodeid, upd)-> {
+                if (upd==null)
+                    _dbp.log().warn("DbSync", "Received ItemUpdate: "+nodeid+", NULL");
+                else
+                    _dbp.log().info("DbSync", "Received ItemUpdate: "+nodeid+", "+upd.cid+", "+upd.itemid);
+                doUpdate((ItemUpdate) upd);
+            } 
+        );
 
-        /* Setup of peers */
-        int npeers = api.getIntProperty("db.sync.npeers", 0);
+        
+        int npeers = api.getIntProperty("db.sync.nnodes", 0);
         for (int i=1; i<=npeers; i++) {
-            String id = api.getProperty("db.sync.peer"+i+".ident", null);
+            String id = api.getProperty("db.sync.node"+i+".ident", null);
             if (id==null) {
-                _dbp.log().warn("DbSync", "Peer node "+i+": No ident. Ignoring");
+                _dbp.log().warn("DbSync", "Server node "+i+": No ident. Ignoring");
                 continue;
             }
-            String url = api.getProperty("db.sync.peer"+i+".url", null);
-            if (url==null) {
-                _dbp.log().warn("DbSync", "Peer node "+i+": No url. Ignoring");
-                continue;
+            String url = api.getProperty("db.sync.node"+i+".url", null);
+            String filt = api.getProperty("db.sync.node"+i+".filter", ".*");
+                
+            /* If URL is given, add server to websocket inferface */
+            if (url != null) {
+                NodeWsClient srv = new NodeWsClient(_api, id, url, true);
+                _wsNodes.addServer(id, srv);
+                _dbp.log().info("DbSync", "Server node registered: "+id+", "+url);
             }
-            String filt = api.getProperty("db.sync.peer"+i+".filter", "");
-            Peer p = new Peer(_api, id, url, filt);
-            _peers.add(p);
-            _dbp.log().info("DbSync", "Peer node registered: "+id+", "+url);
+            else
+                _dbp.log().info("DbSync", "Node registered: "+id);
+            
+            /* Add configured node */
+            _nodes.put(id, filt);
         }
     }
         
-        
-        
-    public Peer url2peer(String url) {
-        for (Peer x: _peers)
-            if (x.http.getUrl().equals(url))
-                return x;
-        return null;
-    }
-    
-    
-    public Peer ident2peer(String id) {
-        for (Peer x: _peers)
-            if (x.ident.equals(id))
-                return x;
-        return null;
-    }
         
      
     /**
@@ -168,7 +159,7 @@ public class DbSync implements Sync
                 db.abort();
                 return true;
             }
-            _dbp.log().info("DbSync", "Handling incoming update for: "+upd.cid+":"+upd.itemid+" ["+upd.origin+"]");        
+            _dbp.log().debug("DbSync", "Handling incoming update for: "+upd.cid+":"+upd.itemid+" ["+upd.origin+"]");        
             db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date());
             db.commit(); 
             
@@ -201,6 +192,7 @@ public class DbSync implements Sync
     }
     
     
+    
     /**
      * Register (queue) a local update for synchronizing to other nodes. .
      * This is called from various update methods.  
@@ -209,8 +201,8 @@ public class DbSync implements Sync
     {
         if (!upd.propagate)
             return;
-        if (_peers.isEmpty()) {
-           _dbp.log().info("DbSync", "Outgoing update for: "+upd.cid+":"+upd.itemid+" - no peers");
+        if (_nodes.isEmpty()) {
+           _dbp.log().info("DbSync", "Outgoing update for: "+upd.cid+":"+upd.itemid+" - no nodes");
             return;
         }
 
@@ -222,11 +214,11 @@ public class DbSync implements Sync
             db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date()); 
             
             /* Queue message for updating peer nodes */
-            for (Peer p : _peers)
-                if (upd.cid.matches(p.cfilter) && !p.ident.equals(except)) {   
-                    _dbp.log().info("DbSync", "Queueing outgoing update for: "+upd.cid+":"+upd.itemid+" ["+upd.origin
-                       + "] to: "+p.http.getUrl());
-                    db.addSyncUpdate(p.http.getUrl(), upd);
+            for (String nodeid : _nodes.keySet())
+                if (upd.cid.matches(_nodes.get(nodeid)) && !nodeid.equals(except)) {   
+                    _dbp.log().info("DbSync", "Queueing outgoing update for: "+upd.cid+":"+upd.itemid + 
+                        " ["+upd.origin + "] to: "+nodeid);
+                    db.addSyncUpdate(nodeid, upd);
                 }
             db.commit();
         }
@@ -241,46 +233,50 @@ public class DbSync implements Sync
     }
  
  
- 
+    
+
     /* 
      * This is called periodically. 20 second interval. It attempts to POST the updates
      * to the peer nodes. If request succeeds, it is deleted from the queue. If not, it 
-     * is rescheduled and we will retry after a while.   
-     *
-     * FIXME: Can we put more than one update in the same POST? 
-     * FIXME: Should mac be a part of the update? 
-     * FIXME: Could peers be updated in parallel?
+     * is rescheduled and we will retry after a while. 
      */
-    protected void updatePeers() 
+
+    protected void updatePeers2()
     {
-        for (Peer p : _peers) {
-            if (p.cnt > 0) {
-                p.cnt--;
+        for (String node: _wsNodes.getNodes()) {
+ 
+            Integer delay = _pending.get(node);
+            _pending.remove(node);
+            if (delay != null && delay > 0) {
+                delay--;
+                _pending.put(node, delay);
                 continue;
             }
-        
+            
             SyncDBSession db = null;
             try {
+                /* Search database for items to be sent to node */
                 db = new SyncDBSession(_dbp.getDB(true)); // Autocommit on
-                DbList<ItemUpdate> msgs = db.getSyncUpdates(p.http.getUrl());
+                DbList<ItemUpdate> msgs = db.getSyncUpdates(node);
                 for (ItemUpdate upd : msgs) {
                     upd.sender = _ident;
-                    HttpResponse res = p.http.POST("dbsync", ServerBase.toJson(upd) ); 
-                    if (res==null) {
-                        _dbp.log().info("DbSync", "Post to "+p.http.getUrl()+" failed. Rescheduling..");
-                        p.cnt = 60; // 20 minutes   
+                    if (_nodes.get(node)==null) {
+                        _dbp.log().warn("DbSync", "Attempt to post to unknown node: "+node+" - ignoring");
                         break;
                     }
-                    if (res.statusCode() != 200) {
-                        _dbp.log().info("DbSync", "Post to "+p.http.getUrl()+" failed with code="+res.statusCode()+". Rescheduling..");
-                        p.cnt = 60; // 20 minutes
+                    /* Send each item to node */
+                    if (!_wsNodes.put(node, upd)) {
+                        /* If post to node failed..*/
+                        _dbp.log().info("DbSync", "Post failed to node: "+node+" - rescheduling");
+                        _pending.put(node, 6);
                         break;
                     }
-                    _dbp.log().info("DbSync", "Post to "+p.http.getUrl()+" succeeded ("+upd.cid+").");
-                    db.removeSyncUpdates(p.http.getUrl(), new java.util.Date(upd.ts+1000));
-                }
-            }    
-            catch(Exception e) {
+                    _dbp.log().debug("DbSync", "Post to "+node+" succeeded ("+upd.cid+")");
+                    db.removeSyncUpdates(node, new java.util.Date(upd.ts+1000));
+                }    
+            }
+                            
+            catch (Exception e) {
                 _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
                 e.printStackTrace(System.out);
                 return;
@@ -288,10 +284,11 @@ public class DbSync implements Sync
             finally {
                 if (db != null) db.close();
             }
+                
         }
     }
     
-
+    
     
     
     /**

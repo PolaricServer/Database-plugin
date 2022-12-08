@@ -157,6 +157,8 @@ if ((VERSION < 7)); then
         ALTER TABLE \"DbSync\" DROP CONSTRAINT \"DbSync_pkey\"; \
         DELETE FROM \"DbSync\" WHERE op IS null; \
         ALTER TABLE \"DbSyncQueue\" ADD COLUMN origin varchar; \
+        ALTER TABLE \"DbSyncQueue\" RENAME COLUMN peer to nodeid; \
+        ALTER TABLE \"DbSyncQueue\" DROP CONSTRAINT \"DbSyncQueue_pkey\"; \
         \
         COMMIT " polaric
 fi

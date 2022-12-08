@@ -116,14 +116,14 @@ public class SyncDBSession extends DBSession
     
     
     
-    public DbList<Sync.ItemUpdate> getSyncUpdates(String peer) 
+    public DbList<Sync.ItemUpdate> getSyncUpdates(String nodeid) 
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT * from \"DbSyncQueue\" "+
-              " WHERE peer=? order by ts asc",  
+            ( " SELECT * from \"DbSyncQueue\" "+ 
+              " WHERE nodeid=? order by ts asc",  // FIXME; FIX schema
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
-        stmt.setString(1, peer);
+        stmt.setString(1, nodeid);
 
         return new DbList( stmt.executeQuery(), rs ->
             { return new Sync.ItemUpdate
@@ -134,13 +134,13 @@ public class SyncDBSession extends DBSession
     
     
     
-    public void removeSyncUpdates(String peer, java.util.Date ts) 
+    public void removeSyncUpdates(String nodeid, java.util.Date ts) 
                 throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
               ( " DELETE FROM \"DbSyncQueue\"" + 
-                " WHERE peer=? AND ts<=?" );
-        stmt.setString(1, peer);
+                " WHERE nodeid=? AND ts<=?" );
+        stmt.setString(1, nodeid);
         stmt.setTimestamp(2, DBSession.date2ts(ts));
         stmt.executeUpdate();
     }
@@ -148,13 +148,13 @@ public class SyncDBSession extends DBSession
     
     
     
-    public void addSyncUpdate(String peer, Sync.ItemUpdate upd) 
+    public void addSyncUpdate(String nodeid, Sync.ItemUpdate upd) 
                 throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"DbSyncQueue\" (peer,cid,item,userid,ts,cmd,origin,arg) " + 
+              ( " INSERT INTO \"DbSyncQueue\" (nodeid,cid,item,userid,ts,cmd,origin,arg) " + 
                 " VALUES (?,?,?,?,?,?,?,?)" );
-        stmt.setString(1, peer);
+        stmt.setString(1,nodeid );
         stmt.setString(2, upd.cid);
         stmt.setString(3, upd.itemid);
         stmt.setString(4, upd.userid);

@@ -229,14 +229,13 @@ public class DbInstaller
                         "PRIMARY KEY (cid,item) " );
          
          createClass("DbSyncQueue", null,
-                        "peer   varchar NOT NULL,  " +
+                        "nodeid varchar NOT NULL,  " +
                         "cid    varchar NOT NULL, " +
                         "item   varchar NOT NULL, " + 
                         "userid varchar, " +
                         "ts     timestamp without time zone NOT NULL, " +
                         "cmd    varchar, " +
-                        "arg    text, " +
-                        "PRIMARY KEY (cid,item,ts) " ); 
+                        "arg    text " ); 
          
          
         /* new in schema v. 6 */

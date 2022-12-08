@@ -103,23 +103,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
            UserDb udb = (UserDb) _api.getWebserver().getUserDb(); 
            udb.setSyncer( new ClientUserSyncer(_dbsync) );
            
-           
-           /*
-            * Start REST API.
-            */
-            RestApi api1 = new RestApi(api);
-            api1.start();
-            TrackerApi api2 = new TrackerApi(api);
-            api2.start();
-            HistApi api3 = new HistApi(api);
-            api3.start();
-            SignsApi api4 = new SignsApi(api);
-            api4.start();
-            TrackLogApi api5 = new TrackLogApi(api);
-            api5.start();
-            DbSyncApi api6 = new DbSyncApi(api, _dbsync);
-            api6.start();
-            
+
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
             * done by more than one concurrent client (the owner of the database). 
@@ -196,7 +180,24 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
         }  
       }
       
-    
+      
+      
+         
+     @Override
+     public void startWebservice(ServerAPI api) {
+        RestApi api1 = new RestApi(api);
+        api1.start();
+        TrackerApi api2 = new TrackerApi(api);
+        api2.start();
+        HistApi api3 = new HistApi(api);
+        api3.start();
+        SignsApi api4 = new SignsApi(api);
+        api4.start();
+        TrackLogApi api5 = new TrackLogApi(api);
+        api5.start();
+     }
+     
+     
       
       
      /**  Stop the plugin */ 
@@ -364,7 +365,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                 db.close(); 
         }
      }
-     
+
      
      
      /**
