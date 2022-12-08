@@ -73,7 +73,7 @@ public class DbMaintenance implements Runnable
               _log.info("DbMaintenance", "Deleted "+deleted+" old records from AprsPacket table"); 
            
             stmt = db.getCon().prepareStatement
-              ( "DELETE FROM \"AprsMessage\" " + 
+              ( "DELETE FROM \"PosReport\" " + 
                 "WHERE (time + INTERVAL '"+_maxage_report+" days' < 'now') OR"+ 
                      " (time + INTERVAL '"+_maxage_limited+" days' < 'now' AND ("+_maxage_limited_filter+"))" );
             deleted =  stmt.executeUpdate();
@@ -82,7 +82,7 @@ public class DbMaintenance implements Runnable
            
             /* Also delete data where time is in the future (because of bugs) */
             db.getCon().prepareStatement
-              ( "DELETE FROM \"AprsMessage\" " + 
+              ( "DELETE FROM \"PosReport\" " + 
                 "WHERE time > 'now + INTERVAL 2 hours'" );
             deleted = stmt.executeUpdate();
             if (deleted > 0) 
