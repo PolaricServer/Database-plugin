@@ -38,6 +38,10 @@ public class DbSync implements Sync
     private Map<String, Integer> _pending = new HashMap<String, Integer>();       
     
     
+    private long TS(long ts) {
+        return ts - 1670677450000L;
+    }
+    
     
     public DbSync(ServerAPI api) {
         _api = api;
@@ -48,7 +52,7 @@ public class DbSync implements Sync
         
         hb.schedule( new TimerTask() 
             { public void run() {       
-                updatePeers2();
+                updatePeers();
             } 
         } , 45000, 20000); 
         
@@ -68,7 +72,8 @@ public class DbSync implements Sync
                 if (upd==null)
                     _dbp.log().warn("DbSync", "Received ItemUpdate: "+nodeid+", NULL");
                 else
-                    _dbp.log().info("DbSync", "Received ItemUpdate: "+nodeid+", "+upd.cid+", "+upd.itemid);
+                    _dbp.log().info("DbSync", "Received ItemUpdate: "+nodeid+", "
+                      +upd.cid+", "+upd.itemid+", "+upd.cmd+", "+ TS(upd.ts));
                 doUpdate((ItemUpdate) upd);
             } 
         );
@@ -120,17 +125,19 @@ public class DbSync implements Sync
             _dup.add(upd.origin+upd.ts);
         
         SyncDBSession.SyncOp meta = db.getSync(upd.cid, upd.itemid);
-        if (meta!=null && upd.ts <= meta.ts.getTime())
+        if (meta!=null && upd.ts <= meta.ts.getTime()) {
+            _dbp.log().info("DbSync", TS(upd.ts)+" <= "+TS(meta.ts.getTime()));
             return false; 
+        }
 
         if ((meta==null || meta.cmd.equals("DEL")) && upd.cmd.equals("UPD")) {
-            _dbp.log().info("DbSync", "Convert UPD to ADD: "+upd.cid+":"+upd.itemid);
+            _dbp.log().info("DbSync", "Convert UPD to ADD: "+upd.cid+", "+upd.itemid);
             upd.cmd="ADD";
         }
             
         if (meta!=null && meta.cmd.equals("ADD") && upd.cmd.equals("ADD")
             || (meta!=null && meta.cmd.equals("UPD") && upd.cmd.equals("ADD"))) {
-            _dbp.log().info("DbSync", "Convert ADD to UPD: "+upd.cid+":"+upd.itemid);
+            _dbp.log().info("DbSync", "Convert ADD to UPD: "+upd.cid+", "+upd.itemid);
             upd.cmd="UPD";
         }
         return true;
@@ -140,8 +147,7 @@ public class DbSync implements Sync
     
     /**
      * Perform an update. 
-     * This is called from REST API impl (DbSyncApi). when a POST request is received, 
-     * i.e. when a update is received from another node.
+     * This is called when a update message is received from another node.
      */
     public boolean doUpdate(ItemUpdate upd) 
     {  
@@ -155,12 +161,11 @@ public class DbSync implements Sync
         try {
             db = new SyncDBSession(_dbp.getDB());
             if (!shouldCommit(db, upd)) {
-                _dbp.log().info("DbSync", "Ignoring incoming update for: "+upd.cid+":"+upd.itemid+" ["+upd.origin+"]");
+                _dbp.log().info("DbSync", "Ignoring update for: "+upd.cid+", "+upd.itemid+" ["+upd.origin+"]");
                 db.abort();
                 return true;
-            }
-            _dbp.log().debug("DbSync", "Handling incoming update for: "+upd.cid+":"+upd.itemid+" ["+upd.origin+"]");        
-            db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date());
+            }        
+            db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date(upd.ts));
             db.commit(); 
             
             hdl.handle(upd);
@@ -183,26 +188,38 @@ public class DbSync implements Sync
     }
     
  
-
- 
+    /**
+     * Register (queue) a local update for synchronizing to other nodes. .
+     * This is called from various update methods.  
+     */
+    long prev_ts = 0;
     public void localUpdate(String cid, String itemid, String userid, String cmd, String arg) {
         ItemUpdate upd = new ItemUpdate(cid, itemid, userid, cmd, arg);
         upd.origin = _ident;
+        
+        /* 
+         * If more than one local update is done within the same millisecond tick, 
+         * we need to make sure the timestamps reflect the actual order. Ensure that the last 
+         * update has a higher timestamp than the previous. 
+         */
+        if (upd.ts <= prev_ts)
+            upd.ts++;
+        prev_ts = upd.ts;
+        
         propagate(upd, null); 
     }
     
     
     
     /**
-     * Register (queue) a local update for synchronizing to other nodes. .
-     * This is called from various update methods.  
+     * Propagate a update to other nodes. .
      */
     public void propagate(ItemUpdate upd, String except) 
     {
         if (!upd.propagate)
             return;
         if (_nodes.isEmpty()) {
-           _dbp.log().info("DbSync", "Outgoing update for: "+upd.cid+":"+upd.itemid+" - no nodes");
+           _dbp.log().info("DbSync", "Outgoing update: "+upd.cid+", "+upd.itemid+" - no nodes");
             return;
         }
 
@@ -210,14 +227,19 @@ public class DbSync implements Sync
         try {
             db = new SyncDBSession(_dbp.getDB());
         
-            /* Update timstamp locally for the item */
-            db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date()); 
+            /* 
+             * If local (originating from this node) 
+             * Update timstamp and op locally in the database for the item 
+             */
+            if (except==null)
+                db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date()); 
             
             /* Queue message for updating peer nodes */
             for (String nodeid : _nodes.keySet())
                 if (upd.cid.matches(_nodes.get(nodeid)) && !nodeid.equals(except)) {   
-                    _dbp.log().info("DbSync", "Queueing outgoing update for: "+upd.cid+":"+upd.itemid + 
-                        " ["+upd.origin + "] to: "+nodeid);
+                    _dbp.log().info("DbSync", "Queueing outgoing update: "+upd.cid+", "+upd.itemid 
+                        + ", "+ upd.cmd +", "+ TS(upd.ts) 
+                        + (upd.origin.equals(_ident) ? "" : " ["+upd.origin + "]") + " to: " + nodeid);
                     db.addSyncUpdate(nodeid, upd);
                 }
             db.commit();
@@ -241,7 +263,7 @@ public class DbSync implements Sync
      * is rescheduled and we will retry after a while. 
      */
 
-    protected void updatePeers2()
+    protected void updatePeers()
     {
         for (String node: _wsNodes.getNodes()) {
  

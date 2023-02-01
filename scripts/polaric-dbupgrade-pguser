@@ -85,7 +85,7 @@ if ((VERSION < 5)); then
         ALTER TABLE \"Signs\" ALTER COLUMN id DROP DEFAULT; \
         ALTER TABLE \"Signs\" ALTER COLUMN id TYPE varchar; \
         DROP SEQUENCE \"Signs_id_seq\"; \
-        CREATE SEQUENCE signs_seq START WITH 2000 owned by; \
+        CREATE SEQUENCE signs_seq START WITH 2000; \
         ALTER SEQUENCE signs_seq OWNER TO polaric; \
         COMMIT " polaric
 fi
@@ -151,7 +151,7 @@ if ((VERSION < 7)); then
         DROP SEQUENCE \"JsObject_id_seq\"; \
         CREATE SEQUENCE jsobject_seq START WITH 5000; \
         ALTER SEQUENCE jsobject_seq OWNER TO polaric; \
-        \  
+        \
         DELETE FROM \"DbSync\"; \
         ALTER TABLE \"DbSync\" ADD COLUMN op varchar(10) NOT NULL; \
         ALTER TABLE \"DbSync\" DROP CONSTRAINT \"DbSync_pkey\"; \

@@ -30,7 +30,8 @@ import org.eclipse.jetty.server.*;
 public class SignsApi extends ServerBase implements JsonPoints
 {
     private ServerAPI _api; 
-    private PluginApi _dbp;
+    private PluginApi _dbp;    
+    private PubSub _psub;
     private String    _myCall;
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
@@ -38,7 +39,8 @@ public class SignsApi extends ServerBase implements JsonPoints
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
-        _myCall = api.getProperty("default.mycall", "NOCALL").toUpperCase();
+        _myCall = api.getProperty("default.mycall", "NOCALL").toUpperCase();  
+
     }
         
         
@@ -92,8 +94,8 @@ public class SignsApi extends ServerBase implements JsonPoints
         _api.getWebserver().protectUrl("/signs", "sar");
         _api.getWebserver().protectUrl("/signs/*", "sar");
                 
-        
-        
+        _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        _psub.createRoom("sign", (Class) null); 
                 
         /**************************************************************************** 
          * REST Service
@@ -220,7 +222,8 @@ public class SignsApi extends ServerBase implements JsonPoints
                 Reference ref = new LatLng(sc.pos[1], sc.pos[0]);
                 String id = db.addSign(_myCall, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, auth.userid);
                 sc.id=id;
-                db.commit();
+                db.commit();  
+                _psub.put("sign", null, auth.userid);
                 _dbp.getSync().localUpdate("signs", id, auth.userid, "ADD", ServerBase.toJson(sc));
                 return id; 
             }
@@ -269,7 +272,8 @@ public class SignsApi extends ServerBase implements JsonPoints
                 db.updateSign(ident, sc.scale, sc.icon, sc.url, sc.descr, 
                     ref, sc.type, uid);        
                 sc.id=ident;
-                db.commit();
+                db.commit();               
+                _psub.put("sign", null, auth.userid);
                 _dbp.getSync().localUpdate("signs", ident, uid, "UPD", ServerBase.toJson(sc));
                 return "Ok";
             }
@@ -293,10 +297,17 @@ public class SignsApi extends ServerBase implements JsonPoints
             
             /* FIXME: Only owners or superuser may delete signs */
             
+            /* Get user info */
+            var auth = getAuthInfo(req); 
+            if (auth == null)
+                return ERROR(resp, 500, "No authorization info found");
+                
+                
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 db.deleteSign(ident);
-                db.commit();
+                db.commit();          
+                _psub.put("sign", null, auth.userid);
                 _dbp.getSync().localUpdate("signs", ident, "", "DEL", "");
                 return "OK";
             }

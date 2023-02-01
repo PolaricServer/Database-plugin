@@ -21,12 +21,13 @@ public class SignsSync implements Sync.Handler
 {
     private ServerAPI _api;   
     private PluginApi _dbp;
-   
+    private PubSub _psub;
    
    
     public SignsSync(ServerAPI api, PluginApi dbp) 
     {
-        _api=api; _dbp=dbp;
+        _api=api; _dbp=dbp;    
+        _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
     }
    
    
@@ -61,7 +62,7 @@ public class SignsSync implements Sync.Handler
                 _upd(upd.itemid, si, upd.userid);
         }
         else if ("DEL".equals(upd.cmd)) 
-            _del(upd.itemid);
+            _del(upd.itemid, upd.userid);
         else
            // error("Unknown command");
            ;
@@ -95,7 +96,8 @@ public class SignsSync implements Sync.Handler
             String[] iid = id.split("@");
             
             db.setSeqNext("signs_seq", Integer.parseInt(iid[0]) );
-            db.addSign(iid[1], sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, userid);
+            db.addSign(iid[1], sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, userid);       
+            _psub.put("sign", null, userid);
             db.commit();
         }      
         catch(Exception e) {
@@ -122,6 +124,7 @@ public class SignsSync implements Sync.Handler
             }
             else
                 db.updateSign(sc.id, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, userid);        
+            _psub.put("sign", null, userid);
             db.commit();
         }
         catch(Exception e) {
@@ -134,12 +137,13 @@ public class SignsSync implements Sync.Handler
      
      
      
-    private void _del(String ident) 
+    private void _del(String ident, String userid) 
         throws DBSession.SessionError
     {
         SignsDBSession db = new SignsDBSession(_dbp.getDB());
         try {
-            db.deleteSign(ident);
+            db.deleteSign(ident);   
+            _psub.put("sign", null, userid);
             db.commit();
         }      
         catch(Exception e) {
