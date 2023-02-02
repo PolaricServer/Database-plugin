@@ -1,8 +1,12 @@
-polaric-db-plugin (2.10+) UNRELEASED; urgency=medium
+polaric-db-plugin (2.11) stable; urgency=medium
 
-  * Development
+  * StationDB implementation using database
+  * New method for posting tracklogs from trackers
+  * Time machine API method
+  * DbSync - use websocket for updating
+  * Various fixes..
 
- -- Oyvind Hanssen <ohanssen@acm.org>  Thu, 08 Sep 2022 11:04:10 +0200
+ -- Oyvind Hanssen <oivindh@la7eca>  Thu, 02 Feb 2023 22:34:02 +0100
 
 polaric-db-plugin (2.10) stable; urgency=medium
 
