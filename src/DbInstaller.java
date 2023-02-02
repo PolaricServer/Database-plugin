@@ -225,17 +225,19 @@ public class DbInstaller
         createClass("DbSync", null, 
                         "cid  varchar NOT NULL, " +
                         "item varchar NOT NULL, " +
-                        "ts  timestamp without time zone NOT NULL, " +
+                        "ts   timestamp without time zone NOT NULL, " +
+                        "op   varchar(10) not null, " +
                         "PRIMARY KEY (cid,item) " );
          
          createClass("DbSyncQueue", null,
-                        "nodeid varchar NOT NULL,  " +
+                        "nodeid varchar NOT NULL, " +
                         "cid    varchar NOT NULL, " +
                         "item   varchar NOT NULL, " + 
                         "userid varchar, " +
                         "ts     timestamp without time zone NOT NULL, " +
                         "cmd    varchar, " +
-                        "arg    text " ); 
+                        "arg    text, " +
+                        "origin varchar "); 
          
          
         /* new in schema v. 6 */
