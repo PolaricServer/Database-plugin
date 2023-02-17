@@ -123,7 +123,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 ServerBase.fromJson(req.body(), JsObject.User.class);
         
             if (u.userid.matches("[@#].+") && !auth.sar && !auth.admin)
-                return ERROR(resp, 402, "You are not authorized to share with groups or #ALL");
+                return ERROR(resp, 401, "You are not authorized to share with groups or #ALL");
         
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
@@ -293,7 +293,9 @@ public class RestApi extends ServerBase implements JsonPoints
             var auth = getAuthInfo(req); 
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
-            
+            if (!auth.login())
+                return ERROR(resp, 401, "Authentication required");
+                
             MyDBSession db = _dbp.getDB();
             try {
                 String a =  db.getJsObject(auth.userid, auth.groupid, tag, id);            
@@ -330,7 +332,9 @@ public class RestApi extends ServerBase implements JsonPoints
             var auth = getAuthInfo(req); 
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
-            
+            if (!auth.login())
+                return ERROR(resp, 401, "Authentication required");
+                
             MyDBSession db = _dbp.getDB();
             DbList<JsObject> a = null; 
             try {
@@ -353,7 +357,7 @@ public class RestApi extends ServerBase implements JsonPoints
                 
         /************************************************************************** 
          * REST Service: 
-         * Add an object for the logged in user. 
+         * [id]. 
          * We assume that this is a JSON object but do not parse it. 
          **************************************************************************/
          

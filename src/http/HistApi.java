@@ -173,7 +173,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 return mu;
             }
             catch(java.text.ParseException e) {  
-                return ABORT(resp, db, "GET /hist/*/trail: Cannot parse timestring", 500, 
+                return ABORT(resp, db, "GET /hist/*/trail: Cannot parse timestring", 400, 
                    "Cannot parse timestring");
             }
             catch(java.sql.SQLException e) { 
@@ -241,7 +241,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 return mu;
             }
             catch(java.text.ParseException e) { 
-                return ABORT(resp, db, "GET /hist/snapshot: Cannot parse timestring", 500,  
+                return ABORT(resp, db, "GET /hist/snapshot: Cannot parse number or timestring", 500,  
                     "Cannot parse timestring");
             }
             catch(java.sql.SQLException e) { 
@@ -299,7 +299,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 return mu;
             }
             catch(java.text.ParseException e) {  
-                return ABORT(resp, db, "GET /hist/*/hrdvia: Cannot parse timestring", 500,  null);
+                return ABORT(resp, db, "GET /hist/*/hrdvia: Cannot parse timestring", 400,  null);
             }
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/*/hrdvia: SQL error:"+e.getMessage(), 500, null); 

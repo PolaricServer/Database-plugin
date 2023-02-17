@@ -184,10 +184,6 @@ public class SignsApi extends ServerBase implements JsonPoints
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "GET /signs: SQL error:"+e.getMessage(), 500, null);
             }
-            catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "DELETE /signs: type must be a positive integer",
-                    400, "ident must be a positive integer");
-            }
             finally { 
                 db.close(); 
             }
@@ -215,7 +211,7 @@ public class SignsApi extends ServerBase implements JsonPoints
                 ServerBase.fromJson(req.body(), SignInfo.class);
             if (sc==null) 
                 return ABORT(resp, db, "POST /signs: cannot parse input", 
-                    500, "Cannot parse input");
+                    400, "Cannot parse input");
                         
             /* Database transaction */
             try {
@@ -314,10 +310,6 @@ public class SignsApi extends ServerBase implements JsonPoints
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "DELETE /signs/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
-            }
-            catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "DELETE /signs/*: ident must be a positive integer",
-                    400, "ident must be a positive integer");
             }
             finally { db.close();}  
         } );

@@ -120,13 +120,13 @@ public class TrackerApi extends ServerBase implements JsonPoints
             /* Get user info */
             var auth = getAuthInfo(req); 
             if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
+                return ERROR(resp, 400, "No authorization info found");
             
             /* Get tracker info from request */
             Tracker.Info tr = (Tracker.Info) 
                 ServerBase.fromJson(req.body(), Tracker.Info.class);
             if (tr==null) 
-                return ERROR(resp, 500, "Cannot parse input");   
+                return ERROR(resp, 400, "Cannot parse input");   
                 
             if (tr.user.equals(""))
                 tr.user=null;
