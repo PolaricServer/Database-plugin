@@ -23,8 +23,6 @@ Client/user-owned data like trackers, static position objects,
 map-extents, map-layer setups, etc through a REST API. Also, the drawing tool
 uses it to store features. 
 
-Future uses may include (SAR) mission information, users, etc. 
-
 ## System requirements
 
 Linux/Java platform (tested on Debian/Ubuntu platforms, including Raspbian Buster) with
@@ -35,7 +33,7 @@ From version 2.9, Scala is no longer needed.
 
 ## Installation and use
 A deb package is available. For information on getting started on a Debian based platform please see: 
-http://aprs.no/dokuwiki/doku.php/install.dev. It has scripts that can help install and configure 
+https://polaricserver.readthedocs.io/en/latest/gettingstarted.html. It has scripts that can help install and configure 
 the database. It depends on PostgreSQL and PostGIS packages. 
 
 apt-get install polaric-db-plugin
