@@ -17,7 +17,9 @@ It can actually also be useful on more portable servers, for instance on a Raspb
 
 It stores APRS positions (spatiotemporal data) and APRS packets for later analysis.
 It is configurable what callsigns are stored and for how long. Queries 
-include movement trails, positions covered by digipeaters, etc. 
+include movement trails, positions covered by digipeaters, etc. with this plugin you can 
+go to a speficic time in history and generate a map-overlay showing the situation at
+that time (for data that is stored). 
 
 Client/user-owned data like trackers, static position objects, 
 map-extents, map-layer setups, etc through a REST API. Also, the drawing tool
