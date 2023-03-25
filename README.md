@@ -10,7 +10,7 @@ This is a _plugin_ that provides database storage using PostgreSQL (With PostGIS
 optional and was primarily meant for online servers having sufficient memory and storage. 
 It is used on aprs.no. 
 
-It can actually be useful on more portable servers, for instance on a Raspberry PI. 
+It can actually also be useful on more portable servers, for instance on a Raspberry PI. 
 
 
 ### Features
@@ -23,7 +23,7 @@ Client/user-owned data like trackers, static position objects,
 map-extents, map-layer setups, etc through a REST API. Also, the drawing tool
 uses it to store features. 
 
-It also supports replication with eventual consistency (CRDT) for some data objects. This is work in progress. 
+It also supports replication (between server-instances) with eventual consistency (CRDT) for some data objects. This is work in progress. 
 
 ## System requirements
 
