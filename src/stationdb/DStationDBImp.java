@@ -178,7 +178,7 @@ public class DStationDBImp extends StationDBBase implements StationDB
      * Update an existing tracker point. 
      * @param s existing station
      */
-    @Override public void updateItem(TrackerPoint s) {
+    @Override public void updateItem(TrackerPoint s, LatLng prevpos) {
         RtItemsDBSession db = null;
         try {
             db = new RtItemsDBSession(_dbp.getDB());
@@ -312,7 +312,6 @@ public class DStationDBImp extends StationDBBase implements StationDB
         RtItemsDBSession db = null;
         try {
             long start = System.nanoTime();
-            _cache.hits=0; _cache.misses=0;
             db = new RtItemsDBSession(_dbp.getDB()); // Autocommit on
             List<TrackerPoint> res = new ArrayList();
             String[] tags = filter.getTags(); 
@@ -325,8 +324,6 @@ public class DStationDBImp extends StationDBBase implements StationDB
             long finish = System.nanoTime();
             long timeElapsed = finish - start;
             System.out.println("Search Trackerpoints - Time Elapsed (us): " + timeElapsed/1000);
-            System.out.println("  Cache hits="+_cache.hits+", misses="+_cache.misses);
-            _cache.hits=0; _cache.misses=0;
             db.commit();
             return res;
         }    

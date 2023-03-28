@@ -115,7 +115,7 @@ public class DbSync implements Sync
     {
         /* 
          * If we detect that the same update-message has been here before, 
-         * we set the propagate flag to false.
+         * we ignore it and set the propagate flag to false.
          */
         if (_dup.contains(upd.origin+upd.ts)) {
             upd.propagate = false;
@@ -124,17 +124,22 @@ public class DbSync implements Sync
         else
             _dup.add(upd.origin+upd.ts);
         
+        /* Get the last executed command on the item id */
         SyncDBSession.SyncOp meta = db.getSync(upd.cid, upd.itemid);
+        
+        /* Last writer wins: Ignore command if it was issued before last executed command. */
         if (meta!=null && upd.ts <= meta.ts.getTime()) {
             _dbp.log().info("DbSync", TS(upd.ts)+" <= "+TS(meta.ts.getTime()));
             return false; 
         }
-
+        
+        /* Update comes after a delete */
         if ((meta==null || meta.cmd.equals("DEL")) && upd.cmd.equals("UPD")) {
             _dbp.log().info("DbSync", "Convert UPD to ADD: "+upd.cid+", "+upd.itemid);
             upd.cmd="ADD";
         }
             
+        /* Add comes after add or update */
         if (meta!=null && meta.cmd.equals("ADD") && upd.cmd.equals("ADD")
             || (meta!=null && meta.cmd.equals("UPD") && upd.cmd.equals("ADD"))) {
             _dbp.log().info("DbSync", "Convert ADD to UPD: "+upd.cid+", "+upd.itemid);

@@ -330,11 +330,6 @@ public class RestApi extends ServerBase implements JsonPoints
             
             /* Get user info */
             var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-            if (!auth.login())
-                return ERROR(resp, 401, "Authentication required");
-                
             MyDBSession db = _dbp.getDB();
             DbList<JsObject> a = null; 
             try {

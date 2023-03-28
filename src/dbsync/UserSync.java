@@ -106,6 +106,13 @@ public class UserSync implements Sync.Handler
             else
                 u.setGroup(g);
         }    
+        if (sc.group != null) {
+            Group g = _users.getGroupDb().get(sc.altgroup);
+            if (g==null)
+               _dbp.log().error("UserSync", "Update user: Unknown group: "+sc.altgroup);
+            else
+                u.setAltGroup(g);
+        }
         if (sc.name != null)
             u.setName(sc.name);           
         if (sc.callsign != null)
