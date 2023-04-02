@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import org.eclipse.jetty.server.*;
-
+import java.util.regex.*;
 
 /*
  * This will eventually replace the XML service for trail and point cloud. 
@@ -159,14 +159,24 @@ public class HistApi extends ServerBase implements JsonPoints
                 else
                     dto = df.parse(parms.value("tto"));
             
-                TrackerPoint s = db.getItem(src, dto);
+                TrackerPoint tp = db.getItem(src, dto);           
+                /* Get tags from db */
+                setTags(db, tp, dto);
+                
+                var auth = getAuthInfo(req);
+                boolean aliasAuth = auth.sar || auth.admin;
+                
+                /* Get alias and/or icon */
+                if (aliasAuth || (auth.group != null && tp.hasTag(auth.group.getTags())))
+                    db.getAnnotations(tp, dto);
+                            
                 DbList<TPoint> h = db.getTrail(src, dfrom, dto);
           
                 mu = new JsOverlay("HISTORICAL");
-                JsPoint p = createPoint(s, true, null);
+                JsPoint p = createPoint(tp, true, null);
                 if (p==null)
                     return ABORT(resp, db, "GET /hist/*/trail: Point not found", 404,  null);
-                p.trail = createTrail(s, h, null, true); 
+                p.trail = createTrail(tp, h, null, true); 
                 mu.points = new LinkedList<JsPoint>();
                 mu.points.add(p);
                 db.commit();
@@ -218,6 +228,9 @@ public class HistApi extends ServerBase implements JsonPoints
                 RuleSet vfilt = ViewFilter.getFilter(filt, uid != null); 
                 boolean reset = (parms.value("reset") != null);
                 
+                var auth = getAuthInfo(req);
+                boolean aliasAuth = auth.sar || auth.admin;
+                
                 mu = new JsOverlay("HISTORICAL");
                 mu.points = new LinkedList<JsPoint>();
                 DbList<MyDBSession.TrailItem> items = db.getTrailsAt(uleft, lright, dto);
@@ -227,6 +240,14 @@ public class HistApi extends ServerBase implements JsonPoints
                     if (!curr_ident.equals(it.ident)) {
                         processPoint(mu, tp, trail, vfilt, scale, reset);
                         tp = it.toPoint();
+                        
+                        /* Get tags from db */
+                        setTags(db, tp, dto);
+                        
+                        /* Get alias and/or icon */
+                        if (aliasAuth || tp.hasTag(auth.group.getTags()))
+                            db.getAnnotations(tp, dto);
+                        
                         trail.clear();
                         curr_ident = it.ident;
                     }
@@ -318,8 +339,17 @@ public class HistApi extends ServerBase implements JsonPoints
     private void addToTrail(TrackerPoint pt, MyDBSession.TrailItem it) {
         /* TBD */
     }
-        
-   
+    
+    
+    
+    private void setTags(MyDBSession db, TrackerPoint tp, Date dto) 
+        throws java.sql.SQLException
+    {
+        DbList<String> tags = db.getTagsAt(tp.getIdent(), dto);
+        for (String t : tags)
+            tp.setTag(t);
+    }
+    
                
                
     int trail_maxpause = 15; // FIXME: Use config
@@ -349,7 +379,6 @@ public class HistApi extends ServerBase implements JsonPoints
    
    
    
-   
     /** 
      * Convert Tracker point to JSON point. 
      * Return null if point has no position.  
@@ -361,11 +390,11 @@ public class HistApi extends ServerBase implements JsonPoints
             return null;
         ref=rref.toLatLng();  
         JsPoint x  = new JsPoint();
-        x.ident  = s.getIdent();
+        x.ident  = s.getDisplayId();
         x.label  = createLabel(s, moving, action);
         x.pos    = new double[] {ref.getLongitude(), ref.getLatitude()};
         
-        String icon = s.getIcon(); 
+        String icon = s.getIcon(true); 
         x.icon = "/icons/"+ icon; 
         return x;
     }
@@ -379,7 +408,7 @@ public class HistApi extends ServerBase implements JsonPoints
         lbl.style = (moving ? "lmoving" : "lstill");
         if (s instanceof AprsObject)
             lbl.style = "lobject"; 
-        lbl.id = s.getDisplayId(false);
+        lbl.id = s.getDisplayId(true);
         if (action!=null) 
             lbl.hidden = action.hideIdent();
         return lbl;

@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2013 by Oyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2013-2022 by Oyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -167,16 +167,15 @@ public class DbInstaller
                         "key varchar(20) PRIMARY KEY, "+
                         "obj bytea ");
         
-        
-        createClass("Mission", null, 
-                        "src    varchar(20) not null, " +
-                        "alias  varchar(30), " +
-                        "icon   varchar, " +
+
+        createClass("Annotation", null, 
+                        "src     varchar(20) not null, " +
+                        "alias   varchar(30) default null, " +
+                        "icon    varchar default null, " +
+                        "tag     varchar default null, " +
                         "tstart  timestamp without time zone not null, "  +
-                        "tend    timestamp without time zone, "  + /* NULL means still active */
-                        "descr  text, " +
-                        "PRIMARY KEY (src, tstart) " );
-                
+                        "tend    timestamp without time zone " );      
+            
                 
         createClass("Tracker", null, 
                         "id      varchar(20) not null PRIMARY KEY, " +
@@ -255,7 +254,8 @@ public class DbInstaller
         createClass("ServerStart", null, 
                         "time           timestamp without time zone not null ");
                         
-            
+                        
+        updateQuery("CREATE INDEX ON \"Annotation\" (src,tstart);");
         updateQuery("CREATE INDEX geoindex ON \"PosReport\" USING GIST (position);");
         updateQuery("CREATE INDEX geoindex_s ON \"Signs\" USING GIST (position);");
         updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");

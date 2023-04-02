@@ -15,13 +15,14 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 
-public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, StationDB.Hist, PluginApi
+public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, StationDB.Hist, PluginApi
 {
      protected DataSource _dsrc;
      private ServerAPI _api; 
      private DbMaintenance _maint; 
      private String _filter_chan, _filter1_chan, _filter2_chan;
      private String _filter_src, _filter1_src, _filter2_src;
+     private String _filter_tag, _filter1_tag, _filter2_tag;
      private boolean _isActive = false;
      private boolean _isOwner = false; 
      private boolean _enableHist = false;
@@ -119,13 +120,14 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
             /* Set stationDB implementation */
             boolean usert = api.getBoolProperty("db.rtdb", false);
             StationDB dbi; 
-            if (usert) 
+            if (usert) {
                 dbi = new DStationDBImp(api);
+                api.setDB(dbi);
+            }
             else {
-                dbi = new StationDBImp(api);
+                dbi = api.getDB();
                 ((StationDBImp) dbi).setHistDB(this);
             }
-            api.setDB(dbi);
            
            
             if (signs)                                   
@@ -278,11 +280,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
     
      /* Accept packet or posreport for storage */
      private boolean isAccepted(Source chan, String sender) {
-        if (chan.getIdent().matches(_filter_chan) && sender.matches(_filter_src))
+        if (chan != null && chan.getIdent().matches(_filter_chan)  && sender != null && sender.matches(_filter_src))
             return true;
-        if (chan.getIdent().matches(_filter1_chan) && sender.matches(_filter1_src))
+        if (chan != null && chan.getIdent().matches(_filter1_chan) && sender != null && sender.matches(_filter1_src))
             return true;
-        if (chan.getIdent().matches(_filter2_chan) && sender.matches(_filter2_src))
+        if (chan != null && chan.getIdent().matches(_filter2_chan) && sender != null && sender.matches(_filter2_src))
             return true;
             
         return false;
@@ -317,11 +319,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
                comment = "NULL"; 
               /* 
                * If item has not changed its position and the time since last 
-               * update is less than 3 hours, return. Important: We assume that this 
+               * update is less than 1 hour, return. Important: We assume that this 
                * method is called AFTER the realtime AprsPoint object is updated. 
                */
                // FIXME: is x.getLastChanged null in some cases? Just check for it? 
-               boolean recentUpdate = (new java.util.Date()).getTime() < x.getLastChanged().getTime() + 1000*60*60*3; 
+               boolean recentUpdate = (new java.util.Date()).getTime() < x.getLastChanged().getTime() + 1000*60*60*1; 
                if (!x.isChanging() && recentUpdate) 
                    return;
                if (!recentUpdate)
@@ -568,6 +570,61 @@ public class DatabasePlugin implements PluginManager.Plugin,  AprsHandler, Stati
         catch (DBSession.SessionError e) { return null; }
     }
     
-    
+        
+        
+    /**
+     * Log setting of alias
+     * @param src identifier
+     * @param alias Alias is set now. null to delete it. 
+     */
+    public synchronized void setAlias(TrackerPoint tp, String alias)
+    {
+        if (! isAccepted(tp.getSource(), tp.getIdent()))
+            return;
+        _log.info(null, "Set alias '"+alias+ "' for '"+tp.getIdent()+"'");
+        try {
+            getDB().simpleTrans("setAlias", x->
+                { ((MyDBSession)x).setAlias(tp.getIdent(), alias); return null;});
+        }
+        catch (DBSession.SessionError e) { }
+    }
+     
+     
+    /**
+     * Log setting of icon
+     * @param src identifier
+     * @param alias Icon filename is set now. null to delete it. 
+     */
+    public synchronized void setIcon(TrackerPoint tp, String icon)
+    {
+        if (! isAccepted(tp.getSource(), tp.getIdent()))
+            return;
+        _log.info(null, "Set icon for '"+tp.getIdent()+"'");
+        try {
+            getDB().simpleTrans("setIcon", x->
+                { ((MyDBSession)x).setIcon(tp.getIdent(), icon); return null;});
+        }
+        catch (DBSession.SessionError e) { }
+    }
+       
+       
+       
+    /**
+     * Set icon
+     * @param src identifier
+     * @param tag Icon 
+     * @param delete false if tag is to be added, true if it is to be removed
+     */
+    public synchronized void setTag(PointObject tp, String tag, boolean delete) 
+    {
+        if (! isAccepted(tp.getSource(), tp.getIdent()))
+            return;
+        try {
+            getDB().simpleTrans("setTag", x->
+                { ((MyDBSession)x).setTag(tp.getIdent(), tag, delete); return null;});
+        }
+        catch (DBSession.SessionError e) { }
+    }
+         
 }
  

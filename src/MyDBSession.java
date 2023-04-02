@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2014-2022 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +43,8 @@ public class MyDBSession extends DBSession
         public char symbol, symtab;
         public String path, ipath;
     
-        
+    
+        /* Should be used inside a transaction */
         public TrackerPoint toPoint() {
             String name[] = ident.split("@", 2);
             AprsPoint x = null;
@@ -58,13 +59,27 @@ public class MyDBSession extends DBSession
             x.updatePosition(time, pos); 
             x.setSymbol(symbol);
             x.setSymtab(symtab);
+            x.setNoDb(true);
             return x;
         }     
-             
-             
+
              
         public TrailItem(String i, String c, Reference p, java.util.Date t, char sym, char stab, String pt, String ipt)
             { ident=i; channel=c; pos=p; time=t; symbol=sym; symtab=stab; path=pt; ipath=ipt; }
+    }
+    
+   
+   
+    /* Should be used inside a transaction */
+    public void getAnnotations(TrackerPoint tp, java.util.Date time)       
+        throws java.sql.SQLException
+    {
+        String alias = getAliasAt(tp.getIdent(), time);
+        String icon = getIconAt(tp.getIdent(), time);
+        if (alias != null)
+            tp.setAlias(alias);
+        if (icon != null)
+            tp.setIcon(icon);
     }
     
    
@@ -246,11 +261,12 @@ public class MyDBSession extends DBSession
         } else
             x = new Station(src);
         
-        if (rs.next()) 
-           x.update(rs.getDate("time"), 
-             new AprsHandler.PosData(getRef(rs, "position"), rs.getInt("course"), rs.getInt("speed"), 
-                 rs.getString("symbol").charAt(0), rs.getString("symtab").charAt(0) ),
-             null, null);  
+        x.setNoDb(true);
+        if (rs.next()) {
+            x.updatePosition(rs.getDate("time"), getRef(rs, "position")); 
+            x.setSymbol(rs.getString("symbol").charAt(0) );
+            x.setSymtab(rs.getString("symtab").charAt(0) );
+        }
         return x; 
     } 
 
@@ -263,7 +279,8 @@ public class MyDBSession extends DBSession
        throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT pr.src as ident, pr.channel, pr.time, position, symbol, symtab, path, ipath, nopkt FROM \"PosReport\" AS pr" +
+           ( " SELECT pr.src as ident, pr.channel, pr.time, position, symbol, symtab, path, ipath, nopkt " +
+             " FROM \"PosReport\" AS pr" +
              " LEFT JOIN \"AprsPacket\" AS ap ON pr.src = ap.src AND pr.rtime = ap.time " +
              " WHERE ST_Contains( " +
              "    ST_MakeEnvelope(?, ?, ?, ?, 4326), position) "+
@@ -290,6 +307,59 @@ public class MyDBSession extends DBSession
     
     
     
+    public String getAliasAt(String ident, java.util.Date time)      
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT alias from \"Annotation\" "+
+              " WHERE alias IS NOT NULL AND src=? AND tstart < ? AND (tend IS NULL OR tend > ?) ",
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, ident);
+        stmt.setTimestamp(2, date2ts(time));
+        stmt.setTimestamp(3, date2ts(time));
+        
+        ResultSet rs = stmt.executeQuery();
+        if (rs.first())
+            return rs.getString("alias");
+        return null;
+    }
+       
+    
+    
+    public String getIconAt(String ident, java.util.Date time)      
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT icon from \"Annotation\" "+
+              " WHERE icon IS NOT NULL AND src=? AND tstart < ? AND (tend IS NULL OR tend > ?) ",
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, ident);
+        stmt.setTimestamp(2, date2ts(time));
+        stmt.setTimestamp(3, date2ts(time));
+        
+        ResultSet rs = stmt.executeQuery();
+        if (rs.first())
+            return rs.getString("icon");
+        return null;
+    }
+    
+
+            
+    public DbList<String> getTagsAt(String ident, java.util.Date time)      
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT tag from \"Annotation\" "+
+              " WHERE tag IS NOT NULL AND src=? AND tstart < ? AND (tend IS NULL OR tend > ?) ",
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, ident);
+        stmt.setTimestamp(2, date2ts(time));
+        stmt.setTimestamp(3, date2ts(time));
+        
+        return new DbList( stmt.executeQuery(), rs -> {
+            return rs.getString("tag");
+        });
+    }
     
     
     
@@ -604,6 +674,111 @@ public class MyDBSession extends DBSession
         );
     }
 
+    
+    
+    
+    
+    public void setAlias(String ident, String alias) 
+         throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT * from \"Annotation\" "+
+              " WHERE src=? AND alias IS NOT NULL AND tend IS NULL ORDER BY tstart DESC",  
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, ident);
+        ResultSet rs = stmt.executeQuery();
+        Timestamp tstart = null;
+        if (rs.first())
+            tstart = rs.getTimestamp("tstart");
+            
+        if (tstart != null) {
+            stmt = getCon().prepareStatement
+              ( " UPDATE \"Annotation\" SET tend = 'now' "+
+                " WHERE src=? AND tstart = ? "); 
+            stmt.setString(1, ident);
+            stmt.setTimestamp(2, tstart);
+            stmt.executeUpdate();
+        }
+            
+        if (alias != null) {
+            stmt = getCon().prepareStatement
+              ( " INSERT INTO \"Annotation\" (src, alias, tstart, tend) "+
+                " VALUES (?, ?, 'now', NULL) "); 
+            stmt.setString(1, ident);
+            stmt.setString(2, alias);
+            stmt.executeUpdate();
+        }    
+    }
+        
+        
+    public void setIcon(String ident, String icon) 
+         throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT * from \"Annotation\" "+
+              " WHERE src=? AND icon IS NOT NULL AND tend IS NULL ORDER BY tstart DESC",  
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, ident);
+        ResultSet rs = stmt.executeQuery();
+        Timestamp tstart = null;
+        if (rs.first())
+            tstart = rs.getTimestamp("tstart");
+            
+        if (tstart != null) {
+            stmt = getCon().prepareStatement
+              ( " UPDATE \"Annotation\" SET tend = 'now' "+
+                " WHERE src=? AND tstart = ? "); 
+            stmt.setString(1, ident);
+            stmt.setTimestamp(2, tstart);
+            stmt.executeUpdate();
+        }
+            
+        if (icon != null) {
+            stmt = getCon().prepareStatement
+              ( " INSERT INTO \"Annotation\" (src, icon, tstart, tend) "+
+                " VALUES (?, ?, 'now', NULL) "); 
+            stmt.setString(1, ident);
+            stmt.setString(2, icon);
+            stmt.executeUpdate();
+        }    
+    }
+    
+    
+    
+    public void setTag(String ident, String tag, boolean delete) 
+         throws java.sql.SQLException
+    {
+        if (tag == null)
+            return;
+            
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT * from \"Annotation\" "+
+              " WHERE src=? AND tag=? AND tend IS NULL ORDER BY tstart DESC",  
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, ident);
+        stmt.setString(2, tag);
+        ResultSet rs = stmt.executeQuery();
+        Timestamp tstart = null;
+        if (rs.first())
+            tstart = rs.getTimestamp("tstart");
+            
+        if (delete) {
+            stmt = getCon().prepareStatement
+              ( " UPDATE \"Annotation\" SET tend = 'now' "+
+                " WHERE src=? AND tstart = ? "); 
+            stmt.setString(1, ident);
+            stmt.setTimestamp(2, tstart);
+            stmt.executeUpdate();
+        }
+        else if (tstart == null) {
+            stmt = getCon().prepareStatement
+              ( " INSERT INTO \"Annotation\" (src, tag, tstart, tend) "+
+                " VALUES (?, ?, 'now', NULL) "); 
+            stmt.setString(1, ident);
+            stmt.setString(2, tag);
+            stmt.executeUpdate();
+        }    
+    }
         
 
 }

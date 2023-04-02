@@ -164,6 +164,27 @@ if ((VERSION < 7)); then
 fi
 
 
+if ((VERSION < 8)); then
+    echo "Upgrading schema to version 8"
+        psql -t -c "BEGIN;  \
+        DROP TABLE \"Mission\"; \
+        CREATE TABLE \"Annotation\" ( \
+          src varchar(20) not null, \
+          alias varchar(30) default null, \
+          icon varchar default null, \
+          tag varchar default null, \
+          tstart timestamp without time zone not null, \
+          tend timestamp without time zone ); \
+        \
+        ALTER TABLE \"Annotation\" owner to polaric; \
+        CREATE INDEX ON \"Annotation\" (src,tstart); \
+        UPDATE \"MetaData\" SET version=8; \
+        \
+        COMMIT " polaric
+fi
+
+
+
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then
     echo "Adding classes/icons in \"SignClass\""
