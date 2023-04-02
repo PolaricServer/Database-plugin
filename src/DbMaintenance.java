@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2014 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -83,7 +83,7 @@ public class DbMaintenance implements Runnable
             /* Also delete data where time is in the future (because of bugs) */
             db.getCon().prepareStatement
               ( "DELETE FROM \"PosReport\" " + 
-                "WHERE time > 'now + INTERVAL 2 hours'" );
+                "WHERE time > now() + INTERVAL '2 hours'" );
             deleted = stmt.executeUpdate();
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
