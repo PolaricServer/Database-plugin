@@ -29,7 +29,7 @@ public class DbInstaller
      private static Connection _db;
      
      /* Schema version - increase when changing schema and provide upgrade method */
-     private static final int _VERSION = 7; 
+     private static final int _VERSION = 8; 
      
          
      static {
@@ -97,13 +97,20 @@ public class DbInstaller
          removeClass("MetaData");
          removeClass("AprsPacket"); 
          removeClass("PosReport");     
-         removeClass("StatusReport");  
+         removeClass("StatusReport"); 
+         removeClass("Annotation");
          removeClass("AprsMessage");   
          removeClass("Mission");
          removeClass("Tracker");
          removeClass("JsObject");
+         removeClass("ObjectAccess");
          removeClass("SignClass");
-         removeClass("Signs");
+         removeClass("Signs"); 
+         removeClass("TrTags");
+         removeClass("DbSync");
+         removeClass("DbSyncQueue");
+         removeClass("ServerStats");
+         removeClass("ServerStart");
      }
      
      
@@ -150,22 +157,6 @@ public class DbInstaller
         createClass("StatusReport", "AprsMessage",
                         "dest    varchar(10) not null, " +
                         "info    text ");           
-        
-        
-        /* New in schema v. 7 */
-        createClass("RtPoint", null, 
-                        "ident   varchar(20) PRIMARY KEY, " +
-                        "cls     varchar NOT NULL, " +
-                        "time    timestamp WITHOUT TIME ZONE NOT NULL, " +
-                        "descr   varchar, " +
-                        "obj     bytea ");
-        addGeoField("RtPoint", "pos", 4326, "POINT", 2); 
-        
-        
-        /* New in schema v. 7 */
-        createClass("SysObject", null, 
-                        "key varchar(20) PRIMARY KEY, "+
-                        "obj bytea ");
         
 
         createClass("Annotation", null, 

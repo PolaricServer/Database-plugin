@@ -118,16 +118,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
               
             
             /* Set stationDB implementation */
-            boolean usert = api.getBoolProperty("db.rtdb", false);
-            StationDB dbi; 
-            if (usert) {
-                dbi = new DStationDBImp(api);
-                api.setDB(dbi);
-            }
-            else {
-                dbi = api.getDB();
-                ((StationDBImp) dbi).setHistDB(this);
-            }
+            StationDB dbi = api.getDB();
+            ((StationDBImp) dbi).setHistDB(this);
            
            
             if (signs)                                   

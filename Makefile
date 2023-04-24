@@ -13,7 +13,7 @@
 ##########################################################################
   CLASSDIR = classes
       ALIB = aprsd-lib
- CLASSPATH = polaric-aprsd.jar:aprsd-lib/jcoord-polaric.jar:aprsd-lib/fst-polaric.jar:/usr/share/java/HikariCP.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis-jdbc.jar:$(ALIB)/spark-core-polaric.jar:$(ALIB)/jetty-polaric.jar:/usr/share/java/jackson-annotations.jar
+ CLASSPATH = polaric-aprsd.jar:aprsd-lib/jcoord-polaric.jar:/usr/share/java/HikariCP.jar:/usr/share/java/postgresql-jdbc4.jar:/usr/share/java/postgis-jdbc.jar:$(ALIB)/spark-core-polaric.jar:$(ALIB)/jetty-polaric.jar:/usr/share/java/jackson-annotations.jar
      JAVAC = javac -source 11 -target 11
        JAR = jar
 
@@ -32,7 +32,7 @@ INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd/config.d
 ##################################################
     LIBDIR = _lib
  JAVAFLAGS =
- PACKAGES  = core http dbsync stationdb plugin
+ PACKAGES  = core http dbsync plugin
 
 
 
@@ -84,11 +84,6 @@ http: core
 .PHONY : dbsync
 dbsync: core
 	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/dbsync/*.java
-
-	
-.PHONY : stationdb
-stationdb: core
-	$(JAVAC) -d $(TDIR) $(JAVAFLAGS) src/stationdb/*.java
 
 	
 .PHONY : stats

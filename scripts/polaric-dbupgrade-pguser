@@ -122,34 +122,14 @@ fi
 
 if ((VERSION < 7)); then
     echo "Upgrading schema to version 7"
-        psql -t -c "BEGIN;  \
-        CREATE TABLE \"RtPoint\" ( \
-          ident varchar(20) PRIMARY KEY, \
-          cls varchar NOT NULL, \
-          time timestamp WITHOUT TIME ZONE NOT NULL, \
-          descr varchar,  \
-          obj bytea ); \
-        \
-        SELECT AddGeometryColumn('RtPoint', 'pos', 4326, 'POINT', 2); \
-        \
-        CREATE TABLE \"SysObject\" ( \
-          key varchar(20) PRIMARY KEY, \
-          obj bytea ); \
-        \
-        CREATE INDEX geoindex_rt ON \"RtPoint\" USING  gist (pos); \
-        CLUSTER \"RtPoint\" USING geoindex_rt; \
-        \
-        ALTER TABLE \"RtPoint\" owner to polaric; \
-        ALTER TABLE \"SysObject\" owner to polaric; \
-        UPDATE \"MetaData\" SET version=7; \
-        \
+    psql -t -c "BEGIN;  \
         ALTER TABLE \"JsObject\" ALTER COLUMN id DROP DEFAULT; \
         ALTER TABLE \"ObjectAccess\" DROP CONSTRAINT \"ObjectAccess_id_fkey\"; \
         ALTER TABLE \"ObjectAccess\" ALTER COLUMN id TYPE varchar; \
         ALTER TABLE \"JsObject\" ALTER COLUMN id TYPE varchar; \
         ALTER TABLE \"ObjectAccess\" ADD FOREIGN KEY(id) REFERENCES \"JsObject\"(id) ON DELETE CASCADE; \
-        DROP SEQUENCE \"JsObject_id_seq\"; \
-        CREATE SEQUENCE jsobject_seq START WITH 5000; \
+        DROP SEQUENCE IF EXISTS \"JsObject_id_seq\"; \
+        CREATE SEQUENCE IF NOT EXISTS jsobject_seq START WITH 5000; \
         ALTER SEQUENCE jsobject_seq OWNER TO polaric; \
         \
         DELETE FROM \"DbSync\"; \
@@ -160,15 +140,19 @@ if ((VERSION < 7)); then
         ALTER TABLE \"DbSyncQueue\" RENAME COLUMN peer to nodeid; \
         ALTER TABLE \"DbSyncQueue\" DROP CONSTRAINT \"DbSyncQueue_pkey\"; \
         \
+        UPDATE \"MetaData\" SET version=7; \
         COMMIT " polaric
 fi
 
 
 if ((VERSION < 8)); then
     echo "Upgrading schema to version 8"
-        psql -t -c "BEGIN;  \
-        DROP TABLE \"Mission\"; \
-        CREATE TABLE \"Annotation\" ( \
+    psql -t -c "BEGIN;  \
+        DROP TABLE IF EXISTS \"Mission\"; \
+        DROP TABLE IF EXISTS \"RtPoint\"; \
+        DROP TABLE IF EXISTS \"SysObject\"; \
+        DROP INDEX IF EXISTS geoindex_rt; \
+        CREATE TABLE IF NOT EXISTS \"Annotation\" ( \
           src varchar(20) not null, \
           alias varchar(30) default null, \
           icon varchar default null, \
@@ -177,7 +161,7 @@ if ((VERSION < 8)); then
           tend timestamp without time zone ); \
         \
         ALTER TABLE \"Annotation\" owner to polaric; \
-        CREATE INDEX ON \"Annotation\" (src,tstart); \
+        CREATE INDEX IF NOT EXISTS annotation_idx ON \"Annotation\" (src,tstart); \
         UPDATE \"MetaData\" SET version=8; \
         \
         COMMIT " polaric
