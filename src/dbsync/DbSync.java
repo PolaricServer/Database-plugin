@@ -78,7 +78,11 @@ public class DbSync implements Sync
             } 
         );
 
-        
+
+        /* 
+         * Read the setup of peer nodes from config file. 
+         * If URL is given, register as server-nodes. 
+         */
         int npeers = api.getIntProperty("db.sync.nnodes", 0);
         for (int i=1; i<=npeers; i++) {
             String id = api.getProperty("db.sync.node"+i+".ident", null);
@@ -127,7 +131,7 @@ public class DbSync implements Sync
         /* Get the last executed command on the item id */
         SyncDBSession.SyncOp meta = db.getSync(upd.cid, upd.itemid);
         
-        /* Last writer wins: Ignore command if it was issued before last executed command. */
+        /* Last writer wins (LWW): Ignore command if it was issued before last executed command. */
         if (meta!=null && upd.ts <= meta.ts.getTime()) {
             _dbp.log().info("DbSync", TS(upd.ts)+" <= "+TS(meta.ts.getTime()));
             return false; 
@@ -263,7 +267,7 @@ public class DbSync implements Sync
     
 
     /* 
-     * This is called periodically. 20 second interval. It attempts to POST the updates
+     * This is called periodically. 20 second interval. It attempts to send the updates
      * to the peer nodes. If request succeeds, it is deleted from the queue. If not, it 
      * is rescheduled and we will retry after a while. 
      */
