@@ -241,6 +241,7 @@ public class DBSession
          }
          catch (Exception e) {
             _log.warn("DbSession", "Aborted transaction, "+name+": "+e);  
+            e.printStackTrace(System.out);
             abort(); 
             return null;
          }   

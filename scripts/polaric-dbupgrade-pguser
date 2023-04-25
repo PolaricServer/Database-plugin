@@ -90,6 +90,7 @@ if ((VERSION < 5)); then
         COMMIT " polaric
 fi
 
+
 if ((VERSION < 6)); then
     echo "Upgrading schema to version 6"
     
@@ -120,6 +121,7 @@ if ((VERSION < 6)); then
         COMMIT " polaric
 fi
 
+
 if ((VERSION < 7)); then
     echo "Upgrading schema to version 7"
     psql -t -c "BEGIN;  \
@@ -133,10 +135,10 @@ if ((VERSION < 7)); then
         ALTER SEQUENCE jsobject_seq OWNER TO polaric; \
         \
         DELETE FROM \"DbSync\"; \
-        ALTER TABLE \"DbSync\" ADD COLUMN op varchar(10) NOT NULL; \
+        ALTER TABLE \"DbSync\" ADD COLUMN IF NOT EXISTS op varchar(10) NOT NULL; \
         ALTER TABLE \"DbSync\" DROP CONSTRAINT \"DbSync_pkey\"; \
         DELETE FROM \"DbSync\" WHERE op IS null; \
-        ALTER TABLE \"DbSyncQueue\" ADD COLUMN origin varchar; \
+        ALTER TABLE \"DbSyncQueue\" ADD COLUMN IF NOT EXISTS origin varchar; \
         ALTER TABLE \"DbSyncQueue\" RENAME COLUMN peer to nodeid; \
         ALTER TABLE \"DbSyncQueue\" DROP CONSTRAINT \"DbSyncQueue_pkey\"; \
         \
