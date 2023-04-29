@@ -22,6 +22,9 @@ import javax.servlet.*;
 import javax.servlet.http.*;
 import org.eclipse.jetty.server.*;
 import java.util.regex.*;
+import java.time.*;
+
+
 
 /*
  * This will eventually replace the XML service for trail and point cloud. 
@@ -35,7 +38,8 @@ public class HistApi extends ServerBase implements JsonPoints
     private ColourTable _colTab = null;
     private HashMap<String, String[]> _colUsed = new HashMap<String,String []>();
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
-       
+    
+            
     public HistApi(ServerAPI api) {
         super (api); 
         _api = api;
@@ -70,6 +74,12 @@ public class HistApi extends ServerBase implements JsonPoints
     }
       
 
+    public Date parseIsoDf(String d) {
+        Instant timestamp = Instant.parse(d);
+        ZonedDateTime local = timestamp.atZone(ZoneId.systemDefault());
+        return Date.from(local.toInstant());
+    }
+    
     
     
     /** 
@@ -106,12 +116,12 @@ public class HistApi extends ServerBase implements JsonPoints
                 if (dtos == null || "-/-".equals(dtos))
                     dto = new Date();
                 else
-                    dto = df.parse(dtos);
+                    dto = parseIsoDf(dtos);
                 
                 Date dfrom = null;
                 String dfroms = parms.value("tfrom"); 
                 if (dfroms != null) 
-                    dfrom = df.parse(dfroms);
+                    dfrom = parseIsoDf(dfroms);
                     
                 DbList<AprsPacket> list = db.getAprsPackets(src, n, dto, dfrom);
                 List<RawPacket> res = new ArrayList<RawPacket>(); 
@@ -120,9 +130,6 @@ public class HistApi extends ServerBase implements JsonPoints
                 db.commit();
                 return res;
             }    
-            catch(java.text.ParseException e) {  
-                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse timestring", 400,  null);
-            }
             catch(java.lang.NumberFormatException e) {  
                 return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 400,  null);
             }
@@ -152,12 +159,12 @@ public class HistApi extends ServerBase implements JsonPoints
             JsOverlay mu = null;
             
             try {
-                Date dfrom = df.parse(parms.value("tfrom"));
+                Date dfrom = parseIsoDf(parms.value("tfrom"));
                 Date dto = null; 
                 if (parms.value("tto").equals("-/-"))
                     dto = new Date(); 
                 else
-                    dto = df.parse(parms.value("tto"));
+                    dto = parseIsoDf(parms.value("tto"));
             
                 TrackerPoint tp = db.getItem(src, dto);           
                 /* Get tags from db */
@@ -181,10 +188,6 @@ public class HistApi extends ServerBase implements JsonPoints
                 mu.points.add(p);
                 db.commit();
                 return mu;
-            }
-            catch(java.text.ParseException e) {  
-                return ABORT(resp, db, "GET /hist/*/trail: Cannot parse timestring", 400, 
-                   "Cannot parse timestring");
             }
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/*/trail: SQL error: "+e.getMessage(), 500, 
@@ -222,7 +225,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 Reference uleft  = new LatLng((double) x4, (double) x1); 
                 Reference lright = new LatLng((double) x2, (double) x3);
                 
-                Date dto = df.parse(parms.value("tto"));
+                Date dto = parseIsoDf(parms.value("tto"));
                 double scale = Double.parseDouble(parms.value("scale"));
                 String filt = parms.value("filter");
                 RuleSet vfilt = ViewFilter.getFilter(filt, uid != null); 
@@ -245,7 +248,7 @@ public class HistApi extends ServerBase implements JsonPoints
                         setTags(db, tp, dto);
                         
                         /* Get alias and/or icon */
-                        if (aliasAuth || tp.hasTag(auth.group.getTags()))
+                        if (aliasAuth || (auth.group != null && tp.hasTag(auth.group.getTags())))
                             db.getAnnotations(tp, dto);
                         
                         trail.clear();
@@ -260,10 +263,6 @@ public class HistApi extends ServerBase implements JsonPoints
                 processPoint(mu, tp, trail, vfilt, scale, reset);
                 db.commit();
                 return mu;
-            }
-            catch(java.text.ParseException e) { 
-                return ABORT(resp, db, "GET /hist/snapshot: Cannot parse number or timestring", 500,  
-                    "Cannot parse timestring");
             }
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/snapshot: SQL error: "+e.getMessage(), 500, 
@@ -297,12 +296,12 @@ public class HistApi extends ServerBase implements JsonPoints
             try {
                 String tfrom = parms.value("tfrom");
                 String tto = parms.value("tto");
-                Date dfrom = df.parse(tfrom);
+                Date dfrom = parseIsoDf(tfrom);
                 Date dto = null; 
                 if (tto.equals("-/-"))
                     dto = new Date(); 
                 else
-                    dto = df.parse(tto);
+                    dto = parseIsoDf(tto);
 
                 Station s = (Station) db.getItem(src, dto);
                 DbList<TPoint> h = db.getPointsVia(src, null, null, dfrom, dto);          
@@ -318,9 +317,6 @@ public class HistApi extends ServerBase implements JsonPoints
                     mu.pcloud.add(new JsTPoint(x));
                 db.commit();
                 return mu;
-            }
-            catch(java.text.ParseException e) {  
-                return ABORT(resp, db, "GET /hist/*/hrdvia: Cannot parse timestring", 400,  null);
             }
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/*/hrdvia: SQL error:"+e.getMessage(), 500, null); 
