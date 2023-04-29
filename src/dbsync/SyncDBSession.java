@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2014 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ public class SyncDBSession extends DBSession
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, nodeid);
 
-        return new DbList( stmt.executeQuery(), rs ->
+        return new DbList<Sync.ItemUpdate>( stmt.executeQuery(), rs ->
             { return new Sync.ItemUpdate
                (rs.getString("cid"), rs.getString("item"), rs.getString("userid"), rs.getString("cmd"), rs.getString("arg"), 
                rs.getTimestamp("ts").getTime(), rs.getString("origin"));  });      

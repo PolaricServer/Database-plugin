@@ -1,6 +1,6 @@
  
 /* 
- * Copyright (C) 2014-2022 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -146,7 +146,7 @@ public class TrackerDBSession extends DBSession
               " WHERE userid=? ORDER BY id ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, user);
-        return new DbList( stmt.executeQuery(), rs ->
+        return new DbList<Tracker>( stmt.executeQuery(), rs ->
             { return new Tracker(_api.getDB(), rs.getString("id"), user, rs.getString("alias"), rs.getString("icon"));  }
         );
     }
@@ -160,7 +160,7 @@ public class TrackerDBSession extends DBSession
               " WHERE t.userid=tr.userid AND id=? ORDER BY tag ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, id);
-        return new DbList( stmt.executeQuery(), rs ->
+        return new DbList<String>( stmt.executeQuery(), rs ->
             { return rs.getString("tag"); }
         );
     }
@@ -174,7 +174,7 @@ public class TrackerDBSession extends DBSession
               " WHERE userid=? ORDER BY tag ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, id);
-        return new DbList( stmt.executeQuery(), rs ->
+        return new DbList<String>( stmt.executeQuery(), rs ->
             { return rs.getString("tag"); }
         );
     }

@@ -33,7 +33,7 @@ public class HistApi extends ServerBase implements JsonPoints
     private ServerAPI _api; 
     private PluginApi _dbp;
     private ColourTable _colTab = null;
-    private HashMap<String, String[]> _colUsed = new HashMap();
+    private HashMap<String, String[]> _colUsed = new HashMap<String,String []>();
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
     public HistApi(ServerAPI api) {
@@ -114,7 +114,7 @@ public class HistApi extends ServerBase implements JsonPoints
                     dfrom = df.parse(dfroms);
                     
                 DbList<AprsPacket> list = db.getAprsPackets(src, n, dto, dfrom);
-                List<RawPacket> res = new ArrayList(); 
+                List<RawPacket> res = new ArrayList<RawPacket>(); 
                 for (AprsPacket x: list)
                     res.add(new RawPacket(x.time, x.source.getIdent(), x.from, x.to, x.via, x.report));
                 db.commit();

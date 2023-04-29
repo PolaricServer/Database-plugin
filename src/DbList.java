@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2014 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -90,16 +90,17 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
       catch (SQLException ex) 
          { System.out.println("DbList.hasNext: "+ex); return false; } 
     }
+
     
-   
+   @SuppressWarnings("unchecked")
     public T next() 
     {
        try {
          if (_rs.next()) {
             if (_fieldname != null) 
-                 return (T) _rs.getObject(_fieldname);
+                return (T) _rs.getObject(_fieldname);
             else
-                 return (T) _fact.getElement(_rs); 
+                return (T) _fact.getElement(_rs); 
          }
          return null; 
        }

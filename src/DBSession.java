@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2016 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2016-2023 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ public class DBSession
 {   
      protected ServerAPI _api; 
      private Connection _con;
-     private static Map<String, TransInfo> _inProgress = new HashMap();
+     private static Map<String, TransInfo> _inProgress = new HashMap<String, TransInfo>();
      private static Timer _transTimer = new Timer("TransactionTimer");
      protected Logfile _log; 
      

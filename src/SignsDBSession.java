@@ -1,6 +1,6 @@
  
 /* 
- * Copyright (C) 2014-2022 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -89,6 +89,8 @@ public class SignsDBSession extends DBSession
          rs.next();
          return rs.getString("id");
     }
+    
+    
     
     public String addSign(String srvid, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
             throws java.sql.SQLException
@@ -187,7 +189,7 @@ public class SignsDBSession extends DBSession
         stmt.setDouble(5, lr.getLat());
         stmt.setMaxRows(300);
          
-        return new DbList(stmt.executeQuery(), rs -> 
+        return new DbList<Signs.Item>(stmt.executeQuery(), rs -> 
             {
                 String icon = rs.getString("sicon");
                 if (icon == null)
@@ -219,7 +221,7 @@ public class SignsDBSession extends DBSession
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT ); 
         stmt.setMaxRows(5000);
          
-        return new DbList(stmt.executeQuery(), rs -> 
+        return new DbList<Sign>(stmt.executeQuery(), rs -> 
             {
                 String icon = rs.getString("sicon");
                 if (icon == null)
@@ -253,7 +255,7 @@ public class SignsDBSession extends DBSession
             ( " SELECT * from \"SignClass\" ORDER BY name ASC ", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          
-        return new DbList(stmt.executeQuery(), rs ->
+        return new DbList<Sign.Category>(stmt.executeQuery(), rs ->
             { return new Sign.Category(rs.getInt("id"), rs.getString("name"), rs.getString("icon")); });
     }
     

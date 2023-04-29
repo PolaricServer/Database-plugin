@@ -95,6 +95,8 @@ public class SignsApi extends ServerBase implements JsonPoints
         _api.getWebserver().protectUrl("/signs/*", "sar");
                 
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        
+        
         _psub.createRoom("sign", (Class) null); 
                 
         /**************************************************************************** 
@@ -103,7 +105,7 @@ public class SignsApi extends ServerBase implements JsonPoints
          ****************************************************************************/
          
         get("/signs/types", "application/json", (req, resp) -> {
-            List<Sign.Category> res = new ArrayList(); 
+            List<Sign.Category> res = new ArrayList<Sign.Category>(); 
             /* Database transaction */
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {

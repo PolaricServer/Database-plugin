@@ -149,7 +149,7 @@ public class MyDBSession extends DBSession
         }
         stmt.setMaxRows(15000);
         
-        return new DbList(stmt.executeQuery(), rs ->
+        return new DbList<TPoint>(stmt.executeQuery(), rs ->
             { return new TPoint(null, getRef(rs, "position"), null); });
     }
     
@@ -203,7 +203,7 @@ public class MyDBSession extends DBSession
         stmt.setTimestamp(3, date2ts(to));
         stmt.setMaxRows(5000);
                 
-        return new DbList(stmt.executeQuery(), rs -> { 
+        return new DbList<TPoint>(stmt.executeQuery(), rs -> { 
             return new TPoint(rs.getTimestamp("time"), getRef(rs, "position"), getPath(rs));  
         });
     }
@@ -295,7 +295,7 @@ public class MyDBSession extends DBSession
         stmt.setTimestamp(5, date2ts(tto));
         stmt.setTimestamp(6, date2ts(tto));
         
-        return new DbList(stmt.executeQuery(), rs -> 
+        return new DbList<TrailItem>(stmt.executeQuery(), rs -> 
             {
                 return new TrailItem (
                     rs.getString("ident"), rs.getString("channel"), getRef(rs, "position"), 
@@ -356,7 +356,7 @@ public class MyDBSession extends DBSession
         stmt.setTimestamp(2, date2ts(time));
         stmt.setTimestamp(3, date2ts(time));
         
-        return new DbList( stmt.executeQuery(), rs -> {
+        return new DbList<String>( stmt.executeQuery(), rs -> {
             return rs.getString("tag");
         });
     }
@@ -392,7 +392,7 @@ public class MyDBSession extends DBSession
         stmt.setInt(i, n);
         
         
-        return new DbList(stmt.executeQuery(), rs -> 
+        return new DbList<AprsPacket>(stmt.executeQuery(), rs -> 
             {
                 AprsPacket p =  new AprsPacket();
                 String path = rs.getString("path");
@@ -500,7 +500,7 @@ public class MyDBSession extends DBSession
          stmt.setString(2, "@"+(group==null ? "NOLOGIN": group));
          stmt.setString(3, tag);
          
-         return new DbList( stmt.executeQuery(), rs -> {
+         return new DbList<JsObject>( stmt.executeQuery(), rs -> {
                 boolean ro = rs.getBoolean("readonly");
                 if (rs.getString("userid").matches("(#ALL)|(@.*)"))
                     ro = true;
@@ -669,7 +669,7 @@ public class MyDBSession extends DBSession
               " WHERE id=? ",  
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, id);
-        return new DbList( stmt.executeQuery(), rs ->
+        return new DbList<JsObject.User>( stmt.executeQuery(), rs ->
             { return new JsObject.User(rs.getString("userid"), rs.getBoolean("readonly"));  }
         );
     }
