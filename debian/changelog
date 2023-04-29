@@ -1,3 +1,12 @@
+polaric-db-plugin (2.12) stable; urgency=medium
+
+  * Store and query annotations (tags, alias, icon)
+  * Remove DStationDbImp
+  * Move to JDK17
+  * Various fixes..
+  
+ -- Oyvind Hanssen <ohanssen@acm.org>  Wed, 26 Apr 2023 18:51:23 +0200
+
 polaric-db-plugin (2.11) stable; urgency=medium
 
   * StationDB implementation using database
@@ -6,7 +15,7 @@ polaric-db-plugin (2.11) stable; urgency=medium
   * DbSync - use websocket for updating
   * Various fixes..
 
- -- Oyvind Hanssen <oivindh@la7eca>  Thu, 02 Feb 2023 22:34:02 +0100
+ -- Oyvind Hanssen <ohanssen@acm.org>  Thu, 02 Feb 2023 22:34:02 +0100
 
 polaric-db-plugin (2.10) stable; urgency=medium
 
