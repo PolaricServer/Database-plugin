@@ -196,7 +196,7 @@ public class DbInstaller
                                 
         /* new in schema v. 2 */
         createClass("JsObject", null, 
-                        "id      varchar, " +
+                        "id      varchar not null PRIMARY KEY, " +
                         "tag     varchar(20), " +
                         "data    text" );
 
@@ -253,11 +253,13 @@ public class DbInstaller
         updateQuery("CREATE INDEX posreport_time_src_idx on \"PosReport\" (time,src);");
         updateQuery("CREATE INDEX aprspacket_src_time_idx on \"AprsPacket\" (src, time);");
         
-        updateQuery("CREATE INDEX geoindex_rt ON \"RtPoint\" USING  gist (pos);");
-        updateQuery("CLUSTER \"RtPoint\" USING geoindex_rt;");
-        
         updateQuery("CREATE SEQUENCE signs_seq START WITH 2000 owned by \"Signs\".id;");
         updateQuery("CREATE SEQUENCE jsobject_seq START WITH 5000 owned by \"JsObject\".id;");
+        
+        updateQuery("INSERT INTO \"SignClass\" (id,name,icon) values (0, 'Default', 'signs/point.png');");
+        updateQuery("INSERT INTO \"SignClass\" (id,name,icon) values (1, 'Info', 'signs/info.png');");
+        updateQuery("INSERT INTO \"SignClass\" (id,name,icon) values (8, 'Radio installation', 'signs/signal.png');");
+        
      }
      
       
