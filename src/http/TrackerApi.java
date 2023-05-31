@@ -193,14 +193,14 @@ public class TrackerApi extends ServerBase implements JsonPoints
             Tracker.Info tr = (Tracker.Info) 
                 ServerBase.fromJson(req.body(), Tracker.Info.class);
             if (tr==null) 
-                return ERROR(resp, 500, "Cannot parse input");   
+                return ERROR(resp, 400, "Cannot parse input");   
                 
             /* 
              * Check if user is allowed to post this for a tracker. Note that this check 
              * is only for active trackers. Non-active trackers will be allowed.
              * FIXME: Need to improve this check? 
              */
-            MyDBSession db = _dbp.getDB();
+            MyDBSession db = _dbp.getDB(false);
             var item = db.getItem(tr.id, null); 
             if (item != null && !sarAuthForItem(req, item))
                 return ERROR(resp, 403, "Not allowed to manage this tracker: "+tr.id);
@@ -224,8 +224,14 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 db.commit();
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
+            
             catch (java.sql.SQLException e) {
                 return ABORT(resp, tdb, "POST /trackers: SQL error:"+e.getMessage(),
+                    500, "SQL error: "+e.getMessage());
+            }
+            catch (Exception e) {
+                e.printStackTrace(System.out);
+                return ABORT(resp, tdb, "POST /trackers: rror:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { tdb.close(); }
