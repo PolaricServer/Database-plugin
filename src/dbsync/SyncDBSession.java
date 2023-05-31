@@ -47,6 +47,24 @@ public class SyncDBSession extends DBSession
    }
    
    
+   public static class SyncPeer  { 
+        public String nodeid, url, items;
+        public boolean active = false;
+        
+        public void setActive() {
+            active = true;
+        }
+        
+        public SyncPeer(String id, String u, String it) {
+            nodeid=id; 
+            url=u; 
+            items=it;
+        }
+   }
+   
+   
+   
+   
    SyncDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
     throws DBSession.SessionError
    {
@@ -165,6 +183,60 @@ public class SyncDBSession extends DBSession
         stmt.executeUpdate();
     }
     
+    
 
+    public void addSyncPeer(String nodeid, String items, String url)
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"DbSyncPeers\" (nodeid,item,url) " + 
+                " VALUES (?,?,?)" );
+        stmt.setString(1,nodeid );
+        stmt.setString(2,items);
+        stmt.setString(3,url);          
+        stmt.executeUpdate();
+    }
+    
+    
+    
+    public void removeSyncPeer(String nodeid)
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " DELETE FROM \"DbSyncPeers\"" + 
+                " WHERE nodeid=? " );
+        stmt.setString(1, nodeid);
+        stmt.executeUpdate();
+    }
+    
+    
+    
+    public SyncPeer getSyncPeer(String nodeid) 
+                    throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " SELECT * FROM \"DbSyncPeers\"" + 
+                " WHERE nodeid=? " );
+        stmt.setString(1, nodeid);
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next())
+            return new SyncPeer(nodeid, rs.getString("url"), rs.getString("item")); ;
+        return null;
+    }
+        
+        
+    
+    public DbList<SyncPeer> getSyncPeers(boolean server) 
+                    throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " SELECT * FROM \"DbSyncPeers\""+ 
+                (server ? " WHERE NOT url is null " : ""),
+                ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY  );
+        return new DbList<SyncPeer>( stmt.executeQuery(), rs ->
+            { return new SyncPeer
+               (rs.getString("nodeid"), rs.getString("url"), rs.getString("item"));  }); 
+    }
+    
 }
 

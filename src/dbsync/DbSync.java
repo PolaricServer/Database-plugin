@@ -24,8 +24,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import no.polaric.aprsd.filter.*;
 import java.util.stream.Collectors;
-import  java.sql.*;
-import  javax.sql.*;
+import java.sql.*;
+import javax.sql.*;
+import java.net.*;
 import java.net.http.*;
 import static spark.Spark.*;
 
@@ -38,23 +39,35 @@ public class DbSync implements Sync
 {
     private ServerAPI _api;   
     private PluginApi _dbp;
+    private DbSyncApi _dsapi; 
     private Map<String, Handler> _handlers = new HashMap<String, Handler>();
     private Timer hb = new Timer();
     private DuplicateChecker _dup = new DuplicateChecker(300);
+    private HmacAuth _auth;
     private String _ident;
     
-    
+
+    /* Parent URL */
+    private Map<String,String> _parent = new HashMap<String, String>();
     /* Websocket connected nodes */
     private NodeWsApi<ItemUpdate> _wsNodes;
     /* Configured nodes */
     private Map<String, String> _nodes = new HashMap<String, String>();
     /* Nodes on wait */
-    private Map<String, Integer> _pending = new HashMap<String, Integer>();       
+    private Map<String, Retry> _pending = new HashMap<String, Retry>();       
     
+    
+    private static class Retry {
+        public int cnt, time;
+        public Retry(int t) 
+            { cnt=time=t; }
+    }
+
     
     private long TS(long ts) {
         return ts - 1670677450000L;
     }
+    
     
     
     public DbSync(ServerAPI api) {
@@ -68,7 +81,7 @@ public class DbSync implements Sync
             { public void run() {       
                 updatePeers();
             } 
-        } , 45000, 20000); 
+        } , 45000, 15000); 
         
         
      
@@ -76,11 +89,12 @@ public class DbSync implements Sync
         String mycall = api.getProperty("default.mycall", "NOCALL").toUpperCase();
         _ident = api.getProperty("db.sync.ident", mycall);
         
-        
+
         /* Setup of servers for websocket comm. */
         NodeWs ws = new NodeWs(_api, null);
-        webSocket("/dbsync", ws);
+        webSocket("/ws/dbsync", ws);
         
+        /* Set up websocket api and handler for item updates */
         _wsNodes = new NodeWsApi<ItemUpdate>(_ident, ws, ItemUpdate.class);
         _wsNodes.setHandler( (nodeid, upd)-> {
                 if (upd==null)
@@ -91,37 +105,165 @@ public class DbSync implements Sync
                 doUpdate((ItemUpdate) upd);
             } 
         );
+        _auth = new HmacAuth(api, "system.auth.key");   
+        setupNodes();
+    }
+    
+    
+    public void startRestApi() {
+        _dsapi = new DbSyncApi(_api, _auth, this);    
+        _dsapi.start();
+    }
+    
+    
+    
+    public String getIdent() {
+        return _ident; 
+    }
+    
+    
+    public boolean isConnected(String nodeid) {
+        return _wsNodes.isConnected(nodeid); 
+    }
+    
+    
+    
+    public String getNodeId(String url) 
+        throws URISyntaxException, IOException,InterruptedException  
+    {
+        if (url == null)
+            return null; 
+        RestClient parentapi = new RestClient(_api, url, _auth);
+        HttpResponse res = parentapi.GET("/nodeinfo");
+        if (res.statusCode() != 200) {
+            _dbp.log().warn("DbSync", "Couldn't get nodeid from parent. Status code: "+res.statusCode());
+            return null; 
+        }
+        return (String) res.body();
+    }
+    
 
-
-        /* 
-         * Read the setup of peer nodes from config file. 
-         * If URL is given, register as server-nodes. 
-         */
-        int npeers = api.getIntProperty("db.sync.nnodes", 0);
-        for (int i=1; i<=npeers; i++) {
-            String id = api.getProperty("db.sync.node"+i+".ident", null);
-            if (id==null) {
-                _dbp.log().warn("DbSync", "Server node "+i+": No ident. Ignoring");
-                continue;
-            }
-            String url = api.getProperty("db.sync.node"+i+".url", null);
-            String filt = api.getProperty("db.sync.node"+i+".filter", ".*");
-                
-            /* If URL is given, add server to websocket inferface */
-            if (url != null) {
-                NodeWsClient srv = new NodeWsClient(_api, id, url, true);
-                _wsNodes.addServer(id, srv);
-                _dbp.log().info("DbSync", "Server node registered: "+id+", "+url);
-            }
-            else
-                _dbp.log().info("DbSync", "Node registered: "+id);
+    
+    public boolean addNodeRemote(String url, String items) 
+        throws URISyntaxException, IOException, InterruptedException
+    {
+        RestClient parentapi = new RestClient(_api, url, _auth);
+        String arg = ServerBase.serializeJson( new DbSyncApi.NodeInfo(_ident, items, url));
+        HttpResponse res = parentapi.POST("/nodes", arg);
+        if (res.statusCode() != 200) {
+            _dbp.log().warn("DbSync", "Parent subscription failed. Status code: "+res.statusCode());
+            return false; 
+        }
+        return true;
+    }
+    
+    
+    
+    public boolean addNode(String nodeid, String items, String url) {
+        SyncDBSession db = null;
+        try {    
+            db = new SyncDBSession(_dbp.getDB(false));
             
-            /* Add configured node */
-            _nodes.put(id, filt);
+            /* Add node to database */
+            db.addSyncPeer(nodeid, items, url);
+            db.commit();
+            _addNode(nodeid, items, url);       
+            return true;
+        }       
+        catch (Exception e) {
+            db.abort();
+            _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
+            e.printStackTrace(System.out);
+            return false;
+        }     
+        finally {
+            if (db != null) db.close();
         }
     }
+    
+    
+    
+    public void rmNode(String nodeid) {
+        SyncDBSession db = null;
+        try {           
+            db = new SyncDBSession(_dbp.getDB(true)); // Autocommit on
+            db.removeSyncPeer(nodeid);
+            _nodes.remove(nodeid);
+            _wsNodes.rmNode(nodeid);
+            _parent.remove(nodeid);
+        }
+        catch (Exception e) {
+            _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
+            e.printStackTrace(System.out);
+            return;
+        }     
+        finally {
+            if (db != null) db.close();
+        }
+    }
+    
         
         
+    public boolean rmNodeRemote(String id) 
+        throws URISyntaxException, IOException, InterruptedException
+    {
+        var url = _parent.get(id);
+        RestClient parentapi = new RestClient(_api, url, _auth);
+        HttpResponse res = parentapi.DELETE("/nodes/"+_ident);
+        if (res.statusCode() != 200) {
+            _dbp.log().warn("DbSync", "Parent unsubscribe failed. Status code: "+res.statusCode());
+            return false; 
+        }
+        return true;
+    }
+    
+    
+    
+    private void _addNode(String nodeid, String items, String url) {
+        if (url != null) {
+            /* Add parent node (create a client to it) 
+             * Currently we assume there is at most one parent. We should consider 
+             * allowing multiple parents or backup-parents 
+             */
+            NodeWsClient srv = new NodeWsClient(_api, nodeid, wsUrl(url), true);
+            _wsNodes.addServer(nodeid, srv);
+            _parent.put(nodeid, url);
+            _dbp.log().info("DbSync", "Parent (server) node registered: "+nodeid+", "+url);
+        }
+        _nodes.put(nodeid, items);
+    }
+    
+    
+    
+    private void setupNodes() {
+        /* 
+         * Read the setup of peer nodes from database. 
+         * If URL is given, register as server-nodes. 
+         */ 
+        SyncDBSession db = null;
+        try {           
+            db = new SyncDBSession(_dbp.getDB(true)); // Autocommit on
+            DbList<SyncDBSession.SyncPeer> peers = db.getSyncPeers(false); 
+            for (SyncDBSession.SyncPeer p : peers) 
+                if (p!=null) 
+                    _addNode(p.nodeid, p.items, p.url);
+        }
+        catch (Exception e) {
+            _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
+            e.printStackTrace(System.out);
+            return;
+        }     
+        finally {
+            if (db != null) db.close();
+        }
+    }
+    
+    
+    
+    private String wsUrl(String url) {
+        return url.replaceFirst("http", "ws")
+            .replaceFirst("/dbsync", "/ws/dbsync");
+    }
      
     /**
      * Decide if update transaction should be performed or not. This is the
@@ -171,6 +313,7 @@ public class DbSync implements Sync
     /**
      * Perform an update. 
      * This is called when a update message is received from another node.
+     * Return true if performed/committed or ignored due to LWW conflict resolution. False on error.
      */
     public boolean doUpdate(ItemUpdate upd) 
     {  
@@ -281,23 +424,32 @@ public class DbSync implements Sync
     
 
     /* 
-     * This is called periodically. 20 second interval. It attempts to send the updates
+     * This is called periodically. 15 second interval. It attempts to send the updates
      * to the peer nodes. If request succeeds, it is deleted from the queue. If not, it 
      * is rescheduled and we will retry after a while. 
      */
 
     protected void updatePeers()
     {
+        /* Go through all server nodes and connected client nodes */
         for (String node: _wsNodes.getNodes()) {
  
-            Integer delay = _pending.get(node);
+            /* If specified retry-time isn't reached yet, reschedule */
+            Retry retr = _pending.get(node);
             _pending.remove(node);
-            if (delay != null && delay > 0) {
-                delay--;
-                _pending.put(node, delay);
+            if (retr != null && retr.cnt > 0) {
+                retr.cnt--;
+                _pending.put(node, retr);
                 continue;
             }
             
+            /* Check if node is known */
+            if (_nodes.get(node)==null) {
+                _dbp.log().warn("DbSync", "Attempt to post to unknown node: "+node+" - ignoring");
+                continue;
+            }
+                    
+            /* Try to send updates through websocket connection */
             SyncDBSession db = null;
             try {
                 /* Search database for items to be sent to node */
@@ -305,18 +457,23 @@ public class DbSync implements Sync
                 DbList<ItemUpdate> msgs = db.getSyncUpdates(node);
                 for (ItemUpdate upd : msgs) {
                     upd.sender = _ident;
-                    if (_nodes.get(node)==null) {
-                        _dbp.log().warn("DbSync", "Attempt to post to unknown node: "+node+" - ignoring");
-                        break;
-                    }
+
                     /* Send each item to node */
                     if (!_wsNodes.put(node, upd)) {
                         /* If post to node failed..*/
-                        _dbp.log().info("DbSync", "Post failed to node: "+node+" - rescheduling");
-                        _pending.put(node, 6);
+                        if (retr == null) retr = new Retry(6);
+                        else { 
+                            /* Double retry-time each retry, max 1 hour */
+                            if (retr.time < 240)
+                                retr.cnt = retr.time = (retr.time * 2);
+                         }
+                        
+                        _dbp.log().info("DbSync", "Post failed to node: "+node+" - rescheduling ("+retr.time*15+" s)");
+                        _pending.put(node, retr);
                         break;
                     }
-                    _dbp.log().debug("DbSync", "Post to "+node+" succeeded ("+upd.cid+")");
+                    retr = null;
+                    _dbp.log().info("DbSync", "Post to "+node+" succeeded ("+upd.cid+")");
                     db.removeSyncUpdates(node, new java.util.Date(upd.ts+1000));
                 }    
             }

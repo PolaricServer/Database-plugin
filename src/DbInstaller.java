@@ -29,7 +29,7 @@ public class DbInstaller
      private static Connection _db;
      
      /* Schema version - increase when changing schema and provide upgrade method */
-     private static final int _VERSION = 8; 
+     private static final int _VERSION = 9; 
      
          
      static {
@@ -228,7 +228,13 @@ public class DbInstaller
                         "cmd    varchar, " +
                         "arg    text, " +
                         "origin varchar "); 
-         
+                  
+         /* New in schema v. 9 */
+         createClass("DbSyncPeers", null, 
+                        "nodeid  varchar NOT NULL PRIMARY KEY, " +
+                        "url     varchar, " +
+                        "item    varchar NOT NULL " );
+                        
          
         /* new in schema v. 6 */
         createClass("ServerStats", null, 

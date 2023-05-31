@@ -28,7 +28,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
      private boolean _enableHist = false;
      private Logfile _log;
      private String  _dburl;
-     private Sync  _dbsync;
+     private DbSync  _dbsync;
 
 
 
@@ -91,7 +91,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
            /*
             * Synchronisation 
             */
-           _dbsync = (Sync) new DbSync(_api); 
+           _dbsync = new DbSync(_api); 
            
            /* Add handlers */
            _dbsync.addCid("signs",   (Sync.Handler) new SignsSync(api, this)); 
@@ -189,6 +189,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
         api4.start();
         TrackLogApi api5 = new TrackLogApi(api);
         api5.start();
+        _dbsync.startRestApi();
      }
      
      
@@ -197,9 +198,14 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
      /**  Stop the plugin */ 
       // FIXME
       public void deActivate() 
-      {
+      {         
+         boolean active = _api.getBoolProperty("db.plugin.on", false);
+         if (!active)
+            return; 
+         
          _api.log().info("DatabasePlugin", "Deactivate");
-         _log.info(null, "DatabasePlugin deactivated");
+         if (_log != null)
+            _log.info(null, "DatabasePlugin deactivated");
          if (_isOwner)
             _api.getAprsParser().subscribe(this);
       }
