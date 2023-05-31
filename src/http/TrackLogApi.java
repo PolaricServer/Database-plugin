@@ -196,7 +196,7 @@ public class TrackLogApi extends ServerBase implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 if (!authenticate(req.body(), tr))
-                    return ERROR(resp, 400, "Message authentication failed");
+                    return ERROR(resp, 403, "Message authentication failed");
                 for (LogItem x : tr.pos) 
                     insertPosReport(db, tr.call, new java.util.Date(x.time*1000), -1, -1, 
                         new LatLng(((double) x.lat)/100000, ((double) x.lng)/100000));
@@ -221,15 +221,15 @@ public class TrackLogApi extends ServerBase implements JsonPoints
          * Test POST
          ******************************************/
         post("/tracklog2", (req, resp) -> {        
-            TrkLog2 tr = (TrkLog2) 
-                ServerBase.fromJson(req.body(), TrkLog.class);
-            if (tr==null)
-                ERROR(resp, 400, "Invalid message body");
-                
             MyDBSession db = _dbp.getDB();
-            try {
+            try {                    
+                TrkLog2 tr = (TrkLog2) 
+                    ServerBase.fromJson(req.body(), TrkLog.class);
                 if (!authenticate2(req, tr))
-                    return ERROR(resp, 400, "Message authentication failed");
+                    return ERROR(resp, 403, "Authentication failed");
+
+                if (tr==null)
+                    ERROR(resp, 400, "Invalid message body");
                     
                 for (LogItem x : tr.pos) 
                     insertPosReport(db, tr.call, new java.util.Date(x.time*1000), -1, -1, 

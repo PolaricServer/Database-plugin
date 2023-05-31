@@ -35,6 +35,7 @@ public class HistApi extends ServerBase implements JsonPoints
 {
     private ServerAPI _api; 
     private PluginApi _dbp;
+    private String _defaultIcon;
     private ColourTable _colTab = null;
     private HashMap<String, String[]> _colUsed = new HashMap<String,String []>();
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
@@ -45,6 +46,7 @@ public class HistApi extends ServerBase implements JsonPoints
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
         _colTab = new ColourTable (api, System.getProperties().getProperty("confdir", ".")+"/trailcolours");
+        _defaultIcon =  _api.getProperty("map.icon.default", "sym00.png");
     }
     
     
@@ -391,6 +393,8 @@ public class HistApi extends ServerBase implements JsonPoints
         x.pos    = new double[] {ref.getLongitude(), ref.getLatitude()};
         
         String icon = s.getIcon(true); 
+        if (icon==null)
+            icon = _defaultIcon;
         x.icon = "/icons/"+ icon; 
         return x;
     }

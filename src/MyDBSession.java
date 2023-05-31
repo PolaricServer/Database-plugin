@@ -242,6 +242,8 @@ public class MyDBSession extends DBSession
     public AprsPoint getItem(String src, java.util.Date at)
        throws java.sql.SQLException
     {
+        if (at==null)
+            at = new java.util.Date();
         _log.debug("MyDbSession", "getItem:  "+src+", "+df.format(at));
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT * FROM \"PosReport\"" +
