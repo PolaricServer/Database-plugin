@@ -200,7 +200,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
              * is only for active trackers. Non-active trackers will be allowed.
              * FIXME: Need to improve this check? 
              */
-            MyDBSession db = _dbp.getDB(false);
+            StationDB db = _api.getDB();
             var item = db.getItem(tr.id, null); 
             if (item != null && !sarAuthForItem(req, item))
                 return ERROR(resp, 403, "Not allowed to manage this tracker: "+tr.id);
@@ -221,7 +221,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 }
                 var pt = updateItem(tr.id, tr.alias, tr.icon, req);
                  _psub.put("trackers:"+auth.userid, null);
-                db.commit();
+                tdb.commit();
                 return (pt==null ? "OK" : "OK-ACTIVE");
             }
             

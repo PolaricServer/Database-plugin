@@ -54,7 +54,8 @@ public class RestApi extends ServerBase implements JsonPoints
       
     public String ABORT(Response resp, MyDBSession db, String logmsg, int status, String msg) {
         _dbp.log().warn("RestApi", logmsg);
-        db.abort();
+        if (db!=null)
+            db.abort();
         return ERROR(resp, status, msg);
     }
       
@@ -68,15 +69,20 @@ public class RestApi extends ServerBase implements JsonPoints
      * Set up the webservices. 
      */
     public void start() {   
+        _api.getWebserver().corsEnable("/open/objects/*");
         _api.getWebserver().corsEnable("/objects/*");
-        _api.getWebserver().protectUrl("/objects/*/*/share");
+        _api.getWebserver().protectUrl("/objects/*");
+        /*
+         * FIXME: With new auth scheme, we cannot have authentication and at the 
+         * same time allow non-authenticated users to access a URL. We may need a special version of 
+         * get-operations to read objects to allow non-authenticated users to read objects
+         * that are open for all. 
+         */
                 
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
         _psub.createRoom("sharing", (Class) null); 
         _psub.createRoom("object", String.class /* tag */); 
-        
-        
-                
+      
         /***************************************************************************** 
          * REST Service
          * Get a list of users (and readonly attribute) with which the given object 
@@ -293,9 +299,7 @@ public class RestApi extends ServerBase implements JsonPoints
             var auth = getAuthInfo(req); 
             if (auth == null)
                 return ERROR(resp, 500, "No authorization info found");
-            if (!auth.login())
-                return ERROR(resp, 401, "Authentication required");
-                
+ 
             MyDBSession db = _dbp.getDB();
             try {
                 String a =  db.getJsObject(auth.userid, auth.groupid, tag, id);            
@@ -318,6 +322,32 @@ public class RestApi extends ServerBase implements JsonPoints
 
         } );
         
+        /* Open version */
+        get("/open/objects/*/*", "application/json", (req, resp) -> {
+            String tag = req.splat()[0];
+            String id = req.splat()[1];
+       
+            MyDBSession db = _dbp.getDB();
+            try {
+                String a =  db.getJsObject(null, null, tag, id);            
+                if (a == null)
+                    return ABORT(resp, db, "GET /open/objects/"+tag+"/"+id+": Item not found: ",
+                        404, "Item not found: "+tag+": "+id);
+                db.commit();
+                return a;
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "GET /open/objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
+                    500, "Server error (SQL)");
+            }      
+            catch (java.lang.NumberFormatException e) {
+                return ABORT(resp, db, "GET /open/objects/*/*: Object id must be numeric", 400, "Object id must be numeric");
+            }
+            finally { 
+                db.close(); 
+            }
+
+        } );
         
                 
         /***************************************************************************** 
@@ -327,12 +357,11 @@ public class RestApi extends ServerBase implements JsonPoints
          
         get("/objects/*", "application/json", (req, resp) -> {
             String tag = req.splat()[0];
-            
             /* Get user info */
             var auth = getAuthInfo(req); 
             MyDBSession db = _dbp.getDB();
-            DbList<JsObject> a = null; 
             try {
+                DbList<JsObject> a = null; 
                 a =  db.getJsObjects(auth.userid, auth.groupid, tag);
                 List<JsObject> aa = a.toList().stream().collect(Collectors.toList());
                 db.commit();
@@ -342,12 +371,44 @@ public class RestApi extends ServerBase implements JsonPoints
                 return ABORT(resp, db, "GET /objects/"+tag+": SQL error:"+e.getMessage(),
                     500, "Server error (SQL)");
             }
+            catch (Exception e) {
+                e.printStackTrace(System.out);
+                return ABORT(resp, db, "GET /objects/"+tag+": Error:"+e.getMessage(),
+                    500, "Server error");
+            }
             finally { 
                 db.close(); 
             }
 
         }, ServerBase::toJson );
-     
+            
+            
+        /* Open version */    
+        get("/open/objects/*", "application/json", (req, resp) -> {
+            String tag = req.splat()[0];
+            
+            MyDBSession db = _dbp.getDB();
+            try {
+                DbList<JsObject> a = null; 
+                a =  db.getJsObjects(null, null, tag);
+                List<JsObject> aa = a.toList().stream().collect(Collectors.toList());
+                db.commit();
+                return aa;
+            }
+            catch (java.sql.SQLException e) {
+                return ABORT(resp, db, "GET /objects/"+tag+": SQL error:"+e.getMessage(),
+                    500, "Server error (SQL)");
+            }
+            catch (Exception e) {
+                e.printStackTrace(System.out);
+                return ABORT(resp, db, "GET /objects/"+tag+": Error:"+e.getMessage(),
+                    500, "Server error");
+            }
+            finally { 
+                db.close(); 
+            }
+
+        }, ServerBase::toJson );
                 
                 
         /************************************************************************** 

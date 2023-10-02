@@ -90,7 +90,11 @@ public class HistApi extends ServerBase implements JsonPoints
     public void start() {   
     
         _api.getWebserver().corsEnable("/hist/*");
-    
+        
+        _api.getWebserver().protectUrl("/hist/snapshot/*");
+        _api.getWebserver().protectUrl("/hist/*/trail");
+        
+        
         /**************************************************************************
          * REST service:  
          * /hist/<callsign>/aprs?n=..   

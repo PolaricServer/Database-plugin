@@ -495,8 +495,8 @@ public class MyDBSession extends DBSession
           throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT id, userid, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
-              " WHERE (userid=? OR userid='#ALL' OR userid=?) AND tag=? ORDER BY readonly DESC, userid ASC, data ASC", 
+            ( " SELECT DISTINCT ON (id) id, userid, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
+              " WHERE (userid=? OR userid='#ALL' OR userid=?) AND tag=? ORDER BY id, readonly ASC, userid DESC, data ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, (user==null ? "_NO-USER_" : user));
          stmt.setString(2, "@"+(group==null ? "NOLOGIN": group));
