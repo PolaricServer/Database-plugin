@@ -22,7 +22,7 @@ import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
 import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
-import  org.postgis.PGgeometry;
+import  net.postgis.jdbc.PGgeometry;
 import  java.io.*;
 
 

@@ -9,8 +9,8 @@ import java.util.function.*;
 import uk.me.jstott.jcoord.*;
 import java.sql.*;
 import javax.sql.*;
-import org.postgis.PGgeometry;
-    
+import net.postgis.jdbc.PGgeometry;
+import net.postgis.jdbc.geometry.Point;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -258,7 +258,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
          throws SQLException
       {
          LatLng ll = pos.toLatLng();
-         org.postgis.Point p = new org.postgis.Point( ll.getLng(), ll.getLat() );
+         Point p = new Point( ll.getLng(), ll.getLat() );
          p.setSrid(4326);
          stmt.setObject(index, new PGgeometry(p));
       }

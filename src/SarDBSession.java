@@ -21,7 +21,8 @@ import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
 import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
-import  org.postgis.PGgeometry;
+import  net.postgis.jdbc.PGgeometry;
+import  net.postgis.jdbc.geometry.Point;
 import  java.io.*;
 
 
@@ -54,7 +55,7 @@ public class SarDBSession extends DBSession
        throws java.sql.SQLException
     {
         PGgeometry geom = (PGgeometry) rs.getObject(field);
-        org.postgis.Point pt = (org.postgis.Point) geom.getGeometry();
+        Point pt = (Point) geom.getGeometry();
         return new LatLng(pt.y, pt.x);
     }
       

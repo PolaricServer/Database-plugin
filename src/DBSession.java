@@ -21,7 +21,8 @@ import  java.util.function.*;
 import  java.util.concurrent.locks.*; 
 import  no.polaric.aprsd.Logfile;
 import  uk.me.jstott.jcoord.*;
-import  org.postgis.PGgeometry;
+import  net.postgis.jdbc.PGgeometry;
+import  net.postgis.jdbc.geometry.Point;
 
 
 /* OBS: "lånt" fra CMSComp */
@@ -155,7 +156,7 @@ public class DBSession
             stmt.setNull(index, java.sql.Types.NULL);
         else {
             LatLng ll = pos.toLatLng();
-            org.postgis.Point p = new org.postgis.Point( ll.getLng(), ll.getLat() );
+            Point p = new Point( ll.getLng(), ll.getLat() );
             p.setSrid(4326);
             stmt.setObject(index, new PGgeometry(p));
         }
