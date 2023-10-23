@@ -44,6 +44,7 @@ install: polaric-aprsd.jar
 	install -d $(INSTALL_JAR)
 	install -m 755 -d $(INSTALL_LOG)
 	install -m 644 polaric-db.jar $(INSTALL_JAR)
+	install -m 644 lib/*.jar $(INSTALL_JAR)
 	install -m 644 database.ini $(INSTALL_CONFIG)
 	install -m 755 scripts/polaric-dbsetup-first $(INSTALL_BIN)
 	install -m 755 scripts/polaric-dbsetup $(INSTALL_BIN)
