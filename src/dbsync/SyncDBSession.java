@@ -20,7 +20,6 @@ import  java.text.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
-import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
 import  net.postgis.jdbc.PGgeometry;
 import  java.io.*;

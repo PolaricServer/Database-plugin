@@ -17,7 +17,6 @@ package no.polaric.aprsdb;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
-import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
 
 

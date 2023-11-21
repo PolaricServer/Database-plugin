@@ -4,7 +4,6 @@ import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
 import no.polaric.aprsd.http.*;
 import no.polaric.aprsdb.http.SignsApi;
-import uk.me.jstott.jcoord.*; 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
