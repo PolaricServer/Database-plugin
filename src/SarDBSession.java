@@ -19,7 +19,6 @@ import  java.text.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
-import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
 import  net.postgis.jdbc.PGgeometry;
 import  net.postgis.jdbc.geometry.Point;
@@ -51,7 +50,7 @@ public class SarDBSession extends DBSession
      * Get geographical point from PostGIS. 
      * Convert it to jcoord LatLng reference. 
      */  
-    private Reference getRef(ResultSet rs, String field)
+    private LatLng getRef(ResultSet rs, String field)
        throws java.sql.SQLException
     {
         PGgeometry geom = (PGgeometry) rs.getObject(field);

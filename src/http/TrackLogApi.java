@@ -8,7 +8,6 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import uk.me.jstott.jcoord.*; 
 import no.polaric.aprsd.filter.*;
 import spark.Request;
 import spark.Response;

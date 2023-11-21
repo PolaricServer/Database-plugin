@@ -8,7 +8,6 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import uk.me.jstott.jcoord.*; 
 import no.polaric.aprsd.filter.*;
 import spark.Request;
 import spark.Response;
@@ -56,13 +55,12 @@ public class SignsApi extends ServerBase implements JsonPoints
         public double[] pos;
         
         public SignInfo() {}
-        public SignInfo(String i, String u, String d, String ic, long sc, int t, String tn, Reference p)
+        public SignInfo(String i, String u, String d, String ic, long sc, int t, String tn, LatLng p)
             {   
                 id=i;url=u; descr=d; icon=ic; scale=sc; type=t; tname=tn;
-                LatLng pp = p.toLatLng(); 
                 pos = new double[2]; 
-                pos[0] = pp.getLongitude(); 
-                pos[1] = pp.getLatitude();
+                pos[0] = p.getLng(); 
+                pos[1] = p.getLat();
             } 
     }
     
@@ -95,8 +93,6 @@ public class SignsApi extends ServerBase implements JsonPoints
         _api.getWebserver().protectUrl("/signs/*", "sar");
                 
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
-        
-        
         _psub.createRoom("sign", (Class) null); 
                 
         /**************************************************************************** 
@@ -117,7 +113,7 @@ public class SignsApi extends ServerBase implements JsonPoints
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "GET /signs/types: SQL error:"+e.getMessage(), 500, null);
-            }
+            }           
             finally { 
                 db.close(); 
             }
@@ -217,7 +213,7 @@ public class SignsApi extends ServerBase implements JsonPoints
                         
             /* Database transaction */
             try {
-                Reference ref = new LatLng(sc.pos[1], sc.pos[0]);
+                LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);
                 String id = db.addSign(_myCall, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, auth.userid);
                 sc.id=id;
                 db.commit();  
@@ -261,7 +257,7 @@ public class SignsApi extends ServerBase implements JsonPoints
                     return ABORT(resp, db, "PUT /signs: cannot parse input", 
                         500, "Cannot parse input");        
                         
-                Reference ref = new LatLng(sc.pos[1], sc.pos[0]);
+                LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);
                 
                 Sign s= db.getSign(ident);
                 String uid = s.getUser();

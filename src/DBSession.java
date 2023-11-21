@@ -13,19 +13,17 @@
  */
 
 package no.polaric.aprsdb;
-import  no.polaric.aprsd.ServerAPI;
+import  no.polaric.aprsd.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.*;
 import  java.util.function.*;
 import  java.util.concurrent.locks.*; 
 import  no.polaric.aprsd.Logfile;
-import  uk.me.jstott.jcoord.*;
 import  net.postgis.jdbc.PGgeometry;
 import  net.postgis.jdbc.geometry.Point;
 
 
-/* OBS: "lånt" fra CMSComp */
 
 /**
  * Database connnection and (possibly) transaction. 
@@ -149,14 +147,13 @@ public class DBSession
      /**
        * Encode and add a position to a PostGIS SQL statement.
        */
-     public static void setRef(PreparedStatement stmt, int index, Reference pos)
+     public static void setRef(PreparedStatement stmt, int index, LatLng pos)
        throws SQLException 
      {
         if (pos==null)
             stmt.setNull(index, java.sql.Types.NULL);
         else {
-            LatLng ll = pos.toLatLng();
-            Point p = new Point( ll.getLng(), ll.getLat() );
+            Point p = new Point( pos.getLng(), pos.getLat() );
             p.setSrid(4326);
             stmt.setObject(index, new PGgeometry(p));
         }

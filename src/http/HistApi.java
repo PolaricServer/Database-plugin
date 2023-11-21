@@ -8,7 +8,6 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import uk.me.jstott.jcoord.*; 
 import no.polaric.aprsd.filter.*;
 import spark.Request;
 import spark.Response;
@@ -23,6 +22,7 @@ import javax.servlet.http.*;
 import org.eclipse.jetty.server.*;
 import java.util.regex.*;
 import java.time.*;
+import java.time.format.*;
 
 
 
@@ -90,7 +90,6 @@ public class HistApi extends ServerBase implements JsonPoints
     public void start() {   
     
         _api.getWebserver().corsEnable("/hist/*");
-        
         _api.getWebserver().protectUrl("/hist/snapshot/*");
         _api.getWebserver().protectUrl("/hist/*/trail");
         
@@ -137,10 +136,14 @@ public class HistApi extends ServerBase implements JsonPoints
                 return res;
             }    
             catch(java.lang.NumberFormatException e) {  
-                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 400,  null);
+                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 400,  "Cannot parse number");
             }
+            catch(DateTimeParseException e) { 
+                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse date/time:"+e.getMessage(), 400, 
+                  "Cannot parse date/time"); 
+            } 
             catch(java.sql.SQLException e) { 
-                return ABORT(resp, db, "GET /hist/*/aprs: SQL error:"+e.getMessage(), 500, null); 
+                return ABORT(resp, db, "GET /hist/*/aprs: SQL error:"+e.getMessage(), 500, "SQL error"); 
             }
             catch(Exception e) { 
                 e.printStackTrace(System.out);
@@ -195,6 +198,10 @@ public class HistApi extends ServerBase implements JsonPoints
                 db.commit();
                 return mu;
             }
+            catch(DateTimeParseException e) { 
+                return ABORT(resp, db, "GET /hist/*/trail: Cannot parse date/time:"+e.getMessage(), 400, 
+                  "Cannot parse date/time"); 
+            } 
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/*/trail: SQL error: "+e.getMessage(), 500, 
                    "SQL Error"); 
@@ -228,8 +235,8 @@ public class HistApi extends ServerBase implements JsonPoints
                 if (x2 > 180.0) x2 = 180.0; if (x2 < -180.0) x2 = -180.0;
                 if (x3 > 90.0) x3 = 90.0; if (x3 < -90.0) x3 = -90.0;
                 if (x4 > 90.0) x4 = 90.0; if (x4 < -90.0) x4 = -90.0;
-                Reference uleft  = new LatLng((double) x4, (double) x1); 
-                Reference lright = new LatLng((double) x2, (double) x3);
+                LatLng uleft  = new LatLng((double) x4, (double) x1); 
+                LatLng lright = new LatLng((double) x2, (double) x3);
                 
                 Date dto = parseIsoDf(parms.value("tto"));
                 double scale = Double.parseDouble(parms.value("scale"));
@@ -269,7 +276,14 @@ public class HistApi extends ServerBase implements JsonPoints
                 processPoint(mu, tp, trail, vfilt, scale, reset);
                 db.commit();
                 return mu;
+            }                  
+            catch(java.lang.NumberFormatException e) {  
+                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 400,  "Cannot parse number");
             }
+            catch(DateTimeParseException e) { 
+                return ABORT(resp, db, "GET /hist/snapshot: Cannot parse date/time:"+e.getMessage(), 400, 
+                  "Cannot parse date/time"); 
+            } 
             catch(java.sql.SQLException e) { 
                 return ABORT(resp, db, "GET /hist/snapshot: SQL error: "+e.getMessage(), 500, 
                     "SQL Error"); 
@@ -324,8 +338,12 @@ public class HistApi extends ServerBase implements JsonPoints
                 db.commit();
                 return mu;
             }
+            catch(DateTimeParseException e) { 
+                return ABORT(resp, db, "GET /hist/*/hrdvia: Cannot parse date/time:"+e.getMessage(), 400, 
+                  "Cannot parse date/time"); 
+            }  
             catch(java.sql.SQLException e) { 
-                return ABORT(resp, db, "GET /hist/*/hrdvia: SQL error:"+e.getMessage(), 500, null); 
+                return ABORT(resp, db, "GET /hist/*/hrdvia: SQL error:"+e.getMessage(), 500, "SQL error (see log)"); 
             }  
             catch(Exception e) { 
                 e.printStackTrace(System.out);
@@ -386,15 +404,14 @@ public class HistApi extends ServerBase implements JsonPoints
      * Return null if point has no position.  
      */
     private JsPoint createPoint(TrackerPoint s, boolean moving, Action action) {
-        Reference rref = s.getPosition();
-        LatLng ref; 
-        if (rref == null) 
+        LatLng ref = s.getPosition();
+        if (ref == null) 
             return null;
-        ref=rref.toLatLng();  
+          
         JsPoint x  = new JsPoint();
         x.ident  = s.getDisplayId();
         x.label  = createLabel(s, moving, action);
-        x.pos    = new double[] {ref.getLongitude(), ref.getLatitude()};
+        x.pos    = new double[] {ref.getLng(), ref.getLat()};
         
         String icon = s.getIcon(true); 
         if (icon==null)

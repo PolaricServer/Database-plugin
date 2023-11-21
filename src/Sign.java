@@ -13,9 +13,10 @@
  */
 
 package no.polaric.aprsdb;
+import  no.polaric.aprsd.*;
 import java.util.*;
 import no.polaric.aprsd.Signs;
-import uk.me.jstott.jcoord.*;
+
 
 /* Consider moving this to core package */
 
@@ -47,15 +48,15 @@ public class Sign extends Signs.Item
   public String getUser()
     { return userid; }
   
-  public Sign (String i, Reference r, long sc, String ic, String url, String txt, int cls) {
+  public Sign (String i, LatLng r, long sc, String ic, String url, String txt, int cls) {
     this(i,r,sc,ic,url,txt,cls,null);
   }
 
-  public Sign (String i, Reference r, long sc, String ic, String url, String txt, int cls, String grp) {
+  public Sign (String i, LatLng r, long sc, String ic, String url, String txt, int cls, String grp) {
     this(i,r,sc,ic,url,txt,cls,grp,null);
   }
   
-  public Sign (String i, Reference r, long sc, String ic, String url, String txt, int cls, String grp, String user) {
+  public Sign (String i, LatLng r, long sc, String ic, String url, String txt, int cls, String grp, String user) {
      super(i,r,sc,ic,url,txt); 
      this.cls = cls;
      this.group = grp;

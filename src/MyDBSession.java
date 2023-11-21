@@ -19,7 +19,6 @@ import  java.text.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
-import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
 import  net.postgis.jdbc.PGgeometry;
 import  net.postgis.jdbc.geometry.Point;
@@ -39,7 +38,7 @@ public class MyDBSession extends DBSession
     public static class TrailItem {
         public String ident;
         public String channel;       
-        public Reference pos;
+        public LatLng pos;
         public java.util.Date time;
         public char symbol, symtab;
         public String path, ipath;
@@ -65,7 +64,7 @@ public class MyDBSession extends DBSession
         }     
 
              
-        public TrailItem(String i, String c, Reference p, java.util.Date t, char sym, char stab, String pt, String ipt)
+        public TrailItem(String i, String c, LatLng p, java.util.Date t, char sym, char stab, String pt, String ipt)
             { ident=i; channel=c; pos=p; time=t; symbol=sym; symtab=stab; path=pt; ipath=ipt; }
     }
     
@@ -98,9 +97,9 @@ public class MyDBSession extends DBSession
        
     /**
      * Get geographical point from PostGIS. 
-     * Convert it to jcoord LatLng reference. 
+     * Convert it to LatLng reference. 
      */  
-    private Reference getRef(ResultSet rs, String field)
+    private LatLng getRef(ResultSet rs, String field)
        throws java.sql.SQLException
     {
         PGgeometry geom = (PGgeometry) rs.getObject(field);
@@ -115,7 +114,7 @@ public class MyDBSession extends DBSession
     /**
      * Get points that were transmitted via a certain digipeater during a certain time span. 
      */
-    public DbList<TPoint> getPointsVia(String digi, Reference uleft, Reference lright, java.util.Date from, java.util.Date to)
+    public DbList<TPoint> getPointsVia(String digi, LatLng uleft, LatLng lright, java.util.Date from, java.util.Date to)
        throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
@@ -135,8 +134,8 @@ public class MyDBSession extends DBSession
         stmt.setString(2, digi);
 
         if (uleft != null) {
-            LatLng ul = uleft.toLatLng();
-            LatLng lr = lright.toLatLng();
+            LatLng ul = uleft;
+            LatLng lr = lright;
             stmt.setDouble(3, ul.getLng());
             stmt.setDouble(4, ul.getLat());
             stmt.setDouble(5, lr.getLng());
@@ -278,7 +277,7 @@ public class MyDBSession extends DBSession
     /**
      * Get activity within a geographical area in a given timespan.  
      */
-    public DbList<TrailItem> getTrailsAt(Reference uleft, Reference lright, java.util.Date tto)
+    public DbList<TrailItem> getTrailsAt(LatLng uleft, LatLng lright, java.util.Date tto)
        throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
@@ -291,10 +290,10 @@ public class MyDBSession extends DBSession
              " ORDER BY pr.src, pr.time DESC",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
              
-        stmt.setDouble( 1, uleft.toLatLng().getLng() );  // xmin
-        stmt.setDouble( 2, lright.toLatLng().getLat() ); // ymin
-        stmt.setDouble( 3, lright.toLatLng().getLng() ); // xmax
-        stmt.setDouble( 4, uleft.toLatLng().getLat() );  // ymax
+        stmt.setDouble( 1, uleft.getLng() );  // xmin
+        stmt.setDouble( 2, lright.getLat() ); // ymin
+        stmt.setDouble( 3, lright.getLng() ); // xmax
+        stmt.setDouble( 4, uleft.getLat() );  // ymax
         stmt.setTimestamp(5, date2ts(tto));
         stmt.setTimestamp(6, date2ts(tto));
         

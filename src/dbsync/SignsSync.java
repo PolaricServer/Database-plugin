@@ -4,7 +4,6 @@ import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
 import no.polaric.aprsd.http.*;
 import no.polaric.aprsdb.http.SignsApi;
-import uk.me.jstott.jcoord.*; 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -91,8 +90,7 @@ public class SignsSync implements Sync.Handler
     {
         SignsDBSession db = new SignsDBSession(_dbp.getDB());
         try {
-            Reference ref = new LatLng(sc.pos[1], sc.pos[0]);
-            
+            LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);
             String[] iid = id.split("@");
             
             db.setSeqNext("signs_seq", Integer.parseInt(iid[0]) );
@@ -116,7 +114,7 @@ public class SignsSync implements Sync.Handler
     {        
         SignsDBSession db = new SignsDBSession(_dbp.getDB());
         try {
-            Reference ref = new LatLng(sc.pos[1], sc.pos[0]);         
+            LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);         
             Sign s = db.getSign(sc.id);
             if (s==null) {
                 _dbp.log().warn("SignsSync", "Replica object doesn't exist. Adding: "+sc.id);

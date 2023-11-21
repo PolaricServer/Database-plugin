@@ -20,7 +20,6 @@ import  java.text.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
-import  uk.me.jstott.jcoord.*;
 import  no.polaric.aprsd.*;
 import  net.postgis.jdbc.PGgeometry;
 import  net.postgis.jdbc.geometry.Point;
@@ -60,7 +59,7 @@ public class SignsDBSession extends DBSession
      * Get geographical point from PostGIS. 
      * Convert it to jcoord LatLng reference. 
      */  
-    private static Reference getRef(ResultSet rs, String field)
+    private static LatLng getRef(ResultSet rs, String field)
        throws java.sql.SQLException
     {
         PGgeometry geom = (PGgeometry) rs.getObject(field);
@@ -71,7 +70,7 @@ public class SignsDBSession extends DBSession
 
 
     
-    public String addSignIdent(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
+    public String addSignIdent(String id, long maxscale, String icon, String url, String descr, LatLng pos, int cls, String uid)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "addSignIdent: "+descr+", class="+cls);
@@ -93,7 +92,7 @@ public class SignsDBSession extends DBSession
     
     
     
-    public String addSign(String srvid, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
+    public String addSign(String srvid, long maxscale, String icon, String url, String descr, LatLng pos, int cls, String uid)
             throws java.sql.SQLException
     {
          _log.debug("MyDbSession", "addSign: "+descr+", class="+cls);
@@ -113,13 +112,13 @@ public class SignsDBSession extends DBSession
     }
     
     
-    public String addSign(String srvid, long maxscale, String icon, String url, String descr, Reference pos, int cls)
+    public String addSign(String srvid, long maxscale, String icon, String url, String descr, LatLng pos, int cls)
         throws java.sql.SQLException
     { return addSign(srvid, maxscale, icon, url, descr, pos, cls, null); }
     
     
     
-    public void updateSign(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls, String uid)
+    public void updateSign(String id, long maxscale, String icon, String url, String descr, LatLng pos, int cls, String uid)
             throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "updateSign: "+id+", "+descr);
@@ -138,7 +137,7 @@ public class SignsDBSession extends DBSession
         stmt.setString(9, id);
         stmt.executeUpdate();
     }  
-    public void updateSign(String id, long maxscale, String icon, String url, String descr, Reference pos, int cls)
+    public void updateSign(String id, long maxscale, String icon, String url, String descr, LatLng pos, int cls)
         throws java.sql.SQLException
     { updateSign(id, maxscale, icon, url, descr, pos, cls, null); }
     
@@ -172,7 +171,7 @@ public class SignsDBSession extends DBSession
     /**
      * Get list of signs in a specified geographic area and above a specified scale 
      */
-    public DbList<Signs.Item> getSigns(long scale, Reference uleft, Reference lright)
+    public DbList<Signs.Item> getSigns(long scale, LatLng uleft, LatLng lright)
        throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
@@ -182,12 +181,10 @@ public class SignsDBSession extends DBSession
              " LIMIT 300",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
         stmt.setLong(1, scale);
-        LatLng ul = uleft.toLatLng();
-        LatLng lr = lright.toLatLng();
-        stmt.setDouble(2, ul.getLng());
-        stmt.setDouble(3, ul.getLat());
-        stmt.setDouble(4, lr.getLng());
-        stmt.setDouble(5, lr.getLat());
+        stmt.setDouble(2, uleft.getLng());
+        stmt.setDouble(3, uleft.getLat());
+        stmt.setDouble(4, lright.getLng());
+        stmt.setDouble(5, lright.getLat());
         stmt.setMaxRows(300);
          
         return new DbList<Signs.Item>(stmt.executeQuery(), rs -> 
@@ -196,7 +193,6 @@ public class SignsDBSession extends DBSession
                 if (icon == null)
                     icon = rs.getString("cicon");
 
-                // Item (Reference r, long sc, String ic, String url, String txt)
                 return new Signs.Item(rs.getString("sid"), getRef(rs, "position"), 0, icon,
                     rs.getString("url"), rs.getString("description"));  
             });

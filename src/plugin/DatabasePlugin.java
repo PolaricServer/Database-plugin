@@ -6,7 +6,6 @@ import no.polaric.aprsd.*;
 import no.polaric.aprsd.http.*;
 import java.util.*;
 import java.util.function.*;
-import uk.me.jstott.jcoord.*;
 import java.sql.*;
 import javax.sql.*;
 import net.postgis.jdbc.PGgeometry;
@@ -131,7 +130,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
                   SignsDBSession db = null;
            
                   public Iterable<Signs.Item> search
-                         (long scale, Reference uleft, Reference lright) {
+                         (long scale, LatLng uleft, LatLng lright) {
 
                      try {                     
                         db = db = new SignsDBSession(getDB());
@@ -254,11 +253,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
        * Encode and add a position to a PostGIS SQL statement.
        * FIXME: THIS IS DUPLICATED IN MyDBSession 
        */
-      private void setRef(PreparedStatement stmt, int index, Reference pos)
+      private void setRef(PreparedStatement stmt, int index, LatLng pos)
          throws SQLException
       {
-         LatLng ll = pos.toLatLng();
-         Point p = new Point( ll.getLng(), ll.getLat() );
+         Point p = new Point( pos.getLng(), pos.getLat() );
          p.setSrid(4326);
          stmt.setObject(index, new PGgeometry(p));
       }
