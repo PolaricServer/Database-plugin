@@ -39,7 +39,6 @@ public class TrackerApi extends ServerBase implements JsonPoints
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
-    //    _psub.createRoom("trackers:"+uid, Message.class); 
     }
         
         
@@ -120,7 +119,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
             /* Get user info */
             var auth = getAuthInfo(req); 
             if (auth == null)
-                return ERROR(resp, 400, "No authorization info found");
+                return ERROR(resp, 500, "No authorization info found");
             
             /* Get tracker info from request */
             Tracker.Info tr = (Tracker.Info) 
@@ -143,7 +142,7 @@ public class TrackerApi extends ServerBase implements JsonPoints
                 if (auth.admin || auth.userid.equals(dbtr.info.user)) 
                     db.updateTracker(call, tr.user, tr.alias, tr.icon);
                 else {
-                    return ABORT(resp, db, "PUT /trackers/*: Item isn't owned by the user",
+                    return ABORT(resp, db, "PUT /trackers/*: Item not owned by the user",
                         403, "Item must be owned by you to allow update (or you must be admin)");
                 }
                 

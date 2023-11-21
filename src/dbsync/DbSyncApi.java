@@ -32,16 +32,14 @@ public class DbSyncApi extends ServerBase
     private ServerAPI _api; 
     private PluginApi _dbp;
     private DbSync    _dbsync;
-    private HmacAuth _auth;
     
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
        
-    public DbSyncApi(ServerAPI api, HmacAuth auth, DbSync d) {
+    public DbSyncApi(ServerAPI api, DbSync d) {
         super (api); 
         _api = api;
         _dbsync = d;
-        _auth = auth;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
     }
         
@@ -77,7 +75,8 @@ public class DbSyncApi extends ServerBase
      */
     public void start() {   
         
-        
+        /* '/sync/*' is for users. '/dbsync/*' is for peer nodes */
+        _api.getWebserver().protectDeviceUrl("/dbsync/*");
         _api.getWebserver().protectUrl("/sync/*");
         _api.getWebserver().corsEnable("/sync/*");
         
@@ -189,8 +188,8 @@ public class DbSyncApi extends ServerBase
          ******************************************/
         
         get("/dbsync/nodeinfo", (req, resp) -> {  
-           if (!_auth.checkAuth(req))
-                    return ERROR(resp, 403, "Authentication failed");
+         //  if (!_auth.checkAuth(req))
+         //           return ERROR(resp, 403, "Authentication failed");
             return _dbsync.getIdent();
         } );
         
@@ -203,8 +202,8 @@ public class DbSyncApi extends ServerBase
          
         post("/dbsync/nodes", (req, resp) -> {   
             try {        
-                if (!_auth.checkAuth(req))
-                    return ERROR(resp, 403, "Authentication failed");
+              //  if (!_auth.checkAuth(req))
+              //      return ERROR(resp, 403, "Authentication failed");
                 NodeInfo ni = (NodeInfo) 
                     ServerBase.fromJson(req.body(), NodeInfo.class);
                 if (ni==null) 
@@ -230,8 +229,8 @@ public class DbSyncApi extends ServerBase
         delete("/dbsync/nodes/*", (req, resp) -> {   
             try {        
                 String ident = req.splat()[0];
-                if (!_auth.checkAuth(req))
-                    return ERROR(resp, 403, "Authentication failed");
+               // if (!_auth.checkAuth(req))
+               //     return ERROR(resp, 403, "Authentication failed");
                 _dbsync.rmNode(ident);
                 return "Ok";
             }

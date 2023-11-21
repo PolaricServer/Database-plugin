@@ -43,7 +43,7 @@ public class DbSync implements Sync
     private Map<String, Handler> _handlers = new HashMap<String, Handler>();
     private Timer hb = new Timer();
     private DuplicateChecker _dup = new DuplicateChecker(300);
-    private HmacAuth _auth;
+    private HmacAuthenticator _auth;
     private String _ident;
     
 
@@ -99,19 +99,19 @@ public class DbSync implements Sync
         _wsNodes.setHandler( (nodeid, upd)-> {
                 if (upd==null)
                     _dbp.log().warn("DbSync", "Received ItemUpdate: "+nodeid+", NULL");
-                else
+                else {
                     _dbp.log().info("DbSync", "Received ItemUpdate: "+nodeid+", "
                       +upd.cid+", "+upd.itemid+", "+upd.cmd+", "+ TS(upd.ts));
-                doUpdate((ItemUpdate) upd);
+                    doUpdate((ItemUpdate) upd);
+                }
             } 
         );
-        _auth = new HmacAuth(api, "system.auth.key");   
         setupNodes();
     }
     
     
     public void startRestApi() {
-        _dsapi = new DbSyncApi(_api, _auth, this);    
+        _dsapi = new DbSyncApi(_api, this);    
         _dsapi.start();
     }
     
@@ -133,7 +133,7 @@ public class DbSync implements Sync
     {
         if (url == null)
             return null; 
-        RestClient parentapi = new RestClient(_api, url, _auth);
+        RestClient parentapi = new RestClient(_api, url, "dbsync");
         HttpResponse res = parentapi.GET("/nodeinfo");
         if (res.statusCode() != 200) {
             _dbp.log().warn("DbSync", "Couldn't get nodeid from parent. Status code: "+res.statusCode());
@@ -147,7 +147,7 @@ public class DbSync implements Sync
     public boolean addNodeRemote(String url, String items) 
         throws URISyntaxException, IOException, InterruptedException
     {
-        RestClient parentapi = new RestClient(_api, url, _auth);
+        RestClient parentapi = new RestClient(_api, url, "dbsync");
         String arg = ServerBase.serializeJson( new DbSyncApi.NodeInfo(_ident, items, url));
         HttpResponse res = parentapi.POST("/nodes", arg);
         if (res.statusCode() != 200) {
@@ -208,7 +208,7 @@ public class DbSync implements Sync
         throws URISyntaxException, IOException, InterruptedException
     {
         var url = _parent.get(id);
-        RestClient parentapi = new RestClient(_api, url, _auth);
+        RestClient parentapi = new RestClient(_api, url, "dbsync");
         HttpResponse res = parentapi.DELETE("/nodes/"+_ident);
         if (res.statusCode() != 200) {
             _dbp.log().warn("DbSync", "Parent unsubscribe failed. Status code: "+res.statusCode());
@@ -226,6 +226,7 @@ public class DbSync implements Sync
              * allowing multiple parents or backup-parents 
              */
             NodeWsClient srv = new NodeWsClient(_api, nodeid, wsUrl(url), true);
+            srv.setUserid("dbsync");
             _wsNodes.addServer(nodeid, srv);
             _parent.put(nodeid, url);
             _dbp.log().info("DbSync", "Parent (server) node registered: "+nodeid+", "+url);
@@ -289,7 +290,6 @@ public class DbSync implements Sync
         
         /* Last writer wins (LWW): Ignore command if it was issued before last executed command. */
         if (meta!=null && upd.ts <= meta.ts.getTime()) {
-            _dbp.log().info("DbSync", TS(upd.ts)+" <= "+TS(meta.ts.getTime()));
             return false; 
         }
         
@@ -461,11 +461,13 @@ public class DbSync implements Sync
                     /* Send each item to node */
                     if (!_wsNodes.put(node, upd)) {
                         /* If post to node failed..*/
-                        if (retr == null) retr = new Retry(6);
+                        if (retr == null) 
+                            retr = new Retry(6);
                         else { 
                             /* Double retry-time each retry, max 1 hour */
                             if (retr.time < 240)
-                                retr.cnt = retr.time = (retr.time * 2);
+                                retr.time = (retr.time * 2);
+                            retr.cnt = retr.time;
                          }
                         
                         _dbp.log().info("DbSync", "Post failed to node: "+node+" - rescheduling ("+retr.time*15+" s)");
