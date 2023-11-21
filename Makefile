@@ -20,7 +20,7 @@
 # Review (and if necessary) change these if you are going to 
 # install by using this makefile
 
-   INSTALL_JAR = $(DESTDIR)/usr/share/java
+   INSTALL_JAR = $(DESTDIR)/usr/share/polaric/plugins
    INSTALL_BIN = $(DESTDIR)/usr/bin
 INSTALL_CONFIG = $(DESTDIR)/etc/polaric-aprsd/config.d
    INSTALL_LOG = $(DESTDIR)/var/log/polaric
@@ -44,7 +44,6 @@ install: polaric-aprsd.jar
 	install -d $(INSTALL_JAR)
 	install -m 755 -d $(INSTALL_LOG)
 	install -m 644 polaric-db.jar $(INSTALL_JAR)
-	install -m 644 lib/*.jar $(INSTALL_JAR)
 	install -m 644 database.ini $(INSTALL_CONFIG)
 	install -m 755 scripts/polaric-dbsetup-first $(INSTALL_BIN)
 	install -m 755 scripts/polaric-dbsetup $(INSTALL_BIN)
