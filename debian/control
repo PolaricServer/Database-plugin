@@ -2,20 +2,31 @@ Source: polaric-db-plugin
 Section: hamradio
 Priority: optional
 Maintainer: Øyvind Hanssen <ohanssen@acm.org>
-Build-Depends: debhelper (>= 10),openjdk-17-jdk-headless|openjdk-18-jdk-headless|openjdk-19-jdk-headless|openjdk-20-jdk-headless, scala (>> 2.11.12), libhikaricp-java
+Build-Depends: debhelper (>= 10),openjdk-17-jdk-headless|openjdk-21-jdk-headless|openjdk-22-jdk-headless, libhikaricp-java
 Standards-Version: 3.9.8
 Homepage: http://aprs.no/polaricserver
 
 Package: polaric-db-plugin
 Architecture: all
-Depends: polaric-aprsd (>= 2.12), postgresql-client, libpostgresql-jdbc-java, libpostgis-java (>= 2021.1.0), libhikaricp-java ${misc:Depends}
+Depends: polaric-aprsd (>= 3.0), postgresql-client, libpostgresql-jdbc-java, libpostgis-java (>= 2021.1.0), libhikaricp-java ${misc:Depends}
 Recommends: postgresql, postgis
 Description: Polaric Server: APRS daemon part. 
  The "Polaric Server" is mainly a web based service to present APRS 
- tracking information on maps and where the information is updated at real-
- time. It is originally targeted for use by radio amateurs in voluntary search
- and rescue service in Norway. It consists of a web application and a server 
- program (APRS daemon). 
+ tracking information on maps and where the information is updated 
+ in real-time. It is originally targeted for use by radio amateurs 
+ in voluntary search and rescue service in Norway. It consists of a 
+ web application and a server-program (APRS daemon). 
  .
- This is a plugin that adds database storage using PostgreSQL (with PostGIS). 
- It is still in a somewhat experimental stage. 
+ This is a plugin that adds database storage using PostgreSQL 
+ (with PostGIS). It stores APRS positions (spatiotemporal data) and 
+ APRS packets for later analysis. It is configurable what callsigns 
+ are stored and for how long. Queries include movement trails, positions 
+ covered by digipeaters, etc. with this plugin you can go to a speficic 
+ time in history and generate a map-overlay showing the situation at 
+ that time (for data that is stored).
+ .
+ Client/user-owned data like trackers, static position objects, 
+ map-extents, map-layer setups, etc through a REST API. Also, the 
+ drawing tool uses it to store features. It also supports replication 
+ (between server-instances) with eventual consistency (CRDT) for 
+ some data objects.

@@ -1,3 +1,14 @@
+polaric-db-plugin (3.0) stable; urgency=medium
+
+  * DbSync work
+  * Move to 2021.1.0+ of libpostgis-java
+  * Stop using jcoord
+  * Move plugin jar files to /usr/share/polaric/plugins
+  * Use new authentication scheme..
+  * Various fixes..
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Mon, 04 Nov 2023 21:07:00 +0100
+
 polaric-db-plugin (2.12) stable; urgency=medium
 
   * Store and query annotations (tags, alias, icon)
