@@ -2,7 +2,7 @@
 
    INIFILE=/etc/polaric-aprsd/config.d/database.ini   
 JDBCDRIVER="/usr/share/java/postgresql-jdbc4.jar"
- CLASSPATH=/usr/share/java/polaric-aprsd.jar:/usr/share/java/polaric-db.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/commons-pool.jar:/usr/share/java/commons-collections.jar:$JDBCDRIVER
+ CLASSPATH=/usr/share/polaric/java/polaric-aprsd.jar:/usr/share/polaric/plugins/polaric-db.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/commons-pool.jar:/usr/share/java/commons-collections.jar:$JDBCDRIVER
  
 
    
