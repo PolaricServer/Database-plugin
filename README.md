@@ -29,11 +29,9 @@ It also supports replication (between server-instances) with eventual consistenc
 
 ## System requirements
 
-Linux/Java platform (tested on Debian/Ubuntu platforms, including Raspbian Buster) with
-* Java Runtime environment version 11 or later. 
+Linux/Java platform (tested on Debian/Ubuntu platforms -currently stable version is 'Bookworm') with
+* Java Runtime environment version 17 or later. 
 * polaric-aprsd installed.
-
-From version 2.9, Scala is no longer needed. 
 
 ## Installation and use
 A deb package is available. For information on getting started on a Debian based platform please see: 
