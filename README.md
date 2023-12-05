@@ -29,7 +29,7 @@ It also supports replication (between server-instances) with eventual consistenc
 
 ## System requirements
 
-Linux/Java platform (tested on Debian/Ubuntu platforms -currently stable version is 'Bookworm') with
+Linux/Java platform (tested on Debian/Ubuntu platforms - current stable version is 'Bookworm') with
 * Java Runtime environment version 17 or later. 
 * polaric-aprsd installed.
 
