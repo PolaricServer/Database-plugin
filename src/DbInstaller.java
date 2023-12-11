@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2013-2022 by Oyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2013-2023 by Oyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -193,8 +193,16 @@ public class DbInstaller
                         "hidden      boolean default false ");
         addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */           
                         
-                                
-        /* new in schema v. 2 */
+                        
+        createClass("Photo", null, 
+                        "id          varchar not null, "+
+                        "userid      varchar(20) not null," +
+                        "time        timestamp without time zone not null, "+
+                        "descr       text,"+
+                        "image       bytea ");
+        addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */
+        
+        
         createClass("JsObject", null, 
                         "id      varchar not null PRIMARY KEY, " +
                         "tag     varchar(20), " +

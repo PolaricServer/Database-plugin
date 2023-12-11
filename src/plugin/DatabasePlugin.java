@@ -130,13 +130,14 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
                   SignsDBSession db = null;
            
                   public Iterable<Signs.Item> search
-                         (long scale, LatLng uleft, LatLng lright) {
+                         (String uid, long scale, LatLng uleft, LatLng lright) {
 
                      try {                     
                         db = db = new SignsDBSession(getDB());
                         Iterable<Signs.Item> x = db.getSigns(scale, uleft, lright);
                         db.commit();
                         if (x==null)
+                          /* If not found, return empty list */
                           return new ArrayList<Signs.Item>(1); 
                         return x; 
                      }
@@ -178,16 +179,18 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
          
      @Override
      public void startWebservice(ServerAPI api) {
-        RestApi api1 = new RestApi(api);
+        RestApi api1     = new RestApi(api);
         api1.start();
-        TrackerApi api2 = new TrackerApi(api);
+        TrackerApi api2  = new TrackerApi(api);
         api2.start();
-        HistApi api3 = new HistApi(api);
+        HistApi api3     = new HistApi(api);
         api3.start();
-        SignsApi api4 = new SignsApi(api);
+        SignsApi api4    = new SignsApi(api);
         api4.start();
         TrackLogApi api5 = new TrackLogApi(api);
-        api5.start();
+        api5.start();   
+        PhotoApi api6    = new PhotoApi(api);
+        api6.start();
         _dbsync.startRestApi();
      }
      

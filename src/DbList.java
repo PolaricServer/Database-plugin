@@ -20,9 +20,6 @@ import java.util.function.*;
 
 
 
-/* Denne er eksperimentell */
-
-
 public class DbList<T> implements Iterable<T>, Iterator<T>
 {
 
@@ -32,14 +29,14 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
     }
 
 
-    private ResultSet _rs; 
+    private ResultSet _rs, _rs1, _rs2; 
     private String _fieldname; 
     private Factory<T> _fact; 
     private boolean _empty; 
             
     protected void _init(ResultSet rs, String fn, Factory<T> f)
     {
-        _rs=rs; 
+        _rs=_rs1=rs; 
         _fieldname = fn;
         _fact = f; 
          try { reset(); } 
@@ -57,14 +54,22 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
        { _init(rs, fn, null); } 
 
        
+    public void merge(DbList<T> x) {
+      _rs2 = x._rs;
+    }
+    
+       
     public boolean isEmpty() 
        {return _empty; }
     
        
     public void reset() throws SQLException
     {
-        _empty = !_rs.first(); 
-        _rs.beforeFirst();
+      _rs = _rs1;
+      _empty = !_rs.first() && (_rs2==null || !_rs2.first()); 
+      _rs.beforeFirst();
+      if (_rs2 != null)
+        _rs2.beforeFirst();
     }
  
  
@@ -73,8 +78,7 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
      */
     public Iterator<T> iterator() 
     {
-      //  reset(); 
-        return this; 
+      return this; 
     }
  
           
@@ -85,7 +89,11 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
     public boolean hasNext() 
     {
       try {
-        return (! (_empty ||  _rs.isLast()));  // Can be somewhat expensive?
+        if (_empty)
+          return false;
+        if (_rs==_rs1 && _rs2 != null && _rs.isLast())
+          _rs = _rs2;
+        return (! _rs.isLast() ); 
       }
       catch (SQLException ex) 
          { System.out.println("DbList.hasNext: "+ex); return false; } 

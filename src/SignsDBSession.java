@@ -63,6 +63,8 @@ public class SignsDBSession extends DBSession
        throws java.sql.SQLException
     {
         PGgeometry geom = (PGgeometry) rs.getObject(field);
+        if (geom==null)
+            return null;
         Point pt = (Point) geom.getGeometry();
         return new LatLng(pt.y, pt.x);
     }
@@ -73,7 +75,7 @@ public class SignsDBSession extends DBSession
     public String addSignIdent(String id, long maxscale, String icon, String url, String descr, LatLng pos, int cls, String uid)
             throws java.sql.SQLException
     {
-        _log.debug("MyDbSession", "addSignIdent: "+descr+", class="+cls);
+        _log.debug("SignsDbSession", "addSignIdent: "+descr+", class="+cls);
          PreparedStatement stmt = getCon().prepareStatement
               ( "INSERT INTO \"Signs\" (id, maxscale, icon, url, description, position, class, userid)" + 
                 "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id" );
@@ -95,7 +97,7 @@ public class SignsDBSession extends DBSession
     public String addSign(String srvid, long maxscale, String icon, String url, String descr, LatLng pos, int cls, String uid)
             throws java.sql.SQLException
     {
-         _log.debug("MyDbSession", "addSign: "+descr+", class="+cls);
+         _log.debug("SignsDbSession", "addSign: "+descr+", class="+cls);
          PreparedStatement stmt = getCon().prepareStatement
               ( "INSERT INTO \"Signs\" (id, maxscale, icon, url, description, position, class, userid)" + 
                 "VALUES ( nextval('signs_seq') || '@" + srvid + "', ?, ?, ?, ?, ?, ?, ?) RETURNING id" );
@@ -121,7 +123,7 @@ public class SignsDBSession extends DBSession
     public void updateSign(String id, long maxscale, String icon, String url, String descr, LatLng pos, int cls, String uid)
             throws java.sql.SQLException
     {
-        _log.debug("MyDbSession", "updateSign: "+id+", "+descr);
+        _log.debug("SignsDbSession", "updateSign: "+id+", "+descr);
         PreparedStatement stmt = getCon().prepareStatement
             ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
               "WHERE id=?;" +
@@ -146,7 +148,7 @@ public class SignsDBSession extends DBSession
     public Sign getSign(String id)
           throws java.sql.SQLException
     {
-         _log.debug("MyDbSession", "getSign: "+id);
+         _log.debug("SignsDbSession", "getSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name AS cname, "+
                 " s.icon AS sicon, cl.icon AS cicon, class, userid " +
@@ -235,7 +237,7 @@ public class SignsDBSession extends DBSession
     public int deleteSign(String id)
           throws java.sql.SQLException
     {
-         _log.debug("MyDbSession", "deleteSign: "+id);
+         _log.debug("SignsDbSession", "deleteSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
               ( "DELETE FROM \"Signs\"" + 
                 "WHERE id=?" );
@@ -255,8 +257,94 @@ public class SignsDBSession extends DBSession
         return new DbList<Sign.Category>(stmt.executeQuery(), rs ->
             { return new Sign.Category(rs.getInt("id"), rs.getString("name"), rs.getString("icon")); });
     }
-    
         
+        
+    
+    public Photo getPhoto(String id, String user)
+          throws java.sql.SQLException
+    {
+         _log.debug("SignsDbSession", "getSign: "+id);
+         PreparedStatement stmt = getCon().prepareStatement
+              ( " SELECT *" +
+                " FROM \"Photo\""+
+                " WHERE id=?"+
+                " AND userid=?" ); // FIXME: Allow sharing
+         stmt.setString(1, id);
+         stmt.setString(2, user);
+         
+         ResultSet rs = stmt.executeQuery();
+         if (rs.next()) {
+            return new Photo(rs.getString("id"), rs.getTimestamp("time"), 
+               getRef(rs, "position"), rs.getString("userid"), rs.getString("descr") ); 
+         }
+         return null;
+    }
+        
+        
+    
+    public String addPhoto(String srvid, LatLng pos, String user, java.util.Date time, String descr, byte[] image)
+            throws java.sql.SQLException
+    {
+         _log.debug("SignsDbSession", "addPhoto: "+descr);
+         PreparedStatement stmt = getCon().prepareStatement
+              ( "INSERT INTO \"Photo\" (id, userid, time, descr, position, image)" + 
+                "VALUES ( nextval('signs_seq') || '@" + srvid + "', ?, ?, ?, ?, ?) RETURNING id" );
+         
+         stmt.setString(1, user);
+         stmt.setTimestamp(2, date2ts(time));
+         stmt.setString(3, descr);
+         setRef(stmt, 4, pos);
+         stmt.setBytes(5, image);
+         ResultSet rs = stmt.executeQuery(); 
+         rs.next();
+         return rs.getString("id");
+    }    
+    
+    
+    
+    public DbList<Signs.Item> getPhotos(String user, java.util.Date time, LatLng uleft, LatLng lright)
+       throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+           ( " SELECT *" +
+             " FROM \"Photo\""+
+             " WHERE userid=? AND time <= ? AND " +                // FIXME: Add timespan
+             "   position && ST_MakeEnvelope(?, ?, ?, ?, 4326) " + // FIXME: Allow sharing
+             " LIMIT 300", 
+             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
+        stmt.setString(1, user);
+        if (time==null)
+            stmt.setString(2, "now"); 
+        else
+            stmt.setTimestamp(2, date2ts(time));
+        stmt.setDouble(3, uleft.getLng());
+        stmt.setDouble(4, uleft.getLat());
+        stmt.setDouble(5, lright.getLng());
+        stmt.setDouble(6, lright.getLat());
+        stmt.setMaxRows(300);
+        
+        return new DbList<Signs.Item>(stmt.executeQuery(), rs -> 
+            {
+                return new Signs.Item(rs.getString("id"), getRef(rs, "position"), 0, 
+                    null, null, rs.getString("descr"));  
+            });
+    }
+    
+    
+            
+        
+    public int deletePhoto(String id, String user)
+          throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+              ( "DELETE FROM \"Photo\"" + 
+                "WHERE id=? AND userid=?" );
+         stmt.setString(1, id);
+         stmt.setString(2, user);
+         return stmt.executeUpdate();
+    }
+    
+    
         
     public int setSeqNext(String seq, int next) 
                 throws java.sql.SQLException

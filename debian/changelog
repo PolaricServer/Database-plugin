@@ -1,3 +1,9 @@
+polaric-db-plugin (3.0+) UNRELEASED; urgency=medium
+
+  * Hacking... 
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Tue, 05 Dec 2023 21:42:10 +0100
+
 polaric-db-plugin (3.0) stable; urgency=medium
 
   * DbSync work
