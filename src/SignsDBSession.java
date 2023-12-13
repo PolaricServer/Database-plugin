@@ -314,9 +314,9 @@ public class SignsDBSession extends DBSession
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
         stmt.setString(1, user);
         if (time==null)
-            stmt.setString(2, "now"); 
-        else
-            stmt.setTimestamp(2, date2ts(time));
+            time = new java.util.Date();
+        
+        stmt.setTimestamp(2, date2ts(time));
         stmt.setDouble(3, uleft.getLng());
         stmt.setDouble(4, uleft.getLat());
         stmt.setDouble(5, lright.getLng());
@@ -326,7 +326,7 @@ public class SignsDBSession extends DBSession
         return new DbList<Signs.Item>(stmt.executeQuery(), rs -> 
             {
                 return new Signs.Item(rs.getString("id"), getRef(rs, "position"), 0, 
-                    null, null, rs.getString("descr"));  
+                    "signs/camera.png", "P", rs.getString("descr"));  
             });
     }
     

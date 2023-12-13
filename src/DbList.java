@@ -31,14 +31,14 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
 
     private ResultSet _rs, _rs1, _rs2; 
     private String _fieldname; 
-    private Factory<T> _fact; 
+    private Factory<T> _fact, _fact1, _fact2; 
     private boolean _empty; 
             
-    protected void _init(ResultSet rs, String fn, Factory<T> f)
+    protected synchronized void _init(ResultSet rs, String fn, Factory<T> f)
     {
         _rs=_rs1=rs; 
         _fieldname = fn;
-        _fact = f; 
+        _fact = _fact1 = f; 
          try { reset(); } 
          catch (Exception ex) {
             System.out.println("DbList._init: "+ex);
@@ -54,22 +54,36 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
        { _init(rs, fn, null); } 
 
        
-    public void merge(DbList<T> x) {
-      _rs2 = x._rs;
+    public synchronized void merge(DbList<T> x) {
+      try {
+        _rs2 = x._rs;
+        _fact2 = x._fact;
+        reset();
+      }
+      catch (SQLException ex) 
+         { System.out.println("DbList.merge: "+ex); } 
     }
     
        
     public boolean isEmpty() 
-       {return _empty; }
+       { return _empty; }
     
        
-    public void reset() throws SQLException
+    public synchronized void reset() throws SQLException
     {
       _rs = _rs1;
-      _empty = !_rs.first() && (_rs2==null || !_rs2.first()); 
-      _rs.beforeFirst();
-      if (_rs2 != null)
+      _fact = _fact1;
+      _empty = !_rs.first();
+      if (!_empty) 
+        _rs.beforeFirst();
+      else if (_rs2 != null) {
+        _rs = _rs2; 
+        _fact = _fact2; 
+      }  
+      if (_rs2 != null && _rs2.first()) {
         _rs2.beforeFirst();
+        _empty = false; 
+      }
     }
  
  
@@ -81,39 +95,57 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
       return this; 
     }
  
-          
+    
+    
+    private boolean switchRs() throws SQLException {
+      if (_rs==_rs1 && _rs2 != null && _rs.isLast()) {
+        _rs = _rs2;
+        _fact = _fact2;
+        if (!_rs.first())
+           _empty = true;
+        _rs.beforeFirst();
+        return true;
+      }
+      else 
+        return false; 
+    }
+    
+    
           
     /*
      * Interface Iterator<T>
      */
-    public boolean hasNext() 
+    public synchronized boolean hasNext() 
     {
       try {
         if (_empty)
           return false;
-        if (_rs==_rs1 && _rs2 != null && _rs.isLast())
-          _rs = _rs2;
-        return (! _rs.isLast() ); 
+        switchRs();
+        return (!_empty && !_rs.isLast()); 
       }
       catch (SQLException ex) 
          { System.out.println("DbList.hasNext: "+ex); return false; } 
     }
 
+
     
-   @SuppressWarnings("unchecked")
-    public T next() 
+    @SuppressWarnings("unchecked")
+    public synchronized T next() 
     {
-       try {
-         if (_rs.next()) {
+      try {
+        while (true) {
+          if (_rs.next()) {
             if (_fieldname != null) 
                 return (T) _rs.getObject(_fieldname);
             else
                 return (T) _fact.getElement(_rs); 
-         }
-         return null; 
+          }
+          else
+            if (!switchRs()) return null;
+        }
        }
-       catch (SQLException ex) 
-          { System.out.println("DbList.next: "+ex); return null; }  
+      catch (SQLException ex) 
+        { System.out.println("DbList.next: "+ex); return null; }  
     }
 
     
@@ -121,7 +153,7 @@ public class DbList<T> implements Iterable<T>, Iterator<T>
        { }  
        
        
-    public List<T> toList() {
+    public synchronized List<T> toList() {
         List<T> list = new ArrayList<T>(); 
         for (T x : this)
             list.add(x);

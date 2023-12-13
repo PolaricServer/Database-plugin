@@ -133,8 +133,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
                          (String uid, long scale, LatLng uleft, LatLng lright) {
 
                      try {                     
-                        db = db = new SignsDBSession(getDB());
-                        Iterable<Signs.Item> x = db.getSigns(scale, uleft, lright);
+                        db = new SignsDBSession(getDB());
+                        DbList<Signs.Item> x = db.getSigns(scale, uleft, lright);
+                        DbList<Signs.Item> y = db.getPhotos(uid, null, uleft, lright);
+                        x.merge(y);
+                        x.reset();
+                        
                         db.commit();
                         if (x==null)
                           /* If not found, return empty list */

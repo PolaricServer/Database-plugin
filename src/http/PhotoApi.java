@@ -48,11 +48,16 @@ public class PhotoApi extends ServerBase
         public Date time;
         public String userid; 
         public String descr;
-        public LatLng pos;
+        public double[] pos;
         public byte[] image; 
         public PhotoInfo() {}
-        public PhotoInfo(String i, Date t, String uid, String d, byte[] img)
-            { id=i;time=t;userid=uid;descr=d;image=img; }
+        public PhotoInfo(String i, double[] p, Date t, String uid, String d, byte[] img)
+            { id=i; pos=p; time=t;userid=uid;descr=d;image=img; }   
+        
+        public PhotoInfo(String i, LatLng p, Date t, String uid, String d, byte[] img) { 
+           var apos = new double[] {p.getLng(), p.getLat()};
+           id=i; pos=apos; time=t;userid=uid;descr=d;image=img; 
+        }
     }
     
     
@@ -103,7 +108,7 @@ public class PhotoApi extends ServerBase
             try {
                 Photo p = db.getPhoto(ident, auth.userid);
                 db.commit();
-                return new PhotoInfo(p.getId(), p.getTime(), auth.userid, p.getDescr(), p.getImage());
+                return new PhotoInfo(p.getId(), p.getPosition(), p.getTime(), auth.userid, p.getDescr(), p.getImage());
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "GET/photos/*: SQL error:"+e.getMessage(),
@@ -144,9 +149,9 @@ public class PhotoApi extends ServerBase
             try {
                 if (p.time==null)
                     p.time=new Date();
-                var id = db.addPhoto(_myCall, p.pos, auth.userid, p.time, p.descr, p.image ); 
+                var id = db.addPhoto(_myCall, new LatLng(p.pos[1], p.pos[0]), auth.userid, p.time, p.descr, p.image ); 
                 db.commit();  
-                return id+"@"+_myCall; 
+                return id; 
             }
             catch (java.sql.SQLException e) {
                 return ABORT(resp, db, "POST /photos: SQL error:"+e.getMessage(),
