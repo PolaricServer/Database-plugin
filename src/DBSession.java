@@ -112,16 +112,11 @@ public class DBSession
                _log = log;
                _con = dsrc.getConnection(); 
                _con.setAutoCommit(autocommit);
-
-               /* PostGIS extensions 
-               Connection dconn = ((DelegatingConnection) _con).getInnermostDelegate();
-               ((org.postgresql.PGConnection)dconn).addDataType("geometry","org.postgis.PGgeometry");
-               ((org.postgresql.PGConnection)dconn).addDataType("box3d","org.postgis.PGbox3d");
-               */
             }
          }
          catch (Exception e) {
              _log.error("DbSession", "Cannot open database: "+e.getMessage());
+             _con = null;
              throw new SessionError(e.getMessage(), e);
          }   
      }
@@ -215,14 +210,14 @@ public class DBSession
      {
          try {
              if (_con != null)
-             {
+             { 
                  _con.setAutoCommit(true);
                  _con.close();
              }
              _con = null; 
          }
          catch (Exception e) {
-            _log.warn("DbSession", "Try to close connection: "+e);
+            _log.warn("DbSession", "Tried to close connection: "+e);
          }
          finally { 
          }   

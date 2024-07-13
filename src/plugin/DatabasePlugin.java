@@ -28,6 +28,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
      private Logfile _log;
      private String  _dburl;
      private DbSync  _dbsync;
+     private int _photoscale;
 
 
 
@@ -52,14 +53,14 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
             config.setJdbcUrl( _dburl );
             config.setUsername( api.getConfig().getProperty("db.login")  );
             config.setPassword( api.getConfig().getProperty("db.passwd") );
-            config.setMaximumPoolSize(16);
+            config.setMaximumPoolSize(64);
             config.setAutoCommit(false);
             config.addDataSourceProperty("dataSourceClassName","org.postgresql.ds.PGSimpleDataSource");
             config.addDataSourceProperty("cachePrepStmts", "true");
             config.addDataSourceProperty("prepStmtCacheSize", "1500");
             config.addDataSourceProperty("prepStmtCacheSqlLimit", "3000");
             config.addDataSourceProperty("gssEncMode", "disable");
-            config.setConnectionTimeout(1000);
+            config.setConnectionTimeout(5000);
             _dsrc = new HikariDataSource(config);
            
            _filter_chan = api.getProperty("db.filter.chan", "");
@@ -74,6 +75,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
            _enableHist = api.getBoolProperty("db.hist.on", true);
            boolean signs = api.getBoolProperty("db.signs.on", true);  
            boolean xdb = api.getBoolProperty("db.xqueries", true);
+           _photoscale = api.getIntProperty("db.photos.maxscale", 500000);
            api.properties().put("aprsdb.plugin", this); 
            
            _isOwner = api.getBoolProperty("db.isowner", true);
@@ -130,13 +132,15 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
                   SignsDBSession db = null;
            
                   public Iterable<Signs.Item> search
-                         (String uid, long scale, LatLng uleft, LatLng lright) {
+                         (String uid, String group, long scale, LatLng uleft, LatLng lright) {
 
                      try {                     
                         db = new SignsDBSession(getDB());
                         DbList<Signs.Item> x = db.getSigns(scale, uleft, lright);
-                        DbList<Signs.Item> y = db.getPhotos(uid, null, uleft, lright);
-                        x.merge(y);
+                        if (scale < _photoscale) {
+                            DbList<Signs.Item> y = db.getPhotos(uid, group, null, uleft, lright);
+                            x.merge(y);
+                        }
                         x.reset();
                         
                         db.commit();
@@ -183,6 +187,12 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
          
      @Override
      public void startWebservice(ServerAPI api) {
+        
+        boolean active = api.getBoolProperty("db.plugin.on", false);
+            if (!active)
+               return; 
+        if (!_isActive)
+            return; 
         RestApi api1     = new RestApi(api);
         api1.start();
         TrackerApi api2  = new TrackerApi(api);
@@ -254,6 +264,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
          { return new MyDBSession(_dsrc, _api, autocommit, _log); }
       
       
+      public int getPhotoScale() {
+        return _photoscale;
+      }
       
       
       /**
