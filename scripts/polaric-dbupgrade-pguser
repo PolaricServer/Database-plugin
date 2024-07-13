@@ -185,6 +185,24 @@ if ((VERSION < 9)); then
 fi
 
 
+if ((VERSION < 10)); then
+    echo "Upgrading schema to version 10"
+    psql -t -c "BEGIN;  \
+    CREATE TABLE IF NOT EXISTS \"Photo\" ( \
+        id varchar NOT NULL, \
+        userid varchar(20) NOT NULL, \
+        time timestamp without time zone NOT NULL, \
+        descr text, \
+        image bytea ); \
+    \
+    SELECT AddGeometryColumn(varchar('Photo'), varchar('position'), 4326, varchar('POINT'), 2); \
+    ALTER TABLE \"ObjectAccess\" ADD COLUMN photo boolean DEFAULT 'false'; \
+    ALTER TABLE \"ObjectAccess\" DROP CONSTRAINT \"ObjectAccess_id_fkey\"; \
+    UPDATE \"MetaData\" SET version=10; \
+    \
+    COMMIT " polaric
+fi
+
 
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then

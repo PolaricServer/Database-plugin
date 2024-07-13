@@ -260,27 +260,26 @@ public class SignsDBSession extends DBSession
         
         
     
-    public Photo getPhoto(String id, String user)
-          throws java.sql.SQLException
+    public Photo getPhoto(String id, String user, String group)
+        throws java.sql.SQLException
     {
-         _log.debug("SignsDbSession", "getSign: "+id);
-         PreparedStatement stmt = getCon().prepareStatement
-              ( " SELECT *" +
-                " FROM \"Photo\""+
-                " WHERE id=?"+
-                " AND userid=?" ); // FIXME: Allow sharing
-         stmt.setString(1, id);
-         stmt.setString(2, user);
-         
-         ResultSet rs = stmt.executeQuery();
-         if (rs.next()) {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT a.id as id, time, position, p.userid as owner, descr, image FROM \"Photo\" p, \"ObjectAccess\" a" +
+              " WHERE p.id=a.id AND (a.userid=? OR a.userid='#ALL' OR a.userid=?) AND a.id=?", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
+        stmt.setString(1, (user==null ? "NO-USER" : user));
+        stmt.setString(2, "@"+(group==null ? "NOLOGIN": group));
+        stmt.setString(3, id);
+        
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next()) {
             return new Photo(rs.getString("id"), rs.getTimestamp("time"), 
-               getRef(rs, "position"), rs.getString("userid"), rs.getString("descr") ); 
-         }
-         return null;
+               getRef(rs, "position"), rs.getString("owner"), rs.getString("descr"), rs.getBytes("image") ); 
+        }
+        return null;
     }
-        
-        
+    
+    
     
     public String addPhoto(String srvid, LatLng pos, String user, java.util.Date time, String descr, byte[] image)
             throws java.sql.SQLException
@@ -289,7 +288,7 @@ public class SignsDBSession extends DBSession
          PreparedStatement stmt = getCon().prepareStatement
               ( "INSERT INTO \"Photo\" (id, userid, time, descr, position, image)" + 
                 "VALUES ( nextval('signs_seq') || '@" + srvid + "', ?, ?, ?, ?, ?) RETURNING id" );
-         
+
          stmt.setString(1, user);
          stmt.setTimestamp(2, date2ts(time));
          stmt.setString(3, descr);
@@ -297,41 +296,81 @@ public class SignsDBSession extends DBSession
          stmt.setBytes(5, image);
          ResultSet rs = stmt.executeQuery(); 
          rs.next();
-         return rs.getString("id");
+         String objid = rs.getString("id");
+         
+         /* Add user access to the object */
+         PreparedStatement stmt2 = getCon().prepareStatement
+              ( " INSERT INTO \"ObjectAccess\" (id, userid, photo)" +
+                " VALUES (?, ?, 'true')" );
+         stmt2.setString(1, objid);
+         stmt2.setString(2, user);
+         stmt2.executeUpdate();
+         return objid;
     }    
     
     
     
-    public DbList<Signs.Item> getPhotos(String user, java.util.Date time, LatLng uleft, LatLng lright)
-       throws java.sql.SQLException
+    public void updatePhotoImg(String id, byte[] image)
+            throws java.sql.SQLException
     {
-        PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT *" +
-             " FROM \"Photo\""+
-             " WHERE userid=? AND time <= ? AND " +                // FIXME: Add timespan
-             "   position && ST_MakeEnvelope(?, ?, ?, ?, 4326) " + // FIXME: Allow sharing
-             " LIMIT 300", 
-             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
-        stmt.setString(1, user);
-        if (time==null)
-            time = new java.util.Date();
-        
-        stmt.setTimestamp(2, date2ts(time));
-        stmt.setDouble(3, uleft.getLng());
-        stmt.setDouble(4, uleft.getLat());
-        stmt.setDouble(5, lright.getLng());
-        stmt.setDouble(6, lright.getLat());
-        stmt.setMaxRows(300);
-        
-        return new DbList<Signs.Item>(stmt.executeQuery(), rs -> 
-            {
-                return new Signs.Item(rs.getString("id"), getRef(rs, "position"), 0, 
-                    "signs/camera.png", "P", rs.getString("descr"));  
-            });
+         _log.debug("SignsDbSession", "updatePhotoImg: "+id);
+         PreparedStatement stmt = getCon().prepareStatement
+              ( "UPDATE \"Photo\" SET image=? WHERE id=?" );
+         
+         stmt.setBytes(1, image);
+         stmt.setString(2, id);
+         stmt.executeUpdate();
+    } 
+    
+    
+    
+    public void updatePhotoDescr(String id, String userid, String descr)
+            throws java.sql.SQLException
+    {
+         _log.debug("SignsDbSession", "updatePhotoDescr: "+id);
+         PreparedStatement stmt = getCon().prepareStatement
+              ( "UPDATE \"Photo\" SET descr=? WHERE id=? AND userid=?" );
+         
+         stmt.setString(1, descr);
+         stmt.setString(2, id);
+         stmt.setString(3, userid);
+         stmt.executeUpdate();
     }
     
     
+    public DbList<Signs.Item> getPhotos(String user, String group, java.util.Date time, LatLng uleft, LatLng lright)
+          throws java.sql.SQLException
+    {
+         PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT DISTINCT ON (a.id) a.id as id, p.userid as uid, time, position, descr" +
+              " FROM \"Photo\" p, \"ObjectAccess\" a " +
+              " WHERE a.id=p.id AND photo=true AND (a.userid=?  OR a.userid='#ALL' OR a.userid=?) AND " +
+              "    time <= ? AND time + interval '1 month' >= ? AND " +       
+              "    position && ST_MakeEnvelope(?, ?, ?, ?, 4326) " +
+              " LIMIT 300" +
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
+        
+        if (time==null)
+            time = new java.util.Date();
             
+         stmt.setString(1, (user==null ? "_NO-USER_" : user));
+         stmt.setString(2, "@"+(group==null ? "NOLOGIN": group));
+         stmt.setTimestamp(3, date2ts(time));
+         stmt.setTimestamp(4, date2ts(time));
+         stmt.setDouble(5, uleft.getLng());
+         stmt.setDouble(6, uleft.getLat());
+         stmt.setDouble(7, lright.getLng());
+         stmt.setDouble(8, lright.getLat());
+         stmt.setMaxRows(300);
+        
+        return new DbList<Signs.Item>(stmt.executeQuery(), rs ->
+            {
+                var x = new Photo(rs.getString("id"), rs.getTimestamp("time"), getRef(rs, "position"),
+                    rs.getString("uid"), rs.getString("descr"));
+                return x;
+            }); 
+    }
+
         
     public int deletePhoto(String id, String user)
           throws java.sql.SQLException
@@ -344,6 +383,77 @@ public class SignsDBSession extends DBSession
          return stmt.executeUpdate();
     }
     
+    
+                    
+    public int unlinkPhoto(String ident, String owner, String userid)
+            throws java.sql.SQLException
+    {
+        /* First, remove links from users where owner has a non-readonly link */
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " DELETE FROM \"ObjectAccess\" WHERE id=? "+
+                " AND userid=? AND photo='true' "+
+                " AND EXISTS " +
+                "   ( SELECT id FROM \"ObjectAccess\" " + 
+                "     WHERE id=? AND userid=? AND photo='true' AND readonly='false' ) " 
+              );
+        stmt.setString(1, ident);
+        stmt.setString(2, userid);
+        stmt.setString(3, ident);
+        stmt.setString(4, owner);
+        stmt.executeUpdate();
+        
+        /* Remove dangling @group and #ALL links */
+        stmt = getCon().prepareStatement
+              ( " DELETE FROM \"ObjectAccess\" WHERE id=? AND photo='true' AND userid ~ '[@#].+' "+
+                " AND NOT EXISTS "+
+                "    ( SELECT id FROM \"ObjectAccess\" WHERE id=? AND photo='true' AND NOT userid ~ '[@#].+') " );
+        stmt.setString(1,ident);
+        stmt.setString(2, ident);
+        stmt.executeUpdate();
+        
+        /* Now if no user-links left, remove JsObject */
+        stmt = getCon().prepareStatement
+              ( " DELETE FROM \"Photo\" WHERE id=? AND NOT EXISTS "+
+                "  ( SELECT id FROM \"ObjectAccess\" where id=? AND photo='true') ");
+        stmt.setString(1, ident);
+        stmt.setString(2, ident);
+        return stmt.executeUpdate();
+    }
+    
+    
+    
+    public void sharePhoto(String ident, String owner, String userid, boolean readonly)
+            throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"ObjectAccess\" (id, readonly, userid, photo)" +
+                " SELECT id, ?, ?, 'true' "+
+                " FROM \"Photo\" NATURAL JOIN \"ObjectAccess\" "+
+                "   WHERE id=? AND userid=? AND readonly=false AND NOT EXISTS "+
+                "       (SELECT userid FROM \"ObjectAccess\" WHERE id=? AND userid=?) limit 1");
+        stmt.setBoolean(1, readonly);
+        stmt.setString(2, userid);
+        stmt.setString(3, ident);
+        stmt.setString(4, owner);
+        stmt.setString(5, ident);
+        stmt.setString(6, userid);
+        stmt.executeUpdate();
+    }
+    
+        
+    
+    public DbList<JsObject.User> getPhotoUsers(String id)
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT userid, readonly from \"ObjectAccess\" "+
+              " WHERE id=? AND photo = true",  
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, id);
+        return new DbList<JsObject.User>( stmt.executeQuery(), rs ->
+            { return new JsObject.User(rs.getString("userid"), rs.getBoolean("readonly"));  }
+        );
+    }
     
         
     public int setSeqNext(String seq, int next) 

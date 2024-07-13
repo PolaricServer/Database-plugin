@@ -200,7 +200,7 @@ public class DbInstaller
                         "time        timestamp without time zone not null, "+
                         "descr       text,"+
                         "image       bytea ");
-        addGeoField("Signs", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */
+        addGeoField("Photo", "position", 4326, "POINT", 2); /* WGS84 Coordinate system */
         
         
         createClass("JsObject", null, 
@@ -211,6 +211,7 @@ public class DbInstaller
         createClass("ObjectAccess", null, 
                         "id       varchar REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
                         "readonly boolean DEFAULT 'false', " + 
+                        "photo    boolean DEFAULT 'false', " +
                         "userid   varchar(20) " );         
                                
         /* New in schema v. 4 */                

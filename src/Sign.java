@@ -45,7 +45,7 @@ public class Sign extends Signs.Item
   public String getGroup()
     { return group; }
     
-  public String getUser()
+  @Override public String getUser()
     { return userid; }
   
   public Sign (String i, LatLng r, long sc, String ic, String url, String txt, int cls) {

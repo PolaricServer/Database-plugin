@@ -36,6 +36,7 @@ public class HistApi extends ServerBase implements JsonPoints
     private ServerAPI _api; 
     private PluginApi _dbp;
     private String _defaultIcon;
+    private int _photoscale;
     private ColourTable _colTab = null;
     private HashMap<String, String[]> _colUsed = new HashMap<String,String []>();
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
@@ -46,7 +47,8 @@ public class HistApi extends ServerBase implements JsonPoints
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
         _colTab = new ColourTable (api, System.getProperties().getProperty("confdir", ".")+"/trailcolours");
-        _defaultIcon =  _api.getProperty("map.icon.default", "sym00.png");
+        _defaultIcon =  _api.getProperty("map.icon.default", "sym00.png");   
+        _photoscale = api.getIntProperty("db.photos.maxscale", 500000);
     }
     
     
@@ -74,7 +76,12 @@ public class HistApi extends ServerBase implements JsonPoints
         db.abort();
         return ERROR(resp, status, msg);
     }
-      
+    
+    public String S_ABORT(Response resp, SignsDBSession db, String logmsg, int status, String msg) {
+        _dbp.log().warn("HistApi", logmsg);
+        db.abort();
+        return ERROR(resp, status, msg);
+    }  
 
     public Date parseIsoDf(String d) {
         Instant timestamp = Instant.parse(d);
@@ -225,6 +232,7 @@ public class HistApi extends ServerBase implements JsonPoints
             TrackerPoint tp = null;
             String curr_ident = "XXXXX";                
             var uid = getAuthInfo(req).userid; 
+            var group = getAuthInfo(req).groupid;
             
             try {
                 double x1 = Double.parseDouble(req.splat()[0]);
@@ -275,10 +283,28 @@ public class HistApi extends ServerBase implements JsonPoints
                 }
                 processPoint(mu, tp, trail, vfilt, scale, reset);
                 db.commit();
-                return mu;
+                
+                /* Search photos */    
+                SignsDBSession sdb = new SignsDBSession(_dbp.getDB());
+                try {
+                    if (scale < _photoscale) {
+                        DbList<Signs.Item> photos = sdb.getPhotos(uid, group, dto, uleft, lright);
+                        for (Signs.Item x: photos)
+                            processPhoto(mu, x);
+                        sdb.commit();
+                    }
+                    return mu;
+                }
+                catch (Exception e) {
+                    e.printStackTrace(System.out);
+                    return S_ABORT(resp, sdb, "GET /hist/snapshot: Error in searching photos: "+e.getMessage(), 500, 
+                        "Exception - check log"); 
+                }
+                finally { sdb.close(); }
             }                  
+            
             catch(java.lang.NumberFormatException e) {  
-                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 400,  "Cannot parse number");
+                return ABORT(resp, db, "GET /hist/snapshot: Cannot parse number", 400,  "Cannot parse number");
             }
             catch(DateTimeParseException e) { 
                 return ABORT(resp, db, "GET /hist/snapshot: Cannot parse date/time:"+e.getMessage(), 400, 
@@ -394,6 +420,25 @@ public class HistApi extends ServerBase implements JsonPoints
                 p.trail = createTrail(tp, trail, action, reset);
                 mu.points.add(p);
             }
+        }
+    }
+   
+   
+   
+    private void processPhoto(JsOverlay mu, Signs.Item p) 
+    {
+        if (p != null) {
+            LatLng ref = p.getPosition();
+            if (ref == null) 
+                return;
+            JsPoint x  = new JsPoint();
+            x.ident  = p.getIdent();
+            x.type   = p.getType();
+            x.title = p.getDescr() == null ? "" : fixText(p.getDescr());
+            x.href  = p.getUrl() == null ? "" : p.getUrl();
+            x.pos    = new double[] {ref.getLng(), ref.getLat()};
+            x.icon   = "/icons/"+ p.getIcon(); 
+            mu.points.add(x);
         }
     }
    
