@@ -195,7 +195,7 @@ if ((VERSION < 10)); then
         descr text, \
         image bytea ); \
     \
-    SELECT AddGeometryColumn(varchar('Photo'), varchar('position'), 4326, varchar('POINT'), 2); \
+    SELECT AddGeometryColumn('Photo', 'position', 4326, 'POINT', 2); \
     ALTER TABLE \"ObjectAccess\" ADD COLUMN photo boolean DEFAULT 'false'; \
     ALTER TABLE \"ObjectAccess\" DROP CONSTRAINT \"ObjectAccess_id_fkey\"; \
     UPDATE \"MetaData\" SET version=10; \
