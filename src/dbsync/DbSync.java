@@ -32,7 +32,7 @@ import static spark.Spark.*;
 
 
 /*
- * Replication with relaxed/eventual consistency. 
+ * Replication with strong eventual consistency. 
  */
  
 public class DbSync implements Sync
@@ -55,6 +55,10 @@ public class DbSync implements Sync
     private Map<String, String> _nodes = new HashMap<String, String>();
     /* Nodes on wait */
     private Map<String, Retry> _pending = new HashMap<String, Retry>();       
+    
+    
+    /* Policy for conflict resolution */
+    private Map<String, String> _policy = new HashMap<String, String>();
     
     
     private static class Retry {
@@ -95,7 +99,7 @@ public class DbSync implements Sync
         webSocket("/ws/dbsync", ws);
         
         /* Set up websocket api and handler for item updates */
-        _wsNodes = new NodeWsApi<ItemUpdate>(_ident, ws, ItemUpdate.class);
+        _wsNodes = new NodeWsApi<ItemUpdate>(_api, _ident, ws, ItemUpdate.class);
         _wsNodes.setHandler( (nodeid, upd)-> {
                 if (upd==null)
                     _dbp.log().warn("DbSync", "Received ItemUpdate: "+nodeid+", NULL");
@@ -293,13 +297,17 @@ public class DbSync implements Sync
             return false; 
         }
         
-        /* Update comes after a delete */
+        /* Update comes after a delete 
+         * FIXME: It should be configurable if this is to be the resolution
+         */
         if ((meta==null || meta.cmd.equals("DEL")) && upd.cmd.equals("UPD")) {
             _dbp.log().info("DbSync", "Convert UPD to ADD: "+upd.cid+", "+upd.itemid);
             upd.cmd="ADD";
         }
             
-        /* Add comes after add or update */
+        /* Add comes after add or update 
+         * FIXME: It should be configurable if this is to be the resolution 
+         */
         if (meta!=null && meta.cmd.equals("ADD") && upd.cmd.equals("ADD")
             || (meta!=null && meta.cmd.equals("UPD") && upd.cmd.equals("ADD"))) {
             _dbp.log().info("DbSync", "Convert ADD to UPD: "+upd.cid+", "+upd.itemid);
