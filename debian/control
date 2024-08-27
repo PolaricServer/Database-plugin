@@ -8,7 +8,7 @@ Homepage: http://aprs.no/polaricserver
 
 Package: polaric-db-plugin
 Architecture: all
-Depends: polaric-aprsd (>= 3.0), postgresql-client, libpostgresql-jdbc-java, libpostgis-java (>= 2021.1.0), libhikaricp-java ${misc:Depends}
+Depends: polaric-aprsd (>= 3.1), postgresql-client, libpostgresql-jdbc-java, libpostgis-java (>= 2021.1.0), libhikaricp-java ${misc:Depends}
 Recommends: postgresql, postgis
 Description: Polaric Server: APRS daemon part. 
  The "Polaric Server" is mainly a web based service to present APRS 

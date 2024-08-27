@@ -1,8 +1,9 @@
-polaric-db-plugin (3.0+) UNRELEASED; urgency=medium
+polaric-db-plugin (3.1) stable; urgency=medium
 
-  * Hacking... 
+  * Support for photos as spatiotemporal objects
+  * DbSync fixes
 
- -- Oyvind Hanssen <ohanssen@acm.org>  Tue, 05 Dec 2023 21:42:10 +0100
+ -- Oyvind Hanssen <ohanssen@acm.org>  Sat, 27 Aug 2024 18:25:40 +0200
 
 polaric-db-plugin (3.0) stable; urgency=medium
 
