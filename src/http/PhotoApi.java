@@ -334,6 +334,7 @@ public class PhotoApi extends ServerBase
                 var id = db.addPhoto(_myCall, new LatLng(p.pos[1], p.pos[0]), auth.userid, p.time, p.descr, 
                      scaleImg(p.image, 1900, p.id) ); 
                 db.commit();  
+         //       _dbp.getSync().localUpdate("photos", id, auth.userid, "ADD", ServerBase.toJson(sc));
                 return id; 
             }
             catch (java.sql.SQLException e) {
@@ -361,7 +362,8 @@ public class PhotoApi extends ServerBase
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 db.unlinkPhoto(ident, auth.userid, auth.userid);
-                db.commit();          
+                db.commit();         
+        //        _dbp.getSync().localUpdate("photos", ident, "", "DEL", "");
                 return "OK";
             }
             catch (java.sql.SQLException e) {
