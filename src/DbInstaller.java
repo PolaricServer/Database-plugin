@@ -205,7 +205,7 @@ public class DbInstaller
         
         createClass("JsObject", null, 
                         "id      varchar not null PRIMARY KEY, " +
-                        "tag     varchar(20), " +
+                        "tag     varchar(40), " +  // ***********************
                         "data    text" );
 
         createClass("ObjectAccess", null, 
@@ -217,7 +217,7 @@ public class DbInstaller
         /* New in schema v. 4 */                
         createClass("TrTags", null, 
                         "userid  varchar(20) not null, " +
-                        "tag     varchar(20) not null" );
+                        "tag     varchar(40) not null" ); //************************
                                
          
         /* New in schema v. 5 */
@@ -228,16 +228,27 @@ public class DbInstaller
                         "op   varchar(10) not null, " +
                         "PRIMARY KEY (cid,item) " );
          
-         createClass("DbSyncQueue", null,
-                        "nodeid varchar NOT NULL, " +
-                        "cid    varchar NOT NULL, " +
-                        "item   varchar NOT NULL, " + 
-                        "userid varchar, " +
+                        
+         /* New in schema v. 12 */               
+         createClass("DbSyncMessage", null, 
+                        "origin varchar NOT NULL, " +
                         "ts     timestamp without time zone NOT NULL, " +
+                        "cid    varchar NOT NULL, " +
+                        "item   varchar NOT NULL, " +
+                        "userid varchar, " +
                         "cmd    varchar, " +
                         "arg    text, " +
-                        "origin varchar "); 
-                  
+                        "PRIMARY KEY (origin, ts) " );
+   
+         
+         createClass("DbSyncMessageTo", null,
+                        "origin varchar NOT NULL, " + 
+                        "ts     timestamp without time zone NOT NUYLL, " + 
+                        "nodeid varchar NOT NULL, " +
+                        "PRIMARY KEY (origin,ts, nodeid), " +
+                        "FOREIGN KEY (origin, ts) REFERENCES \"DbSyncMessages\" (origin, ts) ON DELETE CASCADE " );
+         
+         
          /* New in schema v. 9 */
          createClass("DbSyncPeers", null, 
                         "nodeid  varchar NOT NULL PRIMARY KEY, " +

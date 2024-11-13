@@ -29,7 +29,7 @@ public class ObjectSync implements Sync.Handler
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
     }
    
-   
+     public boolean isDelWins() {return false;}
    
     /**
      * Handle an update from other node. 

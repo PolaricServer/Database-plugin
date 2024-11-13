@@ -549,6 +549,7 @@ public class MyDBSession extends DBSession
     }
     
     
+    /* Share a specific object */
     public void shareJsObject(String ident, String owner, String userid, boolean readonly)
             throws java.sql.SQLException
     {
@@ -568,6 +569,7 @@ public class MyDBSession extends DBSession
     }
     
     
+    /* Share all objects that have a specific userid and tag */
     public void shareJsObjects(String tag, String owner, String userid, boolean readonly)
             throws java.sql.SQLException
     {

@@ -24,6 +24,7 @@ public class UserTsSync implements Sync.Handler
         _users = (UserDb) api.getWebserver().getUserDb();
     }
    
+    public boolean isDelWins() {return false;}
    
    
     /**

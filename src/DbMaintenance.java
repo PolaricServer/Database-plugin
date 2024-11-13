@@ -97,7 +97,7 @@ public class DbMaintenance implements Runnable
                
             db.getCon().prepareStatement
               ( "DELETE FROM \"DbSync\" " + 
-                "WHERE time + INTERVAL '6 months' < 'now'" );
+                "WHERE ts + INTERVAL '2 years' < 'now'" );
             deleted = stmt.executeUpdate();
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from DbSync table");

@@ -29,7 +29,7 @@ public class SignsSync implements Sync.Handler
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
     }
    
-   
+    public boolean isDelWins() {return false;}
    
     /**
      * Handle an update from other node. 
@@ -117,6 +117,7 @@ public class SignsSync implements Sync.Handler
             LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);         
             Sign s = db.getSign(sc.id);
             if (s==null) {
+                /* FIXME: Is this correct?? */
                 _dbp.log().warn("SignsSync", "Replica object doesn't exist. Adding: "+sc.id);
                 db.addSignIdent(sc.id, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, userid);
             }

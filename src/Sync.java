@@ -53,14 +53,25 @@ public interface Sync
     
     
     /* 
-     * We need to provide handler classes for each type/group of information to synchronize 
+     * We need to provide handler classes for each type/group of information to synchronize. 
      * This usually (?) corresponds to a database table. We also need to chose a name for each
      * instance of this that is registered, the cid (collection id). 
      */
     public interface Handler {
+        
+        public boolean isDelWins(); 
+        
         public void handle(ItemUpdate upd)
             throws DBSession.SessionError;
+            
+        default public void onDelete(String ident) { }
     }
+    
+    
+    /**
+    /* Get a handler registered for the given cid. 
+     */
+    public Handler getHandler(String cid); 
     
     
     /**
@@ -69,11 +80,14 @@ public interface Sync
      */
     public boolean doUpdate(ItemUpdate upd);
  
+ 
     /**
      * Queue a local update for synchronizing to other nodes. .
      * This is called from various update methods.  
      */
     public void localUpdate(String cid, String itemid, String userid, String cmd, String arg);
+    
+    public void localUpdate(String cid, String itemid, String userid, String cmd, String arg, boolean propagate);
  
  
     /**

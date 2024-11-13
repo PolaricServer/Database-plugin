@@ -204,6 +204,54 @@ if ((VERSION < 10)); then
 fi
 
 
+if ((VERSION < 11)); then
+    echo "Upgrading schema to version 11"
+    psql -t -c "BEGIN;  \
+    alter table \"JsObject\" alter column tag type varchar(40); \
+    alter table \"TrTags\" alter column tag type varchar(40); \
+    UPDATE \"MetaData\" SET version=11; \
+    COMMIT " polaric
+fi 
+
+
+
+if ((VERSION < 12)); then
+    echo "Upgrading schema to version 12"
+    psql -t -c "BEGIN;  \
+    CREATE TABLE IF NOT EXISTS \"DbSyncMessage\" ( \
+        origin varchar NOT NULL, \
+        ts timestamp without time zone NOT NULL, \
+        cid varchar NOT NULL, \
+        item varchar NOT NULL, \
+        userid varchar, \
+        cmd varchar, \
+        arg text, \
+        PRIMARY KEY (origin, ts)); \
+    \
+    CREATE TABLE IF NOT EXISTS \"DbSyncMessageTo\" ( \
+        origin varchar NOT NULL, \
+        ts timestamp without time zone NOT NULL, \
+        nodeid varchar NOT NULL, \
+        PRIMARY KEY (origin,ts, nodeid), \
+        FOREIGN KEY (origin, ts) REFERENCES \"DbSyncMessage\" (origin, ts) ON DELETE CASCADE ); \
+    \
+    INSERT INTO \"DbSyncMessage\" \
+        SELECT DISTINCT origin, ts, cid, item, userid, cmd, arg \
+        FROM \"DbSyncQueue\"; \
+    \
+    INSERT INTO \"DbSyncMessageTo\" \
+        SELECT DISTINCT origin, ts, nodeid FROM \"DbSyncQueue\"; \
+    \
+    DROP TABLE IF EXISTS \"DbSyncQueue\"; \
+    alter table \"DbSyncMessage\" owner to polaric; \
+    alter table \"DbSyncMessageTo\" owner to polaric; \
+    \
+    UPDATE \"MetaData\" SET version=12; \
+    COMMIT " polaric
+fi 
+
+
+
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then
     echo "Adding classes/icons in \"SignClass\""

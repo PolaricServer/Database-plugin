@@ -103,7 +103,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
            
            /* Activate and register user sync client */
            UserDb udb = (UserDb) _api.getWebserver().getUserDb(); 
-           udb.setSyncer( new ClientUserSyncer(_dbsync) );
+           udb.setSyncer( new ClientUserSyncer(_api, _dbsync) );
            
 
            /*

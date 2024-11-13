@@ -247,6 +247,40 @@ public class SignsDBSession extends DBSession
     
     
     
+    
+    public int deleteSignsByUser(String userid)
+        throws java.sql.SQLException
+    {
+        _log.debug("SignsDbSession", "deleteSignsByUser: "+userid);
+        PreparedStatement stmt = getCon().prepareStatement
+              ( "DELETE FROM \"Signs\"" + 
+                "WHERE userid=?" );
+         stmt.setString(1, userid);
+         return stmt.executeUpdate();
+    }
+    
+    
+    
+    /**
+     * Get list of signs (just the id's) owned by a specific user 
+     */
+    public DbList<String> getSignsByUser(String userid)
+       throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+           ( " SELECT id FROM \"Signs\" " +
+             " WHERE userid=?",
+             ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, userid);
+        
+        return new DbList<String>(stmt.executeQuery(), rs -> {
+                return rs.getString("id");  
+            });
+    }
+    
+    
+    
+    
     public DbList<Sign.Category> getCategories()
         throws java.sql.SQLException
     {

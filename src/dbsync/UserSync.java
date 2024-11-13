@@ -32,6 +32,8 @@ public class UserSync implements Sync.Handler
     }
    
    
+    public boolean isDelWins() {return false;}
+   
    
     /**
      * Handle an update from other node. 
@@ -128,6 +130,36 @@ public class UserSync implements Sync.Handler
     private void _del(String ident) 
         throws DBSession.SessionError
     {
+//        onDelete(ident);
         _users.remove(ident); 
     }
+    
+    
+    
+    /* 
+     * Handle deletions. Deal with referential integrity. 
+     */
+    public void onDelete(String userid)
+    {
+        SignsDBSession db = null;
+        try {
+            db = new SignsDBSession(_dbp.getDB());
+            DbList<String> deleted = db.getSignsByUser(userid);
+            db.deleteSignsByUser(userid);
+            db.commit();
+            for (String x: deleted)
+                _dbp.getSync().localUpdate("signs", x, "_system_", "DEL", null, false);
+        }
+        catch(Exception e) {
+            if (db != null) db.abort();
+            _dbp.log().error("ClientUserSyncer", "Exception: "+e.getMessage());   
+            e.printStackTrace(System.out);
+        }
+        finally {
+            if (db != null) db.close();
+        }
+    }
+    
+    
+    
 }

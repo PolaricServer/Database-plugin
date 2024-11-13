@@ -131,14 +131,15 @@ public class SyncDBSession extends DBSession
     }
     
     
-    
-    
+    /*
+     * Get sync update messages to a given node 
+     */
     public DbList<Sync.ItemUpdate> getSyncUpdates(String nodeid) 
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT * from \"DbSyncQueue\" "+ 
-              " WHERE nodeid=? order by ts asc",  // FIXME; FIX schema
+            ( " SELECT * from \"DbSyncMessage\" NATURAL JOIN \"DbSyncMessageTo\" "+ 
+              " WHERE nodeid=? ORDER BY ts asc", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, nodeid);
 
@@ -150,35 +151,61 @@ public class SyncDBSession extends DBSession
     
     
     
-    
-    public void removeSyncUpdates(String nodeid, java.util.Date ts) 
+    /*
+     * Remove sync update messages to a given node before a given time
+     */
+    public int removeSyncUpdates(String nodeid, java.util.Date ts) 
                 throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-              ( " DELETE FROM \"DbSyncQueue\"" + 
-                " WHERE nodeid=? AND ts<=?" );
+              ( " DELETE FROM \"DbSyncMessageTo\"" + 
+                " WHERE nodeid = ? AND ts <= ?" );
         stmt.setString(1, nodeid);
-        stmt.setTimestamp(2, DBSession.date2ts(ts));
-        stmt.executeUpdate();
+        stmt.setTimestamp(2, DBSession.date2ts(ts, 100));
+        int removed = stmt.executeUpdate();
+        
+        /* Cleanup */
+        PreparedStatement stmt2 = getCon().prepareStatement
+              ( " DELETE FROM \"DbSyncMessage\" m WHERE NOT EXISTS " +
+                " (SELECT ts FROM \"DbSyncMessageTo\" t WHERE m.ts = t.ts AND m.origin = t.origin) " );
+        removed += (100 * stmt2.executeUpdate());
+        return removed; 
     }
     
     
     
-    
-    public void addSyncUpdate(String nodeid, Sync.ItemUpdate upd) 
+    /*
+     *  Add a sync update message. 
+     */
+    public void addSyncUpdate(Sync.ItemUpdate upd) 
                 throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"DbSyncQueue\" (nodeid,cid,item,userid,ts,cmd,origin,arg) " + 
-                " VALUES (?,?,?,?,?,?,?,?)" );
-        stmt.setString(1,nodeid );
-        stmt.setString(2, upd.cid);
-        stmt.setString(3, upd.itemid);
-        stmt.setString(4, upd.userid);
-        stmt.setTimestamp(5, new Timestamp(upd.ts));
+              ( " INSERT INTO \"DbSyncMessage\" (origin,ts,cid,item,userid,cmd,arg) " + 
+                " VALUES (?,?,?,?,?,?,?) " );
+        stmt.setString(1, upd.origin );
+        stmt.setTimestamp(2, new Timestamp(upd.ts));
+        stmt.setString(3, upd.cid);
+        stmt.setString(4, upd.itemid);
+        stmt.setString(5, upd.userid);
         stmt.setString(6, upd.cmd);
-        stmt.setString(7, upd.origin);
-        stmt.setString(8, upd.arg);
+        stmt.setString(7, upd.arg);
+        stmt.executeUpdate();
+    }
+    
+    
+    /*
+     * Add destination nodes for a given sync update message. 
+     */
+    public void addSyncUpdatePeer(String nodeid, Sync.ItemUpdate upd)
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " INSERT INTO \"DbSyncMessageTo\" (origin,ts,nodeid) " + 
+                " VALUES (?,?,?)" );
+        stmt.setString(1,upd.origin);
+        stmt.setTimestamp(2, new Timestamp(upd.ts));
+        stmt.setString(3, nodeid);
         stmt.executeUpdate();
     }
     

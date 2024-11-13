@@ -29,6 +29,7 @@ public class ObjectShareSync implements Sync.Handler
         _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
     }
    
+    public boolean isDelWins() {return false;}
    
    
     /**
