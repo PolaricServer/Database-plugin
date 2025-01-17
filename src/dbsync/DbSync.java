@@ -352,6 +352,12 @@ public class DbSync implements Sync
             _dbp.log().warn("DbSync", "Handler not found for: "+upd.cid);
             return false;
         }
+       
+       /* 
+        * We need to propagate the update to the other peers. 
+        * But not if the propagate flag is set to false and not to node from where we got the message! 
+        */
+        propagate(upd, upd.sender, true);
             
         SyncDBSession db = null;
         try {
@@ -364,7 +370,9 @@ public class DbSync implements Sync
             db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date(upd.ts));
             db.commit(); 
             
-            /* Now apply the update */
+            /* Now apply the update 
+             * FIXME: Maybe this should be inside this transaction?
+             */
             hdl.handle(upd);
             return true;
         }
@@ -376,11 +384,6 @@ public class DbSync implements Sync
         }      
         finally {
             if (db != null) db.close();
-            /* 
-             * We need to propagate the update to the other peers. 
-             * But not if the propagate flag is set to false and not to node from where we got the message! 
-             */
-            propagate(upd, upd.sender, true);
         }
     }
     
@@ -520,7 +523,6 @@ public class DbSync implements Sync
                     retr = null;
                     _dbp.log().info("DbSync", "Post to "+node+" succeeded ("+upd.cid+", "+upd.ts+")");
                     int removed = db.removeSyncUpdates(node, new java.util.Date(upd.ts));
-                    _dbp.log().info("DbSync", "Removed: "+removed);
                 }
                 db.commit();
             }

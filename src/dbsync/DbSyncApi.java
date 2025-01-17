@@ -187,8 +187,6 @@ public class DbSyncApi extends ServerBase
          ******************************************/
         
         get("/dbsync/nodeinfo", (req, resp) -> {  
-         //  if (!_auth.checkAuth(req))
-         //           return ERROR(resp, 403, "Authentication failed");
             return _dbsync.getIdent();
         } );
         

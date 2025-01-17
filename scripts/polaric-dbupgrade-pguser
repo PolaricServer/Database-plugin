@@ -232,6 +232,7 @@ if ((VERSION < 12)); then
         origin varchar NOT NULL, \
         ts timestamp without time zone NOT NULL, \
         nodeid varchar NOT NULL, \
+        sent boolean DEFAULT 'false'; 
         PRIMARY KEY (origin,ts, nodeid), \
         FOREIGN KEY (origin, ts) REFERENCES \"DbSyncMessage\" (origin, ts) ON DELETE CASCADE ); \
     \
