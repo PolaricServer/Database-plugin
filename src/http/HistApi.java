@@ -262,21 +262,28 @@ public class HistApi extends ServerBase implements JsonPoints
                 
                 for (MyDBSession.TrailItem it : items) {
                     if (!curr_ident.equals(it.ident)) {
-                        processPoint(mu, tp, trail, vfilt, scale, reset);
+                        processPoint(mu, tp, trail, vfilt, scale, reset);                  
                         tp = it.toPoint();
                         
                         /* Get tags from db */
                         setTags(db, tp, dto);
-                        
                         /* Get alias and/or icon */
                         if (aliasAuth || (auth.group != null && tp.hasTag(auth.group.getTags())))
                             db.getAnnotations(tp, dto);
-                        
+                            
                         trail.clear();
                         curr_ident = it.ident;
                     }
                     else {
-                        TPoint x = new TPoint(it.time, it.pos, it.path);
+                        String path = it.path; 
+                        if (it.channel.equals("(ext)") || it.channel.equals("(int)"))
+                            path = "(ext)";
+                        else if (tp instanceof AprsPoint p) {
+                            p.setSymtab(it.symtab);
+                            p.setSymbol(it.symbol);
+                        }
+
+                        TPoint x = new TPoint(it.time, it.pos, path);
                         if (accept_tpoint(x, tp, dto))
                             trail.add(x);
                     }
@@ -412,7 +419,8 @@ public class HistApi extends ServerBase implements JsonPoints
     
     
     private void processPoint(JsOverlay mu, TrackerPoint tp, List<TPoint> trail, 
-                    RuleSet vfilt, double scale, boolean reset) {
+                RuleSet vfilt, double scale, boolean reset) 
+    {
         if (tp != null) {
             Action action = vfilt.apply(tp, (long) scale); 
             if (!action.hideAll()) {

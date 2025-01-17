@@ -124,7 +124,7 @@ public class MyDBSession extends DBSession
              " WHERE  p.src=r.src " +
              " AND  p.time=r.rtime " + 
              " AND  (substring(p.path, '([^,\\*]+).*\\*.*')=? OR " +
-                     " (substring(p.ipath, 'qAR,([^,\\*]+).*')=? AND p.path !~ '.*\\*.*')) " +
+                     " (substring(p.ipath, 'qA[OR],([^,\\*]+).*')=? AND p.path !~ '.*\\*.*')) " +
              (uleft==null ? "": " AND  position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
              
              " AND  p.time > ? AND p.time < ? LIMIT 15000",
@@ -196,12 +196,12 @@ public class MyDBSession extends DBSession
            ( " SELECT pr.time, position, path, ipath, nopkt FROM \"PosReport\" AS pr" +
              " LEFT JOIN \"AprsPacket\" AS ap ON pr.src = ap.src AND pr.rtime = ap.time " +
              " WHERE pr.src=? AND pr.time >= ? AND pr.time <= ?" + 
-             " ORDER BY pr.time "+(rev? "DESC" : "ASC")+" LIMIT 5000",
+             " ORDER BY pr.time "+(rev? "DESC" : "ASC")+" LIMIT 6000",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, src);
         stmt.setTimestamp(2, date2ts(from));
         stmt.setTimestamp(3, date2ts(to));
-        stmt.setMaxRows(5000);
+        stmt.setMaxRows(6000);
                 
         return new DbList<TPoint>(stmt.executeQuery(), rs -> { 
             return new TPoint(rs.getTimestamp("time"), getRef(rs, "position"), getPath(rs));  
@@ -281,7 +281,7 @@ public class MyDBSession extends DBSession
        throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT pr.src as ident, pr.channel, pr.time, position, symbol, symtab, path, ipath, nopkt " +
+           ( " SELECT pr.src as ident, pr.channel as channel, pr.time, position, symbol, symtab, path, ipath, nopkt " +
              " FROM \"PosReport\" AS pr" +
              " LEFT JOIN \"AprsPacket\" AS ap ON pr.src = ap.src AND pr.rtime = ap.time " +
              " WHERE ST_Contains( " +
