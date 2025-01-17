@@ -45,20 +45,12 @@ public class TrackLogApi extends ServerBase implements JsonPoints
         public long lat, lng;        
         public LogItem() {};
     }
-    
-    
+     
+     
     public static class TrkLog implements Serializable {
         public String call;
         public LogItem[] pos;
-        public String mac;
         public TrkLog() {}
-    }
-     
-     
-    public static class TrkLog2 implements Serializable {
-        public String call;
-        public LogItem[] pos;
-        public TrkLog2() {}
     }
     
     
@@ -112,65 +104,7 @@ public class TrackLogApi extends ServerBase implements JsonPoints
         if (t != null && t.oldestPoint() != null && ts.getTime() > t.oldestPoint().getTime())
             t.add(ts, pos, speed, course, "(int)");
     }
-    
-     
-     
-    
-    private boolean authenticate(String msg, TrkLog tr) {
-        /*
-         * A SHA-256 hash is computed from: secret key + message
-         * We can assume that if a message is repeated with the exact same content, 
-         * it is a duplicate which should be rejected.
-         * 
-         * The hash is encoded with Base64 and the 24 first characters of 
-         * it is sent over in the mac field. Remove the mac field from the
-         * message, compute the mac and compare it with the mac in the message.
-         */    
-        String omsg = msg.replaceAll("\\,(\\s)*\\\"mac\\\":.*", ""); 
-        omsg += "}";
-        String key = _api.getProperty("message.auth.key", "NOKEY");
-        boolean result = tr.mac.equals(SecUtils.xDigestB64(key + omsg, 24));
-       
-        /* 
-         * To identify duplicates, check the timestamp of the message is 
-         * later than previous timestamp 
-         */
-        long ts = tr.pos[0].time;
-        Long pts = _tstamps.get(tr.call);
-        if (pts != null && ts <= pts)
-            return false;
 
-        _tstamps.put(tr.call, ts);
-        return result; 
-    }
-    
-    
-    private boolean authenticate2(Request req, TrkLog2 tr) {
-        /*
-         * A SHA-256 HMAC is computed from: secret key and message
-         * We can assume that if a message is repeated with the exact same content, 
-         * it is a duplicate which should be rejected.
-         * 
-         * The hash is encoded with Base64 and sent using ht Arctic-Hmac header.
-         * Compute the hmac and compare it with the hmac in the message.
-         */    
-        String key = _api.getProperty("message.auth.key", "NOKEY");
-        String rmac = req.headers("Arctic-Hmac");
-        String nonce = req.headers("Arctic-Nonce");
-        boolean result = SecUtils.hmacB64(nonce+req.body(), key, 44).equals(rmac); 
-
-        /* 
-         * To identify duplicates, check the timestamp of the message is 
-         * later than previous timestamp.
-         */
-        long ts = tr.pos[0].time;
-        Long pts = _tstamps.get(tr.call);
-        if (pts != null && ts <= pts)
-            return false;
-
-        _tstamps.put(tr.call, ts);
-        return result; 
-    }
     
     
     
@@ -179,14 +113,25 @@ public class TrackLogApi extends ServerBase implements JsonPoints
      * Set up the webservices. 
      */
     public void start() {   
+        _api.getWebserver().protectDeviceUrl("/arctic/*");
     
-        _api.getWebserver().corsEnable("/tracklog");
+    
+    
+    
+        /******************************************
+         * Echo service to test
+         ******************************************/
+        post("/arctic/echo", (req, resp) -> {
+            String body = req.body();
+            return "Polaric Server: "+body;
+        });
+        
     
             
         /******************************************
-         * Test POST
+         * POST of tracklogs
          ******************************************/
-        post("/tracklog", (req, resp) -> {        
+        post("/arctic/trklog", (req, resp) -> {        
             TrkLog tr = (TrkLog) 
                 ServerBase.fromJson(req.body(), TrkLog.class);
             if (tr==null)
@@ -194,8 +139,6 @@ public class TrackLogApi extends ServerBase implements JsonPoints
                 
             MyDBSession db = _dbp.getDB();
             try {
-                if (!authenticate(req.body(), tr))
-                    return ERROR(resp, 403, "Message authentication failed");
                 for (LogItem x : tr.pos) 
                     insertPosReport(db, tr.call, new java.util.Date(x.time*1000), -1, -1, 
                         new LatLng(((double) x.lat)/100000, ((double) x.lng)/100000));
@@ -214,39 +157,5 @@ public class TrackLogApi extends ServerBase implements JsonPoints
             finally { db.close(); }
         });
         
-        
-        
-        /******************************************
-         * Test POST
-         ******************************************/
-        post("/tracklog2", (req, resp) -> {        
-            MyDBSession db = _dbp.getDB();
-            try {                    
-                TrkLog2 tr = (TrkLog2) 
-                    ServerBase.fromJson(req.body(), TrkLog.class);
-                if (!authenticate2(req, tr))
-                    return ERROR(resp, 403, "Authentication failed");
-
-                if (tr==null)
-                    ERROR(resp, 400, "Invalid message body");
-                    
-                for (LogItem x : tr.pos) 
-                    insertPosReport(db, tr.call, new java.util.Date(x.time*1000), -1, -1, 
-                        new LatLng(((double) x.lat)/100000, ((double) x.lng)/100000));
-                db.commit();
-                return "Ok";
-            }
-            catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /tracklog: SQL error:"+e.getMessage(),
-                    500, "SQL error: "+e.getMessage());
-            }
-            catch (Exception e) {
-                e.printStackTrace(System.out);
-                return ABORT(resp, db, "POST /tracklog: Error:"+e.getMessage(),
-                    500, "Error: "+e.getMessage());
-            }
-            finally { db.close(); }
-        });
     }
-    
 }
