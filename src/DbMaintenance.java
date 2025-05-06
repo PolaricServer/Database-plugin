@@ -87,6 +87,7 @@ public class DbMaintenance implements Runnable
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
                
+            /* Serverstats is kept for 5 years */
             db.getCon().prepareStatement
               ( "DELETE FROM \"ServerStats\" " + 
                 "WHERE time + INTERVAL '5 years' < 'now'" );
@@ -102,6 +103,13 @@ public class DbMaintenance implements Runnable
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from DbSync table");
                
+               
+            db.getCon().prepareStatement
+              ( "DELETE FROM \"DbSync\" " + 
+                "WHERE stable = 'true' AND ts + INTERVAL '3 months' < 'now'" );
+            deleted = stmt.executeUpdate();
+            if (deleted > 0) 
+               _log.info("DbMaintenance", "Deleted "+deleted+" stable records from DbSync table");
                
             db.commit();
                 

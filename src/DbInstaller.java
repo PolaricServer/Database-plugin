@@ -243,11 +243,17 @@ public class DbInstaller
          
          createClass("DbSyncMessageTo", null,
                         "origin varchar NOT NULL, " + 
-                        "ts     timestamp without time zone NOT NUYLL, " + 
+                        "ts     timestamp without time zone NOT NULL, " + 
                         "nodeid varchar NOT NULL, " +
                         "PRIMARY KEY (origin,ts, nodeid), " +
                         "FOREIGN KEY (origin, ts) REFERENCES \"DbSyncMessages\" (origin, ts) ON DELETE CASCADE " );
          
+         
+         createClass("DbSyncAck", null, 
+                        "origin varchar NOT NULL, " +
+                        "ts     timestamp without time zone NOT NULL, " +
+                        "nodeid varchar NOT NULL, " +
+                        "PRIMARY KEY (origin, ts) " );
          
          /* New in schema v. 9 */
          createClass("DbSyncPeers", null, 

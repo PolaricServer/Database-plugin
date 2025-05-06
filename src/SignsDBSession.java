@@ -125,9 +125,9 @@ public class SignsDBSession extends DBSession
     {
         _log.debug("SignsDbSession", "updateSign: "+id+", "+descr);
         PreparedStatement stmt = getCon().prepareStatement
-            ( "UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
-              "WHERE id=?;" +
-              "UPDATE \"Signs\" SET userid=? WHERE id=? AND userid IS NULL");
+            ( " UPDATE \"Signs\" SET maxscale=?, position=?, icon=?, url=?, description=?, class=?"+
+              " WHERE id=? ;" +
+              " UPDATE \"Signs\" SET userid=? WHERE id=? AND userid IS NULL");
         stmt.setLong(1, maxscale);
         setRef(stmt, 2, pos);
         stmt.setString(3, icon);
@@ -153,7 +153,7 @@ public class SignsDBSession extends DBSession
               ( " SELECT s.id AS sid, position, maxscale, url, description, cl.name AS cname, "+
                 " s.icon AS sicon, cl.icon AS cicon, class, userid " +
                 " FROM \"Signs\" s LEFT JOIN \"SignClass\" cl ON s.class=cl.id " +
-                 "WHERE s.id=?" );
+                " WHERE s.id=?" );
          stmt.setString(1, id);
          ResultSet rs = stmt.executeQuery();
          if (rs.next()) {
@@ -239,8 +239,8 @@ public class SignsDBSession extends DBSession
     {
          _log.debug("SignsDbSession", "deleteSign: "+id);
          PreparedStatement stmt = getCon().prepareStatement
-              ( "DELETE FROM \"Signs\"" + 
-                "WHERE id=?" );
+              ( " DELETE FROM \"Signs\"" + 
+                " WHERE id=?" );
          stmt.setString(1, id);
          return stmt.executeUpdate();
     }
@@ -253,8 +253,8 @@ public class SignsDBSession extends DBSession
     {
         _log.debug("SignsDbSession", "deleteSignsByUser: "+userid);
         PreparedStatement stmt = getCon().prepareStatement
-              ( "DELETE FROM \"Signs\"" + 
-                "WHERE userid=?" );
+              ( " DELETE FROM \"Signs\"" + 
+                " WHERE userid=?" );
          stmt.setString(1, userid);
          return stmt.executeUpdate();
     }

@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2014-2025 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -131,15 +131,140 @@ public class SyncDBSession extends DBSession
     }
     
     
+    
+    public void setStable(java.util.Date ts)
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " UPDATE \"DbSync\"" + 
+                " SET stable = 'true' WHERE ts=?" );
+        stmt.setTimestamp(1, DBSession.date2ts(ts));       
+        stmt.executeUpdate();
+    }
+    
+        
+    
+    public void addSyncIncoming(String src, String origin,  java.util.Date ts)
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+        ( " INSERT INTO \"DbSyncIncoming\"(source, origin, ts)" + 
+          " VALUES(?, ?, ?) " );
+        stmt.setString(1, src);
+        stmt.setString(2, origin);
+        stmt.setTimestamp(3, DBSession.date2ts(ts));
+        stmt.executeUpdate();
+    }
+    
+    
+    
+    public String getSyncIncoming(String origin, java.util.Date ts) 
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT source FROM \"DbSyncIncoming\" "+ 
+              " WHERE origin=? AND ts=? " );
+        stmt.setString(1, origin);
+        stmt.setTimestamp(2, DBSession.date2ts(ts));
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next())
+            return rs.getString("source");
+        return null;
+    }
+    
+    
+    
+    public void removeSyncIncoming(String origin, java.util.Date ts) 
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+        ( " DELETE FROM \"DbSyncIncoming\"" + 
+          " WHERE origin = ? AND ts <= ?" );
+        stmt.setString(1, origin);
+        stmt.setTimestamp(2, DBSession.date2ts(ts, 100));
+        stmt.executeUpdate();
+    }
+    
+    
+    
+    
+    public DbList<Sync.Ack> getSyncAcksTo(String nodeid) 
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT origin,ts,conf from \"DbSyncAck\" "+ 
+              " WHERE nodeid=? ORDER BY ts asc", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
+        stmt.setString(1, nodeid);
+
+        return new DbList<Sync.Ack>( stmt.executeQuery(), rs ->
+            { return new Sync.Ack
+               (rs.getString("origin"), rs.getTimestamp("ts").getTime(), rs.getBoolean("conf")); });      
+    }
+    
+    
+    
+    
+    public int removeSyncAcks(String nodeid, java.util.Date ts) 
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+        ( " DELETE FROM \"DbSyncAck\"" + 
+          " WHERE nodeid = ? AND ts <= ?" );
+        stmt.setString(1, nodeid);
+        stmt.setTimestamp(2, DBSession.date2ts(ts, 100));
+        int removed = stmt.executeUpdate();
+        return 0;
+    }
+    
+        
+        
+    
+    public void addSyncAck(String nodeid, String origin, java.util.Date ts, boolean conf) 
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+        ( " INSERT INTO \"DbSyncAck\" (origin, ts, nodeid, conf)" + 
+          " VALUES(?, ?, ?, ?) " );
+        stmt.setString(1, origin);
+        stmt.setTimestamp(2, DBSession.date2ts(ts));
+        stmt.setString(3, nodeid);
+        stmt.setBoolean(4, conf);
+        stmt.executeUpdate();
+    }
+    
+    
+    
+    
+    
     /*
-     * Get sync update messages to a given node 
+     * Return true if a sync message is found
      */
-    public DbList<Sync.ItemUpdate> getSyncUpdates(String nodeid) 
+    public boolean hasSyncUpdate(String origin, java.util.Date ts) 
+        throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( " SELECT * from \"DbSyncMessage\" "+
+              " WHERE origin=? AND ts=?" );
+        stmt.setString(1, origin);
+        stmt.setTimestamp(2, DBSession.date2ts(ts));
+        
+        ResultSet rs = stmt.executeQuery();
+        return rs.next();
+    }
+    
+    
+    
+    
+    /*
+     * Get sync update messages to a given node, that are not sent yet
+     */
+    public DbList<Sync.ItemUpdate> getSyncUpdatesTo(String nodeid) 
         throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
             ( " SELECT * from \"DbSyncMessage\" NATURAL JOIN \"DbSyncMessageTo\" "+ 
-              " WHERE nodeid=? ORDER BY ts asc", 
+              " WHERE nodeid=? and sent='false' ORDER BY ts asc", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
         stmt.setString(1, nodeid);
 
@@ -149,19 +274,21 @@ public class SyncDBSession extends DBSession
                rs.getTimestamp("ts").getTime(), rs.getString("origin"));  });      
     }
     
+
     
     
     /*
-     * Remove sync update messages to a given node before a given time
+     * Remove sync update messages from a given node before a given time
      */
-    public int removeSyncUpdates(String nodeid, java.util.Date ts) 
+    public int removeSyncUpdatesFrom(String origin, java.util.Date ts) 
                 throws java.sql.SQLException
     {
         PreparedStatement stmt = getCon().prepareStatement
               ( " DELETE FROM \"DbSyncMessageTo\"" + 
-                " WHERE nodeid = ? AND ts <= ?" );
-        stmt.setString(1, nodeid);
-        stmt.setTimestamp(2, DBSession.date2ts(ts, 100));
+                " WHERE origin = ? AND ts <= " + (ts==null ? "'now'" :"?") );
+        stmt.setString(1, origin);
+        if (ts != null)
+            stmt.setTimestamp(2, DBSession.date2ts(ts, 100));
         int removed = stmt.executeUpdate();
         
         /* Cleanup */
@@ -170,6 +297,21 @@ public class SyncDBSession extends DBSession
                 " (SELECT ts FROM \"DbSyncMessageTo\" t WHERE m.ts = t.ts AND m.origin = t.origin) " );
         removed += (100 * stmt2.executeUpdate());
         return removed; 
+    }
+    
+    
+    
+    /*
+     * Mark sync update messages as sent and delivered to peer
+     */
+    public void setSentSyncUpdates(String nodeid, java.util.Date ts) 
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+            ( "UPDATE \"DbSyncMessageTo\" SET sent='true' WHERE nodeid=? AND ts<=? " );
+        stmt.setString(1, nodeid);
+        stmt.setTimestamp(2, DBSession.date2ts(ts, 100));
+        stmt.executeUpdate();
     }
     
     

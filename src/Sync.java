@@ -17,6 +17,42 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  
 public interface Sync
 {
+
+    enum MsgType {UPDATE, ACK};
+    
+    /* Generic message - can be update or ack */
+    public static class Message {
+        public MsgType mtype;
+        public String sender;
+        public ItemUpdate update;
+        public Ack ack;
+        
+        public Message() {}
+        public Message(ItemUpdate u) {
+            mtype = MsgType.UPDATE;
+            update = u;
+        }
+        public Message(Ack a) {
+            mtype = MsgType.ACK;
+            ack = a;
+        }
+    }
+    
+    /* Ack message - confirm that update message has been performed */
+    public static class Ack {
+        public String origin; 
+        public long ts;
+        public boolean conf;
+        
+        public Ack() {}
+        public Ack(String or, long t) {
+            origin=or; ts=t; conf=false; 
+        }
+        public Ack(String or, long t, boolean cnf) {
+            origin=or; ts=t; conf=cnf; 
+        }
+    }
+    
     
     /* Update message */    
     public static class ItemUpdate {
@@ -26,8 +62,8 @@ public interface Sync
         public String cmd; // ADD, DEL, UPD
         public boolean propagate = true;
         public String origin;
-        public String sender;
-
+        public String sender; 
+        
       //  @JsonRawValue
         public String arg;
         
@@ -78,7 +114,7 @@ public interface Sync
      * Perform an update. 
      * This is called from REST API impl. when a POST request is received. 
      */
-    public boolean doUpdate(ItemUpdate upd);
+    public boolean doUpdate(ItemUpdate upd, String src);
  
  
     /**

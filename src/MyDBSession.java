@@ -119,7 +119,7 @@ public class MyDBSession extends DBSession
     {
         _log.debug("MyDbSession", "getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
         PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT DISTINCT position "+ 
+           ( " SELECT position "+ 
              " FROM \"AprsPacket\" p, \"PosReport\" r " +
              " WHERE  p.src=r.src " +
              " AND  p.time=r.rtime " + 
@@ -400,7 +400,8 @@ public class MyDBSession extends DBSession
                 String path = rs.getString("path");
                 String ipath = rs.getString("ipath");
                 
-                p.source = _api.getChanManager().get( rs.getString("channel") );
+                if (_api.getChanManager().get( rs.getString("channel") ) instanceof AprsChannel ach)
+                    p.source = ach;
                 p.from = rs.getString("src");
                 p.to = rs.getString("dest");
                 

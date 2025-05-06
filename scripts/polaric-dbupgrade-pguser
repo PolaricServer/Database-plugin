@@ -232,9 +232,22 @@ if ((VERSION < 12)); then
         origin varchar NOT NULL, \
         ts timestamp without time zone NOT NULL, \
         nodeid varchar NOT NULL, \
-        sent boolean DEFAULT 'false'; 
+        sent boolean DEFAULT 'false', \
         PRIMARY KEY (origin,ts, nodeid), \
         FOREIGN KEY (origin, ts) REFERENCES \"DbSyncMessage\" (origin, ts) ON DELETE CASCADE ); \
+    \
+    CREATE TABLE IF NOT EXISTS \"DbSyncAck\" ( \
+        origin varchar NOT NULL, \
+        ts timestamp without time zone NOT NULL, \
+        nodeid varchar NOT NULL, \
+        conf boolean, \
+        PRIMARY KEY (origin, ts)); \
+    \
+    CREATE TABLE IF NOT EXISTS \"DbSyncIncoming\" ( \
+        source varchar not null, \
+        origin varchar not null, \
+        ts timestamp without time zone not null, \
+        primary key (origin,ts)); \
     \
     INSERT INTO \"DbSyncMessage\" \
         SELECT DISTINCT origin, ts, cid, item, userid, cmd, arg \

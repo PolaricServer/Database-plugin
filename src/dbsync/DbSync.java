@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2023-2024 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2023-2025 by Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ public class DbSync implements Sync
     /* Parent URL */
     private Map<String,String> _parent = new HashMap<String, String>();
     /* Websocket connected nodes */
-    private NodeWsApi<ItemUpdate> _wsNodes;
+    private NodeWsApi<Sync.Message> _wsNodes;
     /* Configured nodes */
     private Map<String, String> _nodes = new HashMap<String, String>();
     /* Nodes on wait */
@@ -98,15 +98,23 @@ public class DbSync implements Sync
         NodeWs ws = new NodeWs(_api, null);
         webSocket("/ws/dbsync", ws);
         
-        /* Set up websocket api and handler for item updates */
-        _wsNodes = new NodeWsApi<ItemUpdate>(_api, _ident, ws, ItemUpdate.class);
-        _wsNodes.setHandler( (nodeid, upd)-> {
-                if (upd==null)
-                    _dbp.log().warn("DbSync", "Received ItemUpdate: "+nodeid+", NULL");
-                else {
+        /* Set up websocket api and handler for item updates  
+         */
+        _wsNodes = new NodeWsApi<Message>(_api, _ident, ws, Message.class);
+        _wsNodes.setHandler( (nodeid, msg)-> {
+                if (msg==null)
+                    _dbp.log().warn("DbSync", "Received Message: "+nodeid+", NULL");
+                    
+                else if (msg.mtype == MsgType.UPDATE) {
                     _dbp.log().info("DbSync", "Received ItemUpdate: "+nodeid+", "
-                      +upd.cid+", "+upd.itemid+", "+upd.cmd+", "+ TS(upd.ts));
-                    doUpdate((ItemUpdate) upd);
+                      +msg.update.cid+", "+msg.update.itemid+", "+msg.update.cmd+", "+ TS(msg.update.ts));
+                    msg.update.sender = msg.sender;
+                    doUpdate(msg.update, msg.sender);
+                }
+                
+                else if (msg.mtype == MsgType.ACK) {
+                    _dbp.log().info("DbSync", "Received Ack: "+nodeid+", "+msg.ack.origin+", "+msg.ack.ts);
+                    doAck(msg.ack, msg.sender);
                 }
             } 
         );
@@ -196,7 +204,9 @@ public class DbSync implements Sync
     }
     
     
-    
+    /**
+     * Remove subscription on this node. 
+     */
     public void rmNode(String nodeid) {
         SyncDBSession db = null;
         try {           
@@ -205,6 +215,7 @@ public class DbSync implements Sync
             _nodes.remove(nodeid);
             _wsNodes.rmNode(nodeid);
             _parent.remove(nodeid);
+            cancelNodeUpdates(db, nodeid);
         }
         catch (Exception e) {
             _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
@@ -216,12 +227,33 @@ public class DbSync implements Sync
         }
     }
     
+    
+    /**
+     * Cancel pending updates to a node. For each update, act as if
+     * an ack came from that node. This may lead to causal stability. 
+     */
+    private void cancelNodeUpdates(SyncDBSession db, String nodeid) 
+        throws SQLException 
+    {
+        DbList<Sync.ItemUpdate> updates = db.getSyncUpdatesTo(nodeid);
+        for (Sync.ItemUpdate x:updates) {
+            // Create a fake ack 
+            Sync.Ack ack = new Sync.Ack(x.origin, x.ts, false); 
+            doAck(ack, x.sender); 
+        }
+    }
+    
+    
         
-        
+    /** 
+     * Remove subscription on the parent node. 
+     */
     public boolean rmNodeRemote(String id) 
         throws URISyntaxException, IOException, InterruptedException
     {
         var url = _parent.get(id);
+        if (url==null)
+            return true; 
         RestClient parentapi = new RestClient(_api, url, "dbsync");
         HttpResponse res = parentapi.DELETE("/nodes/"+_ident);
         if (res.statusCode() != 200) {
@@ -252,6 +284,7 @@ public class DbSync implements Sync
     
     /**
      * Set up peer nodes to connect to. 
+     * FIXME: This should be re-run if the DbSyncPeers table in database is updated. 
      */
     private void setupNodes() {
         /* 
@@ -275,6 +308,7 @@ public class DbSync implements Sync
             if (db != null) db.close();
         }
     }
+    
     
     
     /** 
@@ -340,12 +374,108 @@ public class DbSync implements Sync
  
     
     
+    
+    
+    /**
+     * Handle an incoming ack (from source) on a previous update. Ack consists of:        
+     *   String origin; 
+     *   long ts;
+     *   boolean conf;
+     *
+     * It is a kind of two-phase commit protocol. The originator of the update collects ACK from 
+     * the receiving nodes. When ACK is received from all, the orgininator decides that the update is 
+     * causally stable and send a CONF message to all. 
+     */
+    public void doAck(Ack ack, String source) {
+        SyncDBSession db = null;
+        try {
+            db = new SyncDBSession(_dbp.getDB());
+            if (ack.conf) {
+                _dbp.log().info("DbSync", "CONF received. Causal stability reached: ["+ack.origin+"], "+ack.ts);
+                sendConf(db, ack, source);
+                db.setStable(new java.util.Date(ack.ts));
+            }
+            else {
+                /* 
+                 * Remove sync updates for the origin and ts. 
+                 * If there are no updates left we have received acks from all.
+                 */
+                db.removeSyncUpdatesFrom(ack.origin, new java.util.Date(ack.ts));
+                if (!db.hasSyncUpdate(ack.origin, new java.util.Date(ack.ts))) 
+                {
+                    /* 
+                     * If the ack was based on an incoming message. Pop it from the database 
+                     * and find its sender. 
+                     */
+                    _dbp.log().info("DbSync", "ACK received from all: ["+ack.origin+"], "+ack.ts);
+                    String sender = db.getSyncIncoming(ack.origin,  new java.util.Date(ack.ts));
+                    db.removeSyncIncoming(ack.origin,  new java.util.Date(ack.ts));
+                
+                   /* 
+                    * If sender is null, we are at the originating node. In that case we 
+                    * have causal stability and can send a CONF to all peers. 
+                    */
+                    if (sender == null) {
+                        _dbp.log().info("DbSync", "Causal stability reached: ["+ack.origin+"], "+ack.ts);
+                        sendConf(db, ack, null);
+                        db.setStable(new java.util.Date(ack.ts));
+                    }
+                    else
+                        db.addSyncAck(sender, ack.origin, new java.util.Date(ack.ts), false); 
+                }
+            }
+            db.commit();
+        }
+        catch (Exception e) {
+            db.abort();
+            _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
+            e.printStackTrace(System.out);
+        }     
+        finally {
+            if (db != null) db.close();
+        }
+    }
+    
+    
+    
+  
+    /**
+     * Send an ack (confirmation) to all peers. Possibly with an exception.
+     * To be used when stability is reached. 
+     * To be used within a database transaction.
+     */
+    private void sendConf(SyncDBSession db, Ack ack, String except) 
+        throws SQLException 
+    {
+        _dbp.log().debug("DbSync", "CONF to be sent to all peers "+ (except!=null ? "except "+except : "") + ": ["+ack.origin+"], "+ack.ts);
+        ack.conf = true;
+         for (String nodeid : _nodes.keySet())
+            if (!nodeid.equals(except))
+                db.addSyncAck(nodeid, ack.origin, new java.util.Date(ack.ts), true); 
+    }
+    
+    
+    
+    /**
+     * Queue an outgoing ack on a update. 
+     * To be used within a database transaction.
+     */
+    private void sendAck(SyncDBSession db, ItemUpdate upd) 
+        throws SQLException 
+    {
+        _dbp.log().info("DbSync", "ACK to be sent to "+upd.sender+": "+upd.cid+", "+upd.itemid+" ["+upd.origin+"], "+upd.ts);
+         db.addSyncAck(upd.sender, upd.origin, new java.util.Date(upd.ts), false); 
+    }
+    
+    
+    
+    
     /**
      * Perform an update. 
      * This is called when a update message is received from another node.
      * Return true if performed/committed or ignored due to LWW conflict resolution. False on error.
      */
-    public boolean doUpdate(ItemUpdate upd) 
+    public boolean doUpdate(ItemUpdate upd, String source) 
     {  
         Handler hdl = _handlers.get(upd.cid);
         if (hdl==null) {
@@ -355,9 +485,9 @@ public class DbSync implements Sync
        
        /* 
         * We need to propagate the update to the other peers. 
-        * But not if the propagate flag is set to false and not to node from where we got the message! 
+        * But not to node from where we got the message! 
         */
-        propagate(upd, upd.sender, true);
+        propagate(upd, upd.sender);
             
         SyncDBSession db = null;
         try {
@@ -366,14 +496,19 @@ public class DbSync implements Sync
                 _dbp.log().info("DbSync", "Ignoring update for: "+upd.cid+", "+upd.itemid+" ["+upd.origin+"], "+upd.ts);
                 db.abort();
                 return true;
-            }        
-            db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date(upd.ts));
-            db.commit(); 
-            
-            /* Now apply the update 
-             * FIXME: Maybe this should be inside this transaction?
+            }  
+            /* Now, apply the update. 
+             * First, update the metainfo in the database. 
              */
+            db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date(upd.ts));
             hdl.handle(upd);
+
+            if (!havePropagateNodes(upd.sender))
+                sendAck(db, upd);
+            else
+                db.addSyncIncoming(source, upd.origin, new java.util.Date(upd.ts));
+            
+            db.commit(); 
             return true;
         }
         catch(Exception e) {
@@ -408,7 +543,7 @@ public class DbSync implements Sync
             upd.ts++;
         prev_ts = upd.ts;
         
-        propagate(upd, null, propagate); 
+        propagate(upd, null); 
     }
     
     public void localUpdate(String cid, String itemid, String userid, String cmd, String arg) {
@@ -417,20 +552,22 @@ public class DbSync implements Sync
     
     
     
+    /* 
+     * Return true if there are nodes to propagate to.
+     */
+    private boolean havePropagateNodes(String except) {
+        return !(_nodes.isEmpty() || (_nodes.size() == 1 && _nodes.keySet().contains(except)));
+    }
+    
+    
     /**
      * Propagate a update to other nodes. .
      */
-    public void propagate(ItemUpdate upd, String except, boolean propagate) 
+    public void propagate(ItemUpdate upd, String except) 
     {
         _dbp.log().info("DbSync", "propagate: "+upd.origin+", "+upd.ts+", except: "+except);
         
-        if (!upd.propagate)
-            return;
-        if (_nodes.isEmpty()) {
-           _dbp.log().info("DbSync", "Outgoing update: "+upd.cid+", "+upd.itemid+" - no nodes");
-            return;
-        }
-        if (_nodes.size() == 1 && _nodes.keySet().contains(except))
+        if (!upd.propagate || !havePropagateNodes(except))
             return;
 
         SyncDBSession db = null;
@@ -439,17 +576,18 @@ public class DbSync implements Sync
         
             /* 
              * If local (originating from this node) 
-             * Update timstamp and op locally in the database for the item 
+             * Update timestamp and op locally in the database for the item 
              */
             if (except==null)
                 db.setSync(upd.cid, upd.itemid, upd.cmd, new java.util.Date()); 
             
             /* Queue message for updating peer nodes */
-            if (!_nodes.isEmpty())
+            if (!_nodes.isEmpty() && !(_nodes.keySet().size() == 1 && _nodes.keySet().contains(except))) 
                 db.addSyncUpdate(upd);
+            
             for (String nodeid : _nodes.keySet())
                 if (upd.cid.matches(_nodes.get(nodeid)) && !nodeid.equals(except)) {   
-                    _dbp.log().info("DbSync", "Queueing outgoing update: "+upd.cid+", "+upd.itemid 
+                    _dbp.log().debug("DbSync", "Queueing outgoing update: "+upd.cid+", "+upd.itemid 
                         + ", "+ upd.cmd +", "+ TS(upd.ts) 
                         + (upd.origin.equals(_ident) ? "" : " ["+upd.origin + "]") + " to: " + nodeid);
                     db.addSyncUpdatePeer(nodeid, upd);
@@ -500,12 +638,11 @@ public class DbSync implements Sync
             try {
                 /* Search database for items to be sent to node */
                 db = new SyncDBSession(_dbp.getDB(false));
-                DbList<ItemUpdate> msgs = db.getSyncUpdates(node);
-                for (ItemUpdate upd : msgs) {
-                    upd.sender = _ident;
-
+                for (Message msg : getMessagesTo(db, node)) {
+                    msg.sender = _ident; 
+ 
                     /* Send each item to node */
-                    if (!_wsNodes.put(node, upd)) {
+                    if (!_wsNodes.put(node,  msg)) {
                         /* If post to node failed..*/
                         if (retr == null) 
                             retr = new Retry(6);
@@ -515,14 +652,19 @@ public class DbSync implements Sync
                                 retr.time = (retr.time * 2);
                             retr.cnt = retr.time;
                          }
+                         
                         
-                        _dbp.log().info("DbSync", "Post failed to node: "+node+" - rescheduling ("+retr.time*15+" s)");
+                        _dbp.log().info("DbSync", "Failed sending message to node: "+node+" - rescheduling ("+retr.time*15+" s)");
                         _pending.put(node, retr);
                         break;
                     }
                     retr = null;
-                    _dbp.log().info("DbSync", "Post to "+node+" succeeded ("+upd.cid+", "+upd.ts+")");
-                    int removed = db.removeSyncUpdates(node, new java.util.Date(upd.ts));
+                    _dbp.log().info("DbSync", "Message to "+node+" succeeded ("+msg.mtype+")");
+                    if (msg.mtype == MsgType.UPDATE) 
+                        db.setSentSyncUpdates(node, new java.util.Date(msg.update.ts));
+                    
+                    else // ACK
+                        db.removeSyncAcks(node, new java.util.Date(msg.ack.ts));
                 }
                 db.commit();
             }
@@ -542,6 +684,24 @@ public class DbSync implements Sync
     
     
     
+    /*
+     * Create a list of messages to be sent to a peer node. 
+     */
+    private List<Message> getMessagesTo(SyncDBSession db, String node)
+        throws SQLException
+    {
+        DbList<ItemUpdate> updates = db.getSyncUpdatesTo(node);
+        DbList<Ack> acks = db.getSyncAcksTo(node);
+        List<Message> msgs = new ArrayList<Message>();
+        if (updates!=null) 
+        for (ItemUpdate u : updates)
+            msgs.add(new Message(u));
+        if (acks!=null) 
+        for (Ack a : acks)
+            msgs.add(new Message(a));
+        return msgs;
+    }
+ 
     
     /**
      * Register a cid (dataset) with a handler. 

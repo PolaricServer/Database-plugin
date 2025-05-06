@@ -199,8 +199,6 @@ public class DbSyncApi extends ServerBase
          
         post("/dbsync/nodes", (req, resp) -> {   
             try {        
-              //  if (!_auth.checkAuth(req))
-              //      return ERROR(resp, 403, "Authentication failed");
                 NodeInfo ni = (NodeInfo) 
                     ServerBase.fromJson(req.body(), NodeInfo.class);
                 if (ni==null) 
@@ -226,8 +224,6 @@ public class DbSyncApi extends ServerBase
         delete("/dbsync/nodes/*", (req, resp) -> {   
             try {        
                 String ident = req.splat()[0];
-               // if (!_auth.checkAuth(req))
-               //     return ERROR(resp, 403, "Authentication failed");
                 _dbsync.rmNode(ident);
                 return "Ok";
             }
