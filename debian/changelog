@@ -1,3 +1,10 @@
+polaric-db-plugin (3.2) stable; urgency=medium
+
+  * DbSync work
+  * Get Tracklog up to date and compatible with Arctic Tracker
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Fri, 16 May 2025 18:35:43 +0200
+
 polaric-db-plugin (3.1) stable; urgency=medium
 
   * Support for photos as spatiotemporal objects
