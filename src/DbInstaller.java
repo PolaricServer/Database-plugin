@@ -220,16 +220,15 @@ public class DbInstaller
                         "tag     varchar(40) not null" ); //************************
                                
          
-        /* New in schema v. 5 */
         createClass("DbSync", null, 
-                        "cid  varchar NOT NULL, " +
-                        "item varchar NOT NULL, " +
-                        "ts   timestamp without time zone NOT NULL, " +
-                        "op   varchar(10) not null, " +
+                        "cid    varchar NOT NULL, " +
+                        "item   varchar NOT NULL, " +
+                        "ts     timestamp without time zone NOT NULL, " +
+                        "op     varchar(10) not null, " +
+                        "stable boolean not null default false, "+
                         "PRIMARY KEY (cid,item) " );
          
-                        
-         /* New in schema v. 12 */               
+         
          createClass("DbSyncMessage", null, 
                         "origin varchar NOT NULL, " +
                         "ts     timestamp without time zone NOT NULL, " +
@@ -245,17 +244,26 @@ public class DbInstaller
                         "origin varchar NOT NULL, " + 
                         "ts     timestamp without time zone NOT NULL, " + 
                         "nodeid varchar NOT NULL, " +
+                        "sent   boolean default false, " +
                         "PRIMARY KEY (origin,ts, nodeid), " +
-                        "FOREIGN KEY (origin, ts) REFERENCES \"DbSyncMessages\" (origin, ts) ON DELETE CASCADE " );
+                        "FOREIGN KEY (origin, ts) REFERENCES \"DbSyncMessage\" (origin, ts) ON DELETE CASCADE " );
          
+         
+         createClass("DbSyncIncoming", null, 
+                        "source varchar NOT NULL, " +
+                        "origin varchar NOT NULL, " +
+                        "ts timestamp without time zone NOT NULL, " +
+                        "PRIMARY KEY (origin,ts) " );
+                        
          
          createClass("DbSyncAck", null, 
                         "origin varchar NOT NULL, " +
                         "ts     timestamp without time zone NOT NULL, " +
                         "nodeid varchar NOT NULL, " +
+                        "conf   boolean, " +
                         "PRIMARY KEY (origin, ts) " );
          
-         /* New in schema v. 9 */
+
          createClass("DbSyncPeers", null, 
                         "nodeid  varchar NOT NULL PRIMARY KEY, " +
                         "url     varchar, " +
