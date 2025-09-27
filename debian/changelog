@@ -1,3 +1,10 @@
+polaric-db-plugin (4.0~pre1) UNRELEASED; urgency=medium
+
+  * Base on aprsd4 
+  * Use maven to build, etc.. 
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Tue, 16 Sep 2025 21:19:28 +0200
+
 polaric-db-plugin (3.2) stable; urgency=medium
 
   * DbSync work

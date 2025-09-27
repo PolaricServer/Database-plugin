@@ -1,0 +1,7 @@
+target/polaric-db-plugin-*.jar usr/share/polaric/plugins
+lib/HikariCP*.jar usr/share/polaric/plugins
+lib/postgresql*.jar usr/share/polaric/plugins
+lib/postgis*.jar usr/share/polaric/plugins
+scripts/* usr/bin
+conf/database.ini etc/polaric-aprsd/config.d
+

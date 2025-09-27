@@ -2,13 +2,13 @@ Source: polaric-db-plugin
 Section: hamradio
 Priority: optional
 Maintainer: Øyvind Hanssen <ohanssen@acm.org>
-Build-Depends: debhelper (>= 10),openjdk-17-jdk-headless|openjdk-21-jdk-headless|openjdk-22-jdk-headless, libhikaricp-java
+Build-Depends: debhelper-compat (= 13), maven-debian-helper (>= 2.6), default-jdk (>= 1.17), libhikaricp-java
 Standards-Version: 3.9.8
 Homepage: http://aprs.no/polaricserver
 
 Package: polaric-db-plugin
 Architecture: all
-Depends: polaric-aprsd (>= 3.1), postgresql-client, libpostgresql-jdbc-java, libpostgis-java (>= 2021.1.0), libhikaricp-java ${misc:Depends}
+Depends: polaric-aprsd (>= 4.0~pre1), postgresql-client, libpostgresql-jdbc-java, libpostgis-java (>= 2021.1.0), libhikaricp-java ${misc:Depends}
 Recommends: postgresql, postgis
 Description: Polaric Server: APRS daemon part. 
  The "Polaric Server" is mainly a web based service to present APRS 
