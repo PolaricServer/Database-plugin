@@ -1,25 +1,34 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
 package no.polaric.aprsdb.http;
+import no.arctic.core.*;
+import no.arctic.core.httpd.*;
+import no.arctic.core.auth.*;
+import io.javalin.Javalin;
+import io.javalin.http.Context;
+
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
+import no.polaric.aprsd.point.*;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import no.polaric.aprsd.filter.*;
-import spark.Request;
-import spark.Response;
-import spark.route.Routes;
-import static spark.Spark.get;
-import static spark.Spark.put;
-import static spark.Spark.*;
-import spark.QueryParamsMap;
 import java.util.stream.Collectors;
-import javax.servlet.*;
-import javax.servlet.http.*;
-import org.eclipse.jetty.server.*;
 
 
 /*
@@ -28,13 +37,13 @@ import org.eclipse.jetty.server.*;
  
 public class RestApi extends ServerBase implements JsonPoints
 {
-    private ServerAPI _api;
-    private PubSub _psub;
+    private ServerConfig _api;
+    private ServerConfig.PubSub _psub;
     private PluginApi _dbp;
     private String    _myCall;
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
-    public RestApi(ServerAPI api) {
+    public RestApi(ServerConfig api) {
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
@@ -46,31 +55,32 @@ public class RestApi extends ServerBase implements JsonPoints
     /** 
      * Return an error status message to client 
      */
-    public String ERROR(Response resp, int status, String msg)
-      { resp.status(status); return msg; }
+    public Object ERROR(Context ctx, int status, String msg)
+      { ctx.status(status); ctx.result(msg); return null;}
+    
       
       
-      
-    public String ABORT(Response resp, MyDBSession db, String logmsg, int status, String msg) {
+    public Object ABORT(Context ctx, MyDBSession db, String logmsg, int status, String msg) {
         _dbp.log().warn("RestApi", logmsg);
         if (db!=null)
             db.abort();
-        return ERROR(resp, status, msg);
+        return ERROR(ctx, status, msg);
     }
       
     
     
-    protected boolean sarAuthForItem(Request req, PointObject x) {
-        return (getAuthInfo(req).itemSarAuth(x));
+    protected boolean sarAuthForItem(Context ctx, PointObject x) {
+        AuthInfo auth = getAuthInfo(ctx);
+        return x.hasTag(auth.tagsAuth) || auth.admin;
     }
+    
+    
     
     /** 
      * Set up the webservices. 
      */
     public void start() {   
-        _api.getWebserver().corsEnable("/open/objects/*");
-        _api.getWebserver().corsEnable("/objects/*");
-        _api.getWebserver().protectUrl("/objects/*");
+        protect("/objects/*");
         /*
          * FIXME: With new auth scheme, we cannot have authentication and at the 
          * same time allow non-authenticated users to access a URL. We may need a special version of 
@@ -78,7 +88,7 @@ public class RestApi extends ServerBase implements JsonPoints
          * that are open for all. 
          */
                 
-        _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        _psub = _api.getWebserver().pubSub();
         _psub.createRoom("sharing", (Class) null); 
         _psub.createRoom("object", String.class /* tag */); 
       
@@ -88,28 +98,28 @@ public class RestApi extends ServerBase implements JsonPoints
          * is shared.  
          *****************************************************************************/
          
-        get("/objects/*/*/share", "application/json", (req, resp) -> {
-            String tag = req.splat()[0];
-            String id = req.splat()[1];
-          
-            /* Database transaction */
+        a.get("/objects/{tag}/{id}/share", (ctx) -> {
+            var tag = ctx.pathParam("tag");
+            var ident = ctx.pathParam("id");
+           
+           /* Database transaction */
             MyDBSession db = _dbp.getDB();
             try {
-                var tr =  db.getJsUsers(id);
+                var tr =  db.getJsUsers(ident);
                 List<JsObject.User> usr = tr.toList();
                 db.commit();
-                return usr;
+                ctx.json(usr);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
+                ABORT(ctx, db, "GET /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "GET /objects/*/*/share: Object id must be numeric", 400, "Object id must be numeric");
+                ABORT(ctx, db, "GET /objects/*/{id}/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
             }
-        }, ServerBase::toJson );
+        });
         
         
                 
@@ -118,54 +128,56 @@ public class RestApi extends ServerBase implements JsonPoints
          * Add a user or group that share this object.  
          *****************************************************************************/
          
-        post("/objects/*/*/share", (req, resp) -> {         
-            String tag = req.splat()[0];
-            String id = req.splat()[1];
-            var auth = getAuthInfo(req); 
-            
+        a.post("/objects/{tag}/{id}/share", (ctx) -> {         
+            var tag = ctx.pathParam("tag");
+            var ident = ctx.pathParam("id");
+            var auth = getAuthInfo(ctx); 
+
             /* Get user info from request */
             var u = (JsObject.User) 
-                ServerBase.fromJson(req.body(), JsObject.User.class);
+                ServerBase.fromJson(ctx.body(), JsObject.User.class);
         
-            if (u.userid.matches("[@#].+") && !auth.sar && !auth.admin)
-                return ERROR(resp, 401, "You are not authorized to share with groups or #ALL");
-        
+            if (u.userid.matches("[@#].+") && !auth.operator && !auth.admin) {
+                ERROR(ctx, 401, "You are not authorized to share with groups or #ALL");
+                return; 
+            }
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
             try {                 
-                if (u==null) 
-                    return ABORT(resp, db, "POST /objects/*/*/share: cannot parse input", 
-                        500, "Cannot parse input");     
-                        
-                if (id.equals("_ALL_")) 
+                if (u==null) {
+                    ABORT(ctx, db, "POST /objects/*/*/share: cannot parse input", 500, "Cannot parse input");     
+                    return;
+                }
+                if (ident.equals("_ALL_")) 
                     db.shareJsObjects(tag, auth.userid, u.userid, u.readOnly);
                 else {
-                    db.shareJsObject(id, auth.userid,  u.userid, u.readOnly);
+                    db.shareJsObject(ident, auth.userid,  u.userid, u.readOnly);
                 
                     /* Notify receiving user */
                     if (!u.userid.matches("(#ALL)|(@.+)")) {
                         _psub.put("sharing", null, u.userid);
                         _api.getWebserver().notifyUser(u.userid, 
-                            new ServerAPI.Notification("system", "share", 
+                            new ServerConfig.Notification("system", "share", 
                                 auth.userid+" shared '"+tag+"' object with you" , new Date(), 4));
                     }
                 }
                 db.commit();
-                if (id.equals("_ALL_"))
-                    id += "@" + tag;
-                _dbp.getSync().localUpdate("objshare", id, auth.userid, "ADD", req.body());
-                return "Ok";
+                if (ident.equals("_ALL_"))
+                    ident += "@" + tag;
+                _dbp.getSync().localUpdate("objshare", ident, auth.userid, "ADD", ctx.body());
+                ctx.result("Ok");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
+                ABORT(ctx, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }        
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "POST /objects/*/*/share: Object id must be numeric", 400, "Object id must be numeric");
+                ABORT(ctx, db, "POST /objects/*/{id}/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
             }   
         });
+                
                 
                 
         /***************************************************************************** 
@@ -174,11 +186,11 @@ public class RestApi extends ServerBase implements JsonPoints
          * return number of actual objects removed from database. 
          *****************************************************************************/
          
-        delete("/objects/*/*/share/*", (req, resp) -> {         
-            String tag = req.splat()[0];
-            String id = req.splat()[1];
-            String uid = req.splat()[2];
-            var auth = getAuthInfo(req); 
+        a.delete("/objects/{tag}/{id}/share/{uid}", (ctx) -> {         
+            var tag = ctx.pathParam("tag");
+            var id = ctx.pathParam("id");
+            var uid = ctx.pathParam("uid");
+            var auth = getAuthInfo(ctx); 
                         
             /* Database transaction */
             MyDBSession db = _dbp.getDB();
@@ -195,13 +207,13 @@ public class RestApi extends ServerBase implements JsonPoints
                 if (id.equals("_ALL_"))
                     id += "@" + tag;
                 _dbp.getSync().localUpdate("objshare", id, auth.userid, "DEL", uid);
-                return ""+n;
+                ctx.result(""+n);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
+                ABORT(ctx, db, "POST /objects/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }        
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "POST /objects/*/*/share: Object id must be numeric", 400, "Object id must be numeric");
+                ABORT(ctx, db, "POST /objects/*/{id}/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
@@ -215,30 +227,33 @@ public class RestApi extends ServerBase implements JsonPoints
          * FIXME: Sanitize input? 
          ***************************************************************************/
          
-        put("/objects/*/*", (req, resp) -> {
-            String tag = req.splat()[0];
-            String id = req.splat()[1];
-                
+        a.put("/objects/{tag}/{id}", (ctx) -> {
+            var tag = ctx.pathParam("tag");
+            var id = ctx.pathParam("id");
+            
             /* Note: this is JSON but we do NOT deserialize it. We store it. */
-            String data = req.body();   
+            String data = ctx.body();   
                 
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-            if (!auth.login())
-                return ERROR(resp, 401, "Authentication required");
-                
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
+            if (!auth.login()) {
+                ERROR(ctx, 401, "Authentication required");
+                return;
+            }
             MyDBSession db = _dbp.getDB();
             try {
                 db.updateJsObject(id, data);
                 _psub.put("object", tag, auth.userid);
                 db.commit();
                 _dbp.getSync().localUpdate("object", tag+":"+id, auth.userid, "UPD", data);
-                return "Ok";
+                ctx.result("Ok");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "PUT /objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "PUT /objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
                     500, "Server error (SQL)");
             }
             finally { db.close(); }
@@ -253,32 +268,35 @@ public class RestApi extends ServerBase implements JsonPoints
          * Return number of objects actually deleted from database. 
          ***************************************************************************/
          
-        delete("/objects/*/*", (req, resp) -> {
-            String tag = req.splat()[0];
-            String id = req.splat()[1];
+        a.delete("/objects/{tag}/{id}", (ctx) -> {
+            var tag = ctx.pathParam("tag");
+            var id = ctx.pathParam("id");
             
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-            if (!auth.login())
-                return ERROR(resp, 401, "Authentication required");
-                
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
+            if (!auth.login()) {
+                ERROR(ctx, 401, "Authentication required");
+                return; 
+            }
             MyDBSession db = _dbp.getDB();
             try {
                 int n = db.unlinkJsObject(id, auth.userid, auth.userid);              
                 _psub.put("object", tag, auth.userid);
                 db.commit();
                 _dbp.getSync().localUpdate("object", tag+":"+id, auth.userid, "DEL", null);
-                return ""+n;
+                ctx.result(""+n);
             }
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "DELETE /objects/"+tag+"/"
+                ABORT(ctx, db, "DELETE /objects/"+tag+"/"
                     +id+": Expected numeric object identifier", 
                     400, "Expected numeric object identifier");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "DELETE /users/"+tag+"/"+id+": SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "DELETE /users/"+tag+"/"+id+": SQL error:"+e.getMessage(),
                     500, "Server error (SQL)");
             }
             finally { db.close();}
@@ -290,57 +308,60 @@ public class RestApi extends ServerBase implements JsonPoints
          * Get a single (raw text) object. 
          *****************************************************************************/
          
-        get("/objects/*/*", "application/json", (req, resp) -> {
-            String tag = req.splat()[0];
-            String id = req.splat()[1];
+        a.get("/objects/{tag}/{id}", (ctx) -> {
+            var tag = ctx.pathParam("tag");
+            var id = ctx.pathParam("id");
             
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
- 
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
             MyDBSession db = _dbp.getDB();
             try {
-                String a =  db.getJsObject(auth.userid, auth.groupid, tag, id);            
-                if (a == null)
-                    return ABORT(resp, db, "GET /objects/"+tag+"/"+id+": Item not found: ",
+                String aa =  db.getJsObject(auth.userid, auth.groupid, tag, id);            
+                if (aa == null) {
+                    ABORT(ctx, db, "GET /objects/"+tag+"/"+id+": Item not found: ",
                         404, "Item not found: "+tag+": "+id);
+                    return;
+                }
                 db.commit();
-                return a;
+                ctx.json(aa);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "GET /objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
                     500, "Server error (SQL)");
             }      
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "GET /objects/*/*: Object id must be numeric", 400, "Object id must be numeric");
+                ABORT(ctx, db, "GET /objects/*/*: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
             }
-
         } );
         
+        
         /* Open version */
-        get("/open/objects/*/*", "application/json", (req, resp) -> {
-            String tag = req.splat()[0];
-            String id = req.splat()[1];
-       
+        a.get("/open/objects/{tag}/{id}", (ctx) -> {
+            var tag = ctx.pathParam("tag");
+            var id = ctx.pathParam("id");
+            
             MyDBSession db = _dbp.getDB();
             try {
                 String a =  db.getJsObject(null, null, tag, id);            
                 if (a == null)
-                    return ABORT(resp, db, "GET /open/objects/"+tag+"/"+id+": Item not found: ",
+                    ABORT(ctx, db, "GET /open/objects/"+tag+"/"+id+": Item not found: ",
                         404, "Item not found: "+tag+": "+id);
                 db.commit();
-                return a;
+                ctx.json(a);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /open/objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "GET /open/objects/"+tag+"/"+id+": SQL error:"+e.getMessage(),
                     500, "Server error (SQL)");
             }      
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "GET /open/objects/*/*: Object id must be numeric", 400, "Object id must be numeric");
+                ABORT(ctx, db, "GET /open/objects/*/*: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
@@ -354,60 +375,61 @@ public class RestApi extends ServerBase implements JsonPoints
          * Get a list of (JSON) objects for the logged in user. 
          *****************************************************************************/
          
-        get("/objects/*", "application/json", (req, resp) -> {
-            String tag = req.splat()[0];
+        a.get("/objects/{tag}", (ctx) -> {
+            var tag = ctx.pathParam("tag");
+            
             /* Get user info */
-            var auth = getAuthInfo(req); 
+            var auth = getAuthInfo(ctx); 
             MyDBSession db = _dbp.getDB();
             try {
-                DbList<JsObject> a = null; 
-                a =  db.getJsObjects(auth.userid, auth.groupid, tag);
-                List<JsObject> aa = a.toList().stream().collect(Collectors.toList());
+                DbList<JsObject> aa = null; 
+                aa =  db.getJsObjects(auth.userid, auth.groupid, tag);
+                List<JsObject> res = aa.toList().stream().collect(Collectors.toList());
                 db.commit();
-                return aa;
+                ctx.json(res);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /objects/"+tag+": SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "GET /objects/"+tag+": SQL error:"+e.getMessage(),
                     500, "Server error (SQL)");
             }
             catch (Exception e) {
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET /objects/"+tag+": Error:"+e.getMessage(),
+                ABORT(ctx, db, "GET /objects/"+tag+": Error:"+e.getMessage(),
                     500, "Server error");
             }
             finally { 
                 db.close(); 
             }
 
-        }, ServerBase::toJson );
+        });
             
             
         /* Open version */    
-        get("/open/objects/*", "application/json", (req, resp) -> {
-            String tag = req.splat()[0];
+        a.get("/open/objects/{tag}", (ctx) -> {
+            var tag = ctx.pathParam("tag");
             
             MyDBSession db = _dbp.getDB();
             try {
-                DbList<JsObject> a = null; 
-                a =  db.getJsObjects(null, null, tag);
-                List<JsObject> aa = a.toList().stream().collect(Collectors.toList());
+                DbList<JsObject> aa = null; 
+                aa =  db.getJsObjects(null, null, tag);
+                List<JsObject> res = aa.toList().stream().collect(Collectors.toList());
                 db.commit();
-                return aa;
+                ctx.json(res);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /objects/"+tag+": SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "GET /objects/"+tag+": SQL error:"+e.getMessage(),
                     500, "Server error (SQL)");
             }
             catch (Exception e) {
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET /objects/"+tag+": Error:"+e.getMessage(),
+                ABORT(ctx, db, "GET /objects/"+tag+": Error:"+e.getMessage(),
                     500, "Server error");
             }
             finally { 
                 db.close(); 
             }
 
-        }, ServerBase::toJson );
+        });
                 
                 
         /************************************************************************** 
@@ -416,18 +438,21 @@ public class RestApi extends ServerBase implements JsonPoints
          * We assume that this is a JSON object but do not parse it. 
          **************************************************************************/
          
-        post("/objects/*", (req, resp) -> {
-            String tag = req.splat()[0];
+        a.post("/objects/{tag}", (ctx) -> {
+            var tag = ctx.pathParam("tag");
             
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-            if (!auth.login())
-                return ERROR(resp, 401, "Authentication required");
-            
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
+            if (!auth.login()) {
+                ERROR(ctx, 401, "Authentication required");
+                return;
+            }
             /* Note: this is JSON but we do NOT deserialize it. We store it. */
-            String data = req.body(); 
+            String data = ctx.body(); 
             
             MyDBSession db = _dbp.getDB();
             try {
@@ -435,10 +460,10 @@ public class RestApi extends ServerBase implements JsonPoints
                 _psub.put("object", tag, auth.userid);
                 db.commit();
                 _dbp.getSync().localUpdate("object", tag+":"+id, auth.userid, "ADD", data);
-                return id;
+                ctx.result(id);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /objects/"+tag+": SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "POST /objects/"+tag+": SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close(); }

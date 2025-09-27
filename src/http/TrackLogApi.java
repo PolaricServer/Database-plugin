@@ -1,38 +1,47 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
+ 
 package no.polaric.aprsdb.http;
+import no.arctic.core.*;
+import no.arctic.core.httpd.*;
+import no.arctic.core.auth.*;
+import io.javalin.Javalin;
+import io.javalin.http.Context;
+
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
+import no.polaric.aprsd.point.*;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import no.polaric.aprsd.filter.*;
-import spark.Request;
-import spark.Response;
-import spark.route.Routes;
-import static spark.Spark.get;
-import static spark.Spark.put;
-import static spark.Spark.*;
-import spark.QueryParamsMap;
-import java.util.stream.Collectors;
-import javax.servlet.*;
-import javax.servlet.http.*;
-import org.eclipse.jetty.server.*;
 import  java.sql.*;
 import  javax.sql.*;
 
  
 public class TrackLogApi extends ServerBase implements JsonPoints
 {
-    private ServerAPI _api; 
+    private AprsServerConfig _api; 
     private PluginApi _dbp;
     private Map<String, Long> _tstamps = new HashMap<String, Long>();
     
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
-    public TrackLogApi(ServerAPI api) {
+    public TrackLogApi(AprsServerConfig api) {
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
@@ -58,16 +67,18 @@ public class TrackLogApi extends ServerBase implements JsonPoints
     /** 
      * Return an error status message to client 
      */
-    public String ERROR(Response resp, int status, String msg)
-      { resp.status(status); return msg; }
+    public Object ERROR(Context ctx, int status, String msg)
+      { ctx.status(status); ctx.result(msg); return null;}
+    
       
       
-      
-    public String ABORT(Response resp, MyDBSession db, String logmsg, int status, String msg) {
+    public Object ABORT(Context ctx, MyDBSession db, String logmsg, int status, String msg) {
         _dbp.log().warn("TrackLogApi", logmsg);
-        db.abort();
-        return ERROR(resp, status, msg);
+        if (db!=null)
+            db.abort();
+        return ERROR(ctx, status, msg);
     }
+    
     
     
     /**
@@ -113,17 +124,16 @@ public class TrackLogApi extends ServerBase implements JsonPoints
      * Set up the webservices. 
      */
     public void start() {   
-        _api.getWebserver().protectDeviceUrl("/arctic/*");
-    
-    
+        
+        protect("/arctic/*");
     
     
         /******************************************
          * Echo service to test
          ******************************************/
-        post("/arctic/echo", (req, resp) -> {
-            String body = req.body();
-            return "Polaric Server: "+body;
+        a.post("/arctic/echo", (ctx) -> {
+            String body = ctx.body();
+            ctx.result("Polaric Server: "+body);
         });
         
     
@@ -131,27 +141,29 @@ public class TrackLogApi extends ServerBase implements JsonPoints
         /******************************************
          * POST of tracklogs
          ******************************************/
-        post("/arctic/trklog", (req, resp) -> {        
+        a.post("/arctic/trklog", (ctx) -> {        
             TrkLog tr = (TrkLog) 
-                ServerBase.fromJson(req.body(), TrkLog.class);
-            if (tr==null)
-                ERROR(resp, 400, "Invalid message body");
-                
+                ServerBase.fromJson(ctx.body(), TrkLog.class);
+            if (tr==null) { 
+                ERROR(ctx, 400, "Invalid message body");
+                return;
+            }
+            
             MyDBSession db = _dbp.getDB();
             try {
                 for (LogItem x : tr.pos) 
                     insertPosReport(db, tr.call, new java.util.Date(x.time*1000), -1, -1, 
                         new LatLng(((double) x.lat)/100000, ((double) x.lng)/100000));
                 db.commit();
-                return "Ok";
+                ctx.result("Ok");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /tracklog: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "POST /tracklog: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             catch (Exception e) {
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "POST /tracklog: Error:"+e.getMessage(),
+                ABORT(ctx, db, "POST /tracklog: Error:"+e.getMessage(),
                     500, "Error: "+e.getMessage());
             }
             finally { db.close(); }

@@ -1,8 +1,27 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
 package no.polaric.aprsdb.http;
+import no.arctic.core.*;
+import no.arctic.core.httpd.*;
+import no.arctic.core.auth.*;
+import io.javalin.Javalin;
+import io.javalin.http.Context;
+
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
+import no.polaric.aprsd.point.*;
 
 import java.io.*;
 import java.util.*;
@@ -12,32 +31,19 @@ import java.awt.Image;
 import java.awt.image.*;
 import javax.imageio.*;
 import no.polaric.aprsd.filter.*;
-import spark.Request;
-import spark.Response;
-import spark.route.Routes;
-import static spark.Spark.get;
-import static spark.Spark.put;
-import static spark.Spark.*;
-import spark.QueryParamsMap;
-import java.util.stream.Collectors;
-import javax.servlet.*;
-import javax.servlet.http.*;
-import org.eclipse.jetty.server.*;
 
 
-/*
- * 
- */
+
  
 public class PhotoApi extends ServerBase 
 {
-    private ServerAPI _api; 
+    private ServerConfig _api; 
     private PluginApi _dbp;    
-    private PubSub _psub;
+    private ServerConfig.PubSub _psub;
     private String    _myCall;
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
-    public PhotoApi(ServerAPI api) {
+    public PhotoApi(ServerConfig api) {
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
@@ -106,34 +112,31 @@ public class PhotoApi extends ServerBase
     }
     
     
+      
     /** 
      * Return an error status message to client 
      */
-    public String ERROR(Response resp, int status, String msg)
-      { resp.status(status); return msg; }
+    public Object ERROR(Context ctx, int status, String msg)
+      { ctx.status(status); ctx.result(msg); return null;}
+    
       
       
-      
-    public String ABORT(Response resp, SignsDBSession db, String logmsg, int status, String msg) {
-        _dbp.log().warn("RestApi", logmsg);
-        db.abort();
-        return ERROR(resp, status, msg);
+    public Object ABORT(Context ctx, SignsDBSession db, String logmsg, int status, String msg) {
+        _dbp.log().warn("PhotoApi", logmsg);
+        if (db!=null)
+            db.abort();
+        return ERROR(ctx, status, msg);
     }
-      
-
-
+        
     
     /** 
      * Set up the webservices. 
      */
     public void start() {   
-        _api.getWebserver().corsEnable("/photos");
-        _api.getWebserver().corsEnable("/photos/*");
-        _api.getWebserver().corsEnable("/open/photos/*");
-        _api.getWebserver().protectUrl("/photos");
-        _api.getWebserver().protectUrl("/photos/*");
+        protect("/photos");
+        protect("/photos/*");
                 
-        _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        _psub = (ServerConfig.PubSub) _api.getWebserver().pubSub();
         _psub.createRoom("photo", (Class) null); 
                  
                  
@@ -143,27 +146,27 @@ public class PhotoApi extends ServerBase
          * is shared.  
          *****************************************************************************/
          
-        get("/photos/*/share", "application/json", (req, resp) -> {
-            String id = req.splat()[0];
-          
+        a.get("/photos/{id}/share", (ctx) -> {
+            var id = ctx.pathParam("id");
+                      
             /* Database transaction */
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 var tr =  db.getPhotoUsers(id);
                 List<JsObject.User> usr = tr.toList();
                 db.commit();
-                return usr;
+                ctx.json(usr);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /photos/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
+                ABORT(ctx, db, "GET /photos/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "GET /photos/*/share: Object id must be numeric", 400, "Object id must be numeric");
+                ABORT(ctx, db, "GET /photos/*/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
             }
-        }, ServerBase::toJson );         
+        });         
                  
                                  
                                  
@@ -172,42 +175,45 @@ public class PhotoApi extends ServerBase
          * Add a user or group that share this object.  
          *****************************************************************************/
          
-        post("/photos/*/share", (req, resp) -> {         
-            String id = req.splat()[0];
-            var auth = getAuthInfo(req); 
+        a.post("/photos/{id}/share", (ctx) -> {         
+            var id = ctx.pathParam("id");
+            var auth = getAuthInfo(ctx); 
             
             /* Get user info from request */
             var u = (JsObject.User) 
-                ServerBase.fromJson(req.body(), JsObject.User.class);
+                ServerBase.fromJson(ctx.body(), JsObject.User.class);
         
-            if (u.userid.matches("[@#].+") && !auth.sar && !auth.admin && !u.userid.matches("@"+auth.group) )
-                return ERROR(resp, 401, "You are not authorized to share with "+u.userid);
-        
+            if (u.userid.matches("[@#].+") && !auth.operator && !auth.admin && !u.userid.matches("@"+auth.group) ) {
+                ERROR(ctx, 401, "You are not authorized to share with "+u.userid);
+                return;
+            }
+            
             /* Database transaction */
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {                 
-                if (u==null) 
-                    return ABORT(resp, db, "POST /photos/*/share: cannot parse input", 
+                if (u==null) { 
+                    ABORT(ctx, db, "POST /photos/*/share: cannot parse input", 
                         500, "Cannot parse input");     
-                        
+                    return;
+                }
                 db.sharePhoto(id, auth.userid,  u.userid, u.readOnly);
                 
                 /* Notify receiving user */
                 if (!u.userid.matches("(#ALL)|(@.+)")) {
                     _psub.put("sharing", null, u.userid);
                     _api.getWebserver().notifyUser(u.userid, 
-                        new ServerAPI.Notification("system", "share", 
+                        new ServerConfig.Notification("system", "share", 
                             auth.userid+" shared photo with you" , new Date(), 4));
                 }
                 
                 db.commit();
-                return "Ok";
+                ctx.result("Ok");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /photos/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
+                ABORT(ctx, db, "POST /photos/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }        
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "POST /photos/*/share: Object id must be numeric", 400, "Object id must be numeric");
+                ABORT(ctx, db, "POST /photos/*/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
@@ -222,10 +228,10 @@ public class PhotoApi extends ServerBase
          * return number of actual objects removed from database. 
          *****************************************************************************/
          
-        delete("/photos/*/share/*", (req, resp) -> {         
-            String id = req.splat()[0];
-            String uid = req.splat()[1];
-            var auth = getAuthInfo(req); 
+        a.delete("/photos/{id}/share/{uid}", (ctx) -> {         
+            var id = ctx.pathParam("id");
+            var uid = ctx.pathParam("uid");
+            var auth = getAuthInfo(ctx); 
                         
             /* Database transaction */
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
@@ -237,13 +243,13 @@ public class PhotoApi extends ServerBase
                 _psub.put("sharing", null, uid);
                 
                 db.commit();    
-                return ""+n;
+                ctx.result(""+n);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /photos/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
+                ABORT(ctx, db, "POST /photos/*/*/share: SQL error:"+e.getMessage(), 500, "Server error (SQL)");
             }        
             catch (java.lang.NumberFormatException e) {
-                return ABORT(resp, db, "POST /photos/*/*/share: Object id must be numeric", 400, "Object id must be numeric");
+                ABORT(ctx, db, "POST /photos/*/*/share: Object id must be numeric", 400, "Object id must be numeric");
             }
             finally { 
                 db.close(); 
@@ -256,53 +262,55 @@ public class PhotoApi extends ServerBase
          * get a specific photo
          ****************************************************************************/
          
-        get ("/photos/*", "application/json", (req, resp) -> {
-            String ident = req.splat()[0];
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-
+        a.get("/photos/{id}", (ctx) -> {
+            var ident = ctx.pathParam("id");
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
+            
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 Photo p = db.getPhoto(ident, auth.userid, auth.groupid);
                 db.commit();
-                return new PhotoInfo(p.getId(), p.getPosition(), p.getTime(), p.getUser(), p.getDescr(), 
-                    scaleImg(p.getImage(), 1900, p.getId()));
+                ctx.json(new PhotoInfo(p.getId(), p.getPosition(), p.getTime(), p.getUser(), p.getDescr(), 
+                    scaleImg(p.getImage(), 1900, p.getId())));
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET/photos/*: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "GET/photos/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }        
             catch (Exception e) {
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET/photos/*: Error:"+e.getMessage(),
+                ABORT(ctx, db, "GET/photos/*: Error:"+e.getMessage(),
                     500, "Error: "+e.getMessage());
             }
             finally { db.close();}  
-        }, ServerBase::toJson);
+        });
                 
                 
                 
-        get ("/open/photos/*", "application/json", (req, resp) -> {
-            String ident = req.splat()[0];
+        a.get ("/open/photos/{id}", (ctx) -> {
+            String ident = ctx.pathParam("id");
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 Photo p = db.getPhoto(ident, null, null);
                 db.commit();
-                return new PhotoInfo(p.getId(), p.getPosition(), p.getTime(), p.getUser(), p.getDescr(), 
-                    scaleImg(p.getImage(), 1900, p.getId()));
+                ctx.json(new PhotoInfo(p.getId(), p.getPosition(), p.getTime(), p.getUser(), p.getDescr(), 
+                    scaleImg(p.getImage(), 1900, p.getId())));
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET/photos/*: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "GET/photos/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }        
             catch (Exception e) {
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET/photos/*: Error:"+e.getMessage(),
+                ABORT(ctx, db, "GET/photos/*: Error:"+e.getMessage(),
                     500, "Error: "+e.getMessage());
             }
             finally { db.close();}  
-        }, ServerBase::toJson);
+        });
         
 
 
@@ -313,32 +321,32 @@ public class PhotoApi extends ServerBase
          * Add a photo
          ****************************************************************************/
          
-        post("/photos", (req, resp) -> {
+        a.post("/photos", (ctx) -> {
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             
             /* Get photo info from request */
             PhotoInfo p = (PhotoInfo) 
-                ServerBase.fromJson(req.body(), PhotoInfo.class);
-            if (p==null) 
-                return ABORT(resp, db, "POST /photos: cannot parse input", 
+                ServerBase.fromJson(ctx.body(), PhotoInfo.class);
+            if (p==null) { 
+                ABORT(ctx, db, "POST /photos: cannot parse input", 
                     400, "Cannot parse input");
-            
-            var auth = getAuthInfo(req); 
+                return;
+            }
+            var auth = getAuthInfo(ctx); 
             if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
+                ERROR(ctx, 500, "No authorization info found");
                 
             /* Database transaction */
-            try {
+            else try {
                 if (p.time==null)
                     p.time=new Date();
                 var id = db.addPhoto(_myCall, new LatLng(p.pos[1], p.pos[0]), auth.userid, p.time, p.descr, 
                      scaleImg(p.image, 1900, p.id) ); 
                 db.commit();  
-         //       _dbp.getSync().localUpdate("photos", id, auth.userid, "ADD", ServerBase.toJson(sc));
-                return id; 
+                ctx.result(id); 
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /photos: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "POST /photos: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close(); }
@@ -351,23 +359,24 @@ public class PhotoApi extends ServerBase
          * Delete a photo. 
          **************************************************************************/
          
-        delete("/photos/*", (req, resp) -> {
-            String ident = req.splat()[0];
+        a.delete("/photos/{id}", (ctx) -> {
+            var ident = ctx.pathParam("id");
             
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-                     
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return; 
+            }
+            
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 db.unlinkPhoto(ident, auth.userid, auth.userid);
                 db.commit();         
-        //        _dbp.getSync().localUpdate("photos", ident, "", "DEL", "");
-                return "OK";
+                ctx.result("OK");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "DELETE /photos/*: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "DELETE /photos/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e. getMessage());
             }
             finally { db.close();}  
@@ -375,25 +384,27 @@ public class PhotoApi extends ServerBase
         
         
         
-        put("/photos/*/descr", (req, resp) -> {
-            String ident = req.splat()[0];
+        a.put("/photos/*/descr", (ctx) -> {
+            var ident = ctx.pathParam("id");
             
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
             
             String descr = (String) 
-                ServerBase.fromJson(req.body(), String.class);
+                ServerBase.fromJson(ctx.body(), String.class);
                 
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 db.updatePhotoDescr(ident, auth.userid, descr);
                 db.commit();          
-                return "OK";
+                ctx.result("OK");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "PUT /photos/*/descr: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "PUT /photos/*/descr: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e. getMessage());
             }
             finally { db.close();}  

@@ -1,9 +1,25 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
 package no.polaric.aprsdb;
+import no.arctic.core.*;
+import no.arctic.core.auth.*;
+import no.arctic.core.httpd.*;
 import no.polaric.aprsdb.http.*;
 import no.polaric.aprsdb.dbsync.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
+import no.polaric.aprsd.point.*;
 import java.util.*;
 import java.util.function.*;
 import java.sql.*;
@@ -17,7 +33,7 @@ import com.zaxxer.hikari.HikariDataSource;
 public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, StationDB.Hist, PluginApi
 {
      protected DataSource _dsrc;
-     private ServerAPI _api; 
+     private AprsServerConfig _conf; 
      private DbMaintenance _maint; 
      private String _filter_chan, _filter1_chan, _filter2_chan;
      private String _filter_src, _filter1_src, _filter2_src;
@@ -33,11 +49,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
 
 
      /** Start the plugin  */
-      public void activate(ServerAPI api)
+      public void activate(AprsServerConfig conf)
       {
-         _api = api;
+         _conf = conf;
          try {
-            boolean active = api.getBoolProperty("db.plugin.on", false);
+            boolean active = conf.getBoolProperty("db.plugin.on", false);
             if (!active)
                return; 
                
@@ -49,10 +65,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
              */
             HikariConfig config = new HikariConfig();
                       
-            _dburl = api.getConfig().getProperty("db.url");
+            _dburl = conf.config().getProperty("db.url");
             config.setJdbcUrl( _dburl );
-            config.setUsername( api.getConfig().getProperty("db.login")  );
-            config.setPassword( api.getConfig().getProperty("db.passwd") );
+            config.setUsername( conf.config().getProperty("db.login")  );
+            config.setPassword( conf.config().getProperty("db.passwd") );
             config.setMaximumPoolSize(64);
             config.setAutoCommit(false);
             config.addDataSourceProperty("dataSourceClassName","org.postgresql.ds.PGSimpleDataSource");
@@ -63,63 +79,46 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
             config.setConnectionTimeout(5000);
             _dsrc = new HikariDataSource(config);
            
-           _filter_chan = api.getProperty("db.filter.chan", "");
-           _filter_src = api.getProperty("db.filter.src", "");
+           _filter_chan = conf.getProperty("db.filter.chan", "");
+           _filter_src = conf.getProperty("db.filter.src", "");
              
-           _filter1_chan = api.getProperty("db.filter1.chan", "");
-           _filter1_src = api.getProperty("db.filter1.src", "");
+           _filter1_chan = conf.getProperty("db.filter1.chan", "");
+           _filter1_src = conf.getProperty("db.filter1.src", "");
 
-           _filter2_chan = api.getProperty("db.filter2.chan", "");
-           _filter2_src = api.getProperty("db.filter2.src", "");
+           _filter2_chan = conf.getProperty("db.filter2.chan", "");
+           _filter2_src = conf.getProperty("db.filter2.src", "");
            
-           _enableHist = api.getBoolProperty("db.hist.on", true);
-           boolean signs = api.getBoolProperty("db.signs.on", true);  
-           boolean xdb = api.getBoolProperty("db.xqueries", true);
-           _photoscale = api.getIntProperty("db.photos.maxscale", 500000);
-           api.properties().put("aprsdb.plugin", this); 
+           _enableHist = conf.getBoolProperty("db.hist.on", true);
+           boolean signs = conf.getBoolProperty("db.signs.on", true);  
+           boolean xdb = conf.getBoolProperty("db.xqueries", true);
+           _photoscale = conf.getIntProperty("db.photos.maxscale", 500000);
+           conf.properties().put("aprsdb.plugin", this); 
            
-           _isOwner = api.getBoolProperty("db.isowner", true);
-           _log = new Logfile(api, "db", "database.log");
-           _api.log().info("DatabasePlugin", "Activate...");
+           _isOwner = conf.getBoolProperty("db.isowner", true);
+           _log = new Logfile(conf, "db", "database.log");
+           _conf.log().info("DatabasePlugin", "Activate...");
            
            
            /*
             * Statistics 
             */
-            DbStatLogger stats = new DbStatLogger(_api);
-            
-           
-           /*
-            * Synchronisation 
-            */
-           _dbsync = new DbSync(_api); 
-           
-           /* Add handlers */
-           _dbsync.addCid("signs",   (Sync.Handler) new SignsSync(api, this)); 
-           _dbsync.addCid("user",    (Sync.Handler) new UserSync(api, this));
-           _dbsync.addCid("userts",  (Sync.Handler) new UserTsSync(api, this));
-           _dbsync.addCid("object",  (Sync.Handler) new ObjectSync(api, this));
-           _dbsync.addCid("objshare",(Sync.Handler) new ObjectShareSync(api, this));
-           
-           /* Activate and register user sync client */
-           UserDb udb = (UserDb) _api.getWebserver().getUserDb(); 
-           udb.setSyncer( new ClientUserSyncer(_api, _dbsync) );
-           
+            DbStatLogger stats = new DbStatLogger(_conf);
+                 
 
            /*
             * Writing spatiotemporal APRS data to db and maintenance operations shouldn't be 
             * done by more than one concurrent client (the owner of the database). 
             */
             if (_isOwner) {
-               _api.getAprsParser().subscribe(this);
-               _maint = new DbMaintenance(_dsrc, _api, _log);
+               _conf.getAprsParser().subscribe(this);
+               _maint = new DbMaintenance(_dsrc, _conf, _log);
             }
             else 
-               _api.log().info("DatabasePlugin", "Using remote database server");
+               _conf.log().info("DatabasePlugin", "Using remote database server");
               
             
             /* Set stationDB implementation */
-            StationDB dbi = api.getDB();
+            StationDB dbi = conf.getDB();
             ((StationDBImp) dbi).setHistDB(this);
            
            
@@ -150,11 +149,11 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
                         return x; 
                      }
                      catch (DBSession.SessionError e) {
-                        _api.log().error("DatabasePlugin", "Cannot open database: "+e.getMessage());
+                        _conf.log().error("DatabasePlugin", "Cannot open database: "+e.getMessage());
                         return new ArrayList<Signs.Item>(1);
                      }
                      catch (Exception e) { 
-                        _api.log().warn(null, "Sign search: "+e); 
+                        _conf.log().warn(null, "Sign search: "+e); 
                         if (db != null) 
                             db.abort(); 
                         return new ArrayList<Signs.Item>(1);
@@ -174,10 +173,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
               _log.info(null, "DatabasePlugin activated");
         }
         catch (ClassCastException e) {
-            _api.log().error("DatabasePlugin", "Cannot activate DatabasePlugin: unsupported impl. of StationDB");
+            _conf.log().error("DatabasePlugin", "Cannot activate DatabasePlugin: unsupported impl. of StationDB");
         }
         catch (Exception e) {
-            _api.log().error("DatabasePlugin", "Activate DatabasePlugin: "+e);
+            _conf.log().error("DatabasePlugin", "Activate DatabasePlugin: "+e);
             e.printStackTrace(System.out);
         }  
       }
@@ -186,27 +185,44 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
       
          
      @Override
-     public void startWebservice(ServerAPI api) {
+     public void startWebservice(AprsServerConfig conf) {
         
-        boolean active = api.getBoolProperty("db.plugin.on", false);
+        boolean active = conf.getBoolProperty("db.plugin.on", false);
             if (!active)
                return; 
         if (!_isActive)
             return; 
-        RestApi api1     = new RestApi(api);
+        RestApi api1     = new RestApi(conf);
         api1.start();
-        TrackerApi api2  = new TrackerApi(api);
+        TrackerApi api2  = new TrackerApi(conf);
         api2.start();
-        HistApi api3     = new HistApi(api);
+        HistApi api3     = new HistApi(conf);
         api3.start();
-        SignsApi api4    = new SignsApi(api);
+        SignsApi api4    = new SignsApi(conf);
         api4.start();
-        TrackLogApi api5 = new TrackLogApi(api);
+        TrackLogApi api5 = new TrackLogApi(conf);
         api5.start();   
-        PhotoApi api6    = new PhotoApi(api);
+        PhotoApi api6    = new PhotoApi(conf);
         api6.start();
+        
+        /*
+         * Synchronisation 
+         */
+        _dbsync = new DbSync(_conf); 
+           
+        /* Add handlers */
+        _dbsync.addCid("signs",   (Sync.Handler) new SignsSync(conf, this)); 
+        _dbsync.addCid("user",    (Sync.Handler) new UserSync(conf, this));
+        _dbsync.addCid("userts",  (Sync.Handler) new UserTsSync(conf, this));
+        _dbsync.addCid("object",  (Sync.Handler) new ObjectSync(conf, this));
+        _dbsync.addCid("objshare",(Sync.Handler) new ObjectShareSync(conf, this));
+           
+        /* Activate and register user sync client */
+        UserDb udb = (UserDb) _conf.getWebserver().userDb(); 
+        udb.setSyncer( new ClientUserSyncer(_conf, _dbsync) );
+        
         _dbsync.startRestApi();
-     }
+    }
      
      
       
@@ -215,15 +231,15 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
       // FIXME
       public void deActivate() 
       {         
-         boolean active = _api.getBoolProperty("db.plugin.on", false);
+         boolean active = _conf.getBoolProperty("db.plugin.on", false);
          if (!active)
             return; 
          
-         _api.log().info("DatabasePlugin", "Deactivate");
+         _conf.log().info("DatabasePlugin", "Deactivate");
          if (_log != null)
             _log.info(null, "DatabasePlugin deactivated");
          if (_isOwner)
-            _api.getAprsParser().subscribe(this);
+            _conf.getAprsParser().subscribe(this);
       }
       
       
@@ -261,7 +277,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
         { return getDB(false); }
         
       public MyDBSession getDB(boolean autocommit) throws DBSession.SessionError
-         { return new MyDBSession(_dsrc, _api, autocommit, _log); }
+         { return new MyDBSession(_dsrc, _conf, autocommit, _log); }
       
       
       public int getPhotoScale() {
@@ -324,7 +340,7 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
        try {
            db = getDB();
            /* If change to comment, save it in database. */
-           AprsPoint x = (AprsPoint) _api.getDB().getItem(sender, null);
+           AprsPoint x = (AprsPoint) _conf.getDB().getItem(sender, null);
            String comment = "";
            if ( x == null ||
                (descr != null && !descr.equals("") && !descr.equals(x.getDescr()))) {
@@ -366,10 +382,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
            db.commit();
         }
         catch (DBSession.SessionError e) { 
-            _api.log().error("DatabasePlugin", "handlePosReport: "+e);
+            _conf.log().error("DatabasePlugin", "handlePosReport: "+e);
         }
         catch (NullPointerException e) {
-            _api.log().error("DatabasePlugin", "handlePosReport: "+e);
+            _conf.log().error("DatabasePlugin", "handlePosReport: "+e);
             e.printStackTrace(System.out);
             db.abort();
         }
@@ -440,10 +456,10 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
            db.commit();
        }
        catch (DBSession.SessionError e) {
-            _api.log().error("DatabasePlugin", "handlePacket: "+e);
+            _conf.log().error("DatabasePlugin", "handlePacket: "+e);
        }
        catch (NullPointerException e) {
-           _api.log().error("DatabasePlugin", "handlePacket: "+e);
+           _conf.log().error("DatabasePlugin", "handlePacket: "+e);
            e.printStackTrace(System.out);
            db.abort();
        }
@@ -517,9 +533,9 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
                     tp.setIcon(t.info.icon);
                     
                 /* if alias/icon set send RMAN message */
-                if (_api.getRemoteCtl() != null && (t.info.alias != null || t.info.icon!=null)) {
+                if (_conf.getRemoteCtl() != null && (t.info.alias != null || t.info.icon!=null)) {
                     tp.setTag("_srman");
-                    _api.getRemoteCtl().sendRequestAll("RMAN", tp.getIdent()+" "+t.info.alias+" "+t.info.icon, null);
+                    _conf.getRemoteCtl().sendRequestAll("RMAN", tp.getIdent()+" "+t.info.alias+" "+t.info.icon, null);
                 }
                 
                 /* Get tags from database */
@@ -539,15 +555,15 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
      */
     public void removeManagedItem(String id)
     {
-        var psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        var psub = (PubSub) _conf.getWebserver().pubSub();
         try {
             getDB().simpleTrans("removeManagedItem", x -> {
                 TrackerDBSession ses = new TrackerDBSession(x);
                 Tracker t = ses.getTracker(id);
                 ses.deleteTracker(id);
                                 
-                _api.getWebserver().notifyUser(t.info.user, 
-                        new ServerAPI.Notification("system", "system", "Your Tracker '"+id+"' was removed", new java.util.Date(), 60));
+                _conf.getWebserver().notifyUser(t.info.user, 
+                        new ServerConfig.Notification("system", "system", "Your Tracker '"+id+"' was removed", new java.util.Date(), 60));
                         
                 psub.put("trackers:"+t.info.user, null);
                 return null;

@@ -1,8 +1,24 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
+ 
 package no.polaric.aprsdb.dbsync;
+import no.arctic.core.*;
+import no.arctic.core.auth.*;
+import no.arctic.core.httpd.*;
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
 import java.io.*;
 import java.util.*;
 import java.net.http.*;
@@ -39,7 +55,7 @@ public class ClientUserSyncer implements UserDb.Syncer
     private PluginApi _dbp;
     
     
-    public ClientUserSyncer(ServerAPI api, Sync sync) 
+    public ClientUserSyncer(ServerConfig api, Sync sync) 
     {
         _sync = sync;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");

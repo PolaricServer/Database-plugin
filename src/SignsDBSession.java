@@ -1,26 +1,25 @@
- 
 /* 
- * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
+ * GNU Affero General Public License for more details.
  */
-
+ 
 package no.polaric.aprsdb;
+import  no.arctic.core.*;
 import  no.polaric.aprsd.*;
+import  no.polaric.aprsd.point.*;
 import  java.text.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
-import  no.polaric.aprsd.*;
 import  net.postgis.jdbc.PGgeometry;
 import  net.postgis.jdbc.geometry.Point;
 import  java.io.*;
@@ -34,10 +33,10 @@ import  java.io.*;
 public class SignsDBSession extends DBSession
 {
     private DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
-    private ServerAPI _api;
+    private ServerConfig _api;
        
    
-    public SignsDBSession (DataSource dsrc, ServerAPI api, boolean autocommit, Logfile log)
+    public SignsDBSession (DataSource dsrc, ServerConfig api, boolean autocommit, Logfile log)
        throws DBSession.SessionError
     {
        super(dsrc, autocommit, log); 
@@ -381,8 +380,9 @@ public class SignsDBSession extends DBSession
               " WHERE a.id=p.id AND photo=true AND (a.userid=?  OR a.userid='#ALL' OR a.userid=?) AND " +
               "    time <= ? AND time + interval '1 month' >= ? AND " +       
               "    position && ST_MakeEnvelope(?, ?, ?, ?, 4326) " +
-              " LIMIT 300" +
-              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT );
+              " LIMIT 300", 
+              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY, ResultSet.HOLD_CURSORS_OVER_COMMIT 
+              );
         
         if (time==null)
             time = new java.util.Date();

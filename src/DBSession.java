@@ -1,25 +1,26 @@
 /* 
- * Copyright (C) 2016-2023 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  */
 
 package no.polaric.aprsdb;
+import no.arctic.core.*;
 import  no.polaric.aprsd.*;
+import  no.polaric.aprsd.point.*;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.*;
 import  java.util.function.*;
 import  java.util.concurrent.locks.*; 
-import  no.polaric.aprsd.Logfile;
 import  net.postgis.jdbc.PGgeometry;
 import  net.postgis.jdbc.geometry.Point;
 
@@ -35,7 +36,7 @@ import  net.postgis.jdbc.geometry.Point;
  
 public class DBSession
 {   
-     protected ServerAPI _api; 
+     protected AprsServerConfig _api; 
      private Connection _con;
      private static Map<String, TransInfo> _inProgress = new HashMap<String, TransInfo>();
      private static Timer _transTimer = new Timer("TransactionTimer");

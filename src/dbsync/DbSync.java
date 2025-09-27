@@ -1,22 +1,24 @@
 /* 
- * Copyright (C) 2023-2025 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
+ * GNU Affero General Public License for more details.
  */
+ 
  
 package no.polaric.aprsdb.dbsync;
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
+import no.arctic.core.*;
+import no.arctic.core.httpd.*;
+import no.arctic.core.auth.*;
 
 import java.io.*;
 import java.util.*;
@@ -28,7 +30,6 @@ import java.sql.*;
 import javax.sql.*;
 import java.net.*;
 import java.net.http.*;
-import static spark.Spark.*;
 
 
 /*
@@ -37,7 +38,7 @@ import static spark.Spark.*;
  
 public class DbSync implements Sync
 {
-    private ServerAPI _api;   
+    private ServerConfig _api;   
     private PluginApi _dbp;
     private DbSyncApi _dsapi; 
     private Timer hb = new Timer();
@@ -75,7 +76,7 @@ public class DbSync implements Sync
     
     
     
-    public DbSync(ServerAPI api) {
+    public DbSync(ServerConfig api) {
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
         
@@ -96,7 +97,7 @@ public class DbSync implements Sync
 
         /* Setup of servers for websocket comm. */
         NodeWs ws = new NodeWs(_api, null);
-        webSocket("/ws/dbsync", ws);
+        ws.start("ws/dbsync");
         
         /* Set up websocket api and handler for item updates  
          */
@@ -181,6 +182,9 @@ public class DbSync implements Sync
     
     
     
+    /**
+     * Add node subscription. To database and to node list
+     */
     public boolean addNode(String nodeid, String items, String url) {
         SyncDBSession db = null;
         try {    

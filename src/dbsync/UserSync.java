@@ -1,9 +1,23 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
 package no.polaric.aprsdb.dbsync;
+import no.arctic.core.*;
+import no.arctic.core.httpd.*;
+import no.arctic.core.auth.*;
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
-import no.polaric.aprsdb.http.SignsApi;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,17 +32,17 @@ import java.net.http.*;
  
 public class UserSync implements Sync.Handler
 {
-    private ServerAPI _api;   
     private PluginApi _dbp;
-   
     private UserDb _users; 
+    private PubSub _psub;
    
    
-   
-    public UserSync(ServerAPI api, PluginApi dbp) 
+    public UserSync(ServerConfig conf, PluginApi dbp) 
     {
-        _api=api; _dbp=dbp;
-        _users = (UserDb) api.getWebserver().getUserDb();
+        _dbp=dbp;
+        _users = (UserDb) conf.getWebserver().userDb();
+        _psub = (PubSub) conf.getWebserver().pubSub();
+        _psub.createRoom("userdb", null);
     }
    
    
@@ -78,16 +92,23 @@ public class UserSync implements Sync.Handler
     private void _add(UserApi.UserInfo u, String userid, String id) 
         throws DBSession.SessionError
     {
-        if (_users.get(id) != null)
+        if (_users.get(id) != null) {
             /* 
              * User exists already. From before this update.
              * The simplest approach is to delete the previous user first.
              */
             _dbp.log().warn("UserSync", "Add user: User "+id+" exists - deleting");
             _users.remove(id); 
+        }
                 
         /* Now, add the user */
-        _users.add(id, u.name, u.sar, u.admin, u.suspend, u.passwd, u.group);
+        if (_users.getGroupDb().get(u.group) == null) {
+            _dbp.log().warn("UserSync", "Update user: Unknown group: "+u.group+", using 'DEFAULT'");
+            u.group = "DEFAULT";
+        }    
+        _users.add(id, u.name, u.admin, u.suspend, u.passwd, u.group);
+        if (_psub != null)
+            _psub.put("userdb", null, null);
     }
      
      
@@ -120,9 +141,11 @@ public class UserSync implements Sync.Handler
             u.setCallsign(sc.callsign);
         if (sc.passwd != null) 
             u.setPasswd(sc.passwd);    
-        u.setSar(sc.sar);
+        u.getGroup().setOperator(sc.operator);
         u.setAdmin(sc.admin);
         u.setSuspended(sc.suspend);
+        if (_psub != null)
+            _psub.put("userdb", null, null);
     }
      
      
@@ -130,7 +153,6 @@ public class UserSync implements Sync.Handler
     private void _del(String ident) 
         throws DBSession.SessionError
     {
-//        onDelete(ident);
         _users.remove(ident); 
     }
     
@@ -149,6 +171,8 @@ public class UserSync implements Sync.Handler
             db.commit();
             for (String x: deleted)
                 _dbp.getSync().localUpdate("signs", x, "_system_", "DEL", null, false);
+            if (_psub != null)
+                _psub.put("userdb", null, null);
         }
         catch(Exception e) {
             if (db != null) db.abort();

@@ -1,24 +1,23 @@
 /* 
- * Copyright (C) 2014-2023 by Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
+ * GNU Affero General Public License for more details.
  */
-
+ 
 package no.polaric.aprsdb;
 import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
 import  no.polaric.aprsd.*;
-
+import no.arctic.core.*;
 
 
 /**
@@ -28,7 +27,7 @@ import  no.polaric.aprsd.*;
 public class DbMaintenance implements Runnable
 {
    
-   private ServerAPI _api; 
+   private AprsServerConfig _conf; 
    private DataSource _dsrc; 
    private int _maxage_raw, _maxage_report, _maxage_limited, _maxage_limited_raw;
    private String _maxage_limited_filter;
@@ -36,23 +35,23 @@ public class DbMaintenance implements Runnable
    private Logfile _log; 
    
    
-   DbMaintenance (DataSource dsrc, ServerAPI api, Logfile log)
+   DbMaintenance (DataSource dsrc, AprsServerConfig conf, Logfile log)
    { 
       _dsrc = dsrc;
-      _api = api; 
+      _conf = conf; 
       
       _log = log; 
-      _maxage_raw = Integer.parseInt(api.getConfig().getProperty("db.maxage.raw", "30").trim()); 
-      _maxage_report = Integer.parseInt(api.getConfig().getProperty("db.maxage.report", "90").trim());
-      _maxage_limited = Integer.parseInt(api.getConfig().getProperty("db.maxage2.report", "30").trim());
-      _maxage_limited_raw = Integer.parseInt(api.getConfig().getProperty("db.maxage2.raw", "14").trim());
-      _maxage_limited_filter = api.getConfig().getProperty("db.maxage2.filter", "src ~ '^LD.*'");
+      _maxage_raw = Integer.parseInt(conf.getProperty("db.maxage.raw", "30").trim()); 
+      _maxage_report = Integer.parseInt(conf.getProperty("db.maxage.report", "90").trim());
+      _maxage_limited = Integer.parseInt(conf.getProperty("db.maxage2.report", "30").trim());
+      _maxage_limited_raw = Integer.parseInt(conf.getProperty("db.maxage2.raw", "14").trim());
+      _maxage_limited_filter = conf.getProperty("db.maxage2.filter", "src ~ '^LD.*'");
       _thread = new Thread(this, "db_maintenance");
       _thread.start();
    }
    
    public MyDBSession getDB() throws DBSession.SessionError
-     { return new MyDBSession(_dsrc, _api, false, _log); }
+     { return new MyDBSession(_dsrc, _conf, false, _log); }
          
          
          

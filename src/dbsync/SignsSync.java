@@ -1,9 +1,26 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
 package no.polaric.aprsdb.dbsync;
+import no.polaric.aprsdb.http.SignsApi;
+import no.arctic.core.*;
+import no.arctic.core.httpd.*;
+import no.arctic.core.auth.*;
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
-import no.polaric.aprsdb.http.SignsApi;
+import no.polaric.aprsd.point.*;
+
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,16 +35,19 @@ import java.net.http.*;
  
 public class SignsSync implements Sync.Handler
 {
-    private ServerAPI _api;   
+    private ServerConfig _conf;   
     private PluginApi _dbp;
     private PubSub _psub;
    
    
-    public SignsSync(ServerAPI api, PluginApi dbp) 
+    public SignsSync(ServerConfig conf, PluginApi dbp) 
     {
-        _api=api; _dbp=dbp;    
-        _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        _conf=conf; 
+        _dbp=dbp;    
+        _psub = (PubSub) _conf.getWebserver().pubSub();
+        _psub.createRoom("sign", null);
     }
+   
    
     public boolean isDelWins() {return false;}
    
@@ -94,9 +114,11 @@ public class SignsSync implements Sync.Handler
             String[] iid = id.split("@");
             
             db.setSeqNext("signs_seq", Integer.parseInt(iid[0]) );
-            db.addSign(iid[1], sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, userid);       
-            _psub.put("sign", null, userid);
-            db.commit();
+            db.addSign(iid[1], sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, userid); 
+            db.commit(); 
+            if (_psub != null)
+                _psub.put("sign", null, null);
+        
         }      
         catch(Exception e) {
             db.abort();
@@ -123,8 +145,9 @@ public class SignsSync implements Sync.Handler
             }
             else
                 db.updateSign(sc.id, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, userid);        
-            _psub.put("sign", null, userid);
-            db.commit();
+             db.commit();
+            if (_psub != null)
+                _psub.put("sign", null, null);
         }
         catch(Exception e) {
             db.abort();
@@ -141,9 +164,10 @@ public class SignsSync implements Sync.Handler
     {
         SignsDBSession db = new SignsDBSession(_dbp.getDB());
         try {
-            db.deleteSign(ident);   
-            _psub.put("sign", null, userid);
+            db.deleteSign(ident);  
             db.commit();
+            if (_psub != null)
+                _psub.put("sign", null, null);
         }      
         catch(Exception e) {
             db.abort();

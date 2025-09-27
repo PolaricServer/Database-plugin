@@ -1,19 +1,21 @@
 /* 
- * Copyright (C) 2022 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  */
  
 package no.polaric.aprsdb;
+import  no.arctic.core.*;
 import no.polaric.aprsd.*;
+import no.polaric.aprsd.point.*;
 import java.text.*;
 import java.util.*;
 import java.io.*;
@@ -25,8 +27,8 @@ import java.io.*;
  */
 public class DbStatLogger {
     
-    private ServerAPI   _api;
-    private ServerAPI.Web ws;
+    private AprsServerConfig   _api;
+    private ServerConfig.Web ws;
     private PluginApi _dbp;
     private long _period = 1000 * 60 * 60;           // 60 minute
     private long _posUpd = TrackerPoint.getPosUpdates();
@@ -40,7 +42,7 @@ public class DbStatLogger {
     // FIXME: Code to create table and to remove old records
     
     
-    public DbStatLogger(ServerAPI api) 
+    public DbStatLogger(AprsServerConfig api) 
     {     
         try {
             _api = api;
@@ -48,7 +50,7 @@ public class DbStatLogger {
             _req = ws.nHttpReq();
             _visits = ws.nVisits();
             _logins = ws.nLogins();
-            _mupdates = ws.nMapUpdates();
+            _mupdates = ((MyWebServer) ws).nMapUpdates();
             _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
         
             _dbp.log().info("DbStatLogger", "Starting statistics data logger");
@@ -61,7 +63,10 @@ public class DbStatLogger {
                 } 
             } , _period, _period); 
         }
-        catch (Exception e) { _api.log().error("DbStatLogger", ""+e); }
+        catch (Exception e) { 
+            _api.log().error("DbStatLogger", ""+e); 
+            e.printStackTrace(System.out);
+        }
     }
     
     
@@ -79,12 +84,12 @@ public class DbStatLogger {
                 ws.nLogins() - _logins,
                 TrackerPoint.getPosUpdates() - _posUpd,   
                 TrackerPoint.getAprsPosUpdates() - _aprsPosUpd, 
-                ws.nMapUpdates() - _mupdates);
+                ((MyWebServer)ws).nMapUpdates() - _mupdates);
         
             _req = ws.nHttpReq();
             _visits = ws.nVisits();
             _logins = ws.nLogins();
-            _mupdates = ws.nMapUpdates();
+            _mupdates = ((MyWebServer)ws).nMapUpdates();
             _posUpd = TrackerPoint.getPosUpdates();
             _aprsPosUpd = TrackerPoint.getAprsPosUpdates();
             

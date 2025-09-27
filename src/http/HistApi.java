@@ -1,25 +1,34 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
 package no.polaric.aprsdb.http;
+import no.arctic.core.*;
+import no.arctic.core.httpd.*;
+import no.arctic.core.auth.*;
+import io.javalin.Javalin;
+import io.javalin.http.Context;
+
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
+import no.polaric.aprsd.point.*;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import no.polaric.aprsd.filter.*;
-import spark.Request;
-import spark.Response;
-import spark.route.Routes;
-import static spark.Spark.get;
-import static spark.Spark.put;
-import static spark.Spark.*;
-import spark.QueryParamsMap;
 import java.util.stream.Collectors;
-import javax.servlet.*;
-import javax.servlet.http.*;
-import org.eclipse.jetty.server.*;
 import java.util.regex.*;
 import java.time.*;
 import java.time.format.*;
@@ -33,7 +42,7 @@ import java.time.format.*;
  
 public class HistApi extends ServerBase implements JsonPoints
 {
-    private ServerAPI _api; 
+    private ServerConfig _api; 
     private PluginApi _dbp;
     private String _defaultIcon;
     private int _photoscale;
@@ -42,7 +51,7 @@ public class HistApi extends ServerBase implements JsonPoints
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
     
             
-    public HistApi(ServerAPI api) {
+    public HistApi(ServerConfig api) {
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
@@ -61,28 +70,30 @@ public class HistApi extends ServerBase implements JsonPoints
          {time=tm; source=src; from=fr; this.to=to; this.via=via; report=rep;}
     }
         
-        
-        
     /** 
      * Return an error status message to client 
      */
-    public String ERROR(Response resp, int status, String msg)
-      { resp.status(status); return msg; }
-      
-      
-      
-    public String ABORT(Response resp, MyDBSession db, String logmsg, int status, String msg) {
-        _dbp.log().warn("HistApi", logmsg);
-        db.abort();
-        return ERROR(resp, status, msg);
-    }
+    public Object ERROR(Context ctx, int status, String msg)
+      { ctx.status(status); ctx.result(msg); return null;}
     
-    public String S_ABORT(Response resp, SignsDBSession db, String logmsg, int status, String msg) {
+      
+      
+    public Object ABORT(Context ctx, MyDBSession db, String logmsg, int status, String msg) {
         _dbp.log().warn("HistApi", logmsg);
-        db.abort();
-        return ERROR(resp, status, msg);
+        if (db!=null)
+            db.abort();
+        return ERROR(ctx, status, msg);
+    }
+      
+    
+    public Object S_ABORT(Context ctx, SignsDBSession db, String logmsg, int status, String msg) {
+        _dbp.log().warn("HistApi", logmsg);
+        if (db!=null)
+            db.abort();
+        return ERROR(ctx, status, msg);
     }  
 
+    
     public Date parseIsoDf(String d) {
         Instant timestamp = Instant.parse(d);
         ZonedDateTime local = timestamp.atZone(ZoneId.systemDefault());
@@ -96,9 +107,8 @@ public class HistApi extends ServerBase implements JsonPoints
      */
     public void start() {   
     
-        _api.getWebserver().corsEnable("/hist/*");
-        _api.getWebserver().protectUrl("/hist/snapshot/*");
-        _api.getWebserver().protectUrl("/hist/*/trail");
+        protect("/hist/snapshot/*");
+        protect("/hist/*/trail");
         
         
         /**************************************************************************
@@ -111,27 +121,25 @@ public class HistApi extends ServerBase implements JsonPoints
          * Number is given as request parameter n 
          **************************************************************************/
         
-        get("/hist/*/aprs", "application/json", (req, resp) -> {
-            
-            String src = req.splat()[0].toUpperCase();
-            QueryParamsMap parms = req.queryMap();
+        a.get("/hist/{src}/aprs", (ctx) -> {
+            var src = ctx.pathParam("src").toUpperCase();
             MyDBSession db = _dbp.getDB();
             
             try {
-                String nn = parms.value("n");
+                String nn = ctx.queryParam("n");
                 int n = 25; 
                 if (nn != null)
                     n = Integer.parseInt(nn);
                 
                 Date dto = null;
-                String dtos = parms.value("tto"); 
+                String dtos = ctx.queryParam("tto"); 
                 if (dtos == null || "-/-".equals(dtos))
                     dto = new Date();
                 else
                     dto = parseIsoDf(dtos);
                 
                 Date dfrom = null;
-                String dfroms = parms.value("tfrom"); 
+                String dfroms = ctx.queryParam("tfrom"); 
                 if (dfroms != null) 
                     dfrom = parseIsoDf(dfroms);
                     
@@ -140,24 +148,24 @@ public class HistApi extends ServerBase implements JsonPoints
                 for (AprsPacket x: list)
                     res.add(new RawPacket(x.time, x.source.getIdent(), x.from, x.to, x.via, x.report));
                 db.commit();
-                return res;
+                ctx.json(res);
             }    
             catch(java.lang.NumberFormatException e) {  
-                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse number", 400,  "Cannot parse number");
+                ABORT(ctx, db, "GET /hist/*/aprs: Cannot parse number", 400,  "Cannot parse number");
             }
             catch(DateTimeParseException e) { 
-                return ABORT(resp, db, "GET /hist/*/aprs: Cannot parse date/time:"+e.getMessage(), 400, 
+                ABORT(ctx, db, "GET /hist/*/aprs: Cannot parse date/time:"+e.getMessage(), 400, 
                   "Cannot parse date/time"); 
             } 
             catch(java.sql.SQLException e) { 
-                return ABORT(resp, db, "GET /hist/*/aprs: SQL error:"+e.getMessage(), 500, "SQL error"); 
+                ABORT(ctx, db, "GET /hist/*/aprs: SQL error:"+e.getMessage(), 500, "SQL error"); 
             }
             catch(Exception e) { 
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET /hist/*/aprs: Exception:"+e, 500, null); 
+                ABORT(ctx, db, "GET /hist/*/aprs: Exception:"+e, 500, null); 
             }
             finally { db.close(); }
-        }, ServerBase::toJson );
+        });
          
          
     
@@ -168,26 +176,25 @@ public class HistApi extends ServerBase implements JsonPoints
          * Timespan is given as request parameters tfrom and tto 
          **************************************************************************/
          
-        get("/hist/*/trail", "application/json", (req, resp) -> {
-            String src = req.splat()[0].toUpperCase();
-            QueryParamsMap parms = req.queryMap();
+        a.get("/hist/{src}/trail", (ctx) -> {
+            var src = ctx.pathParam("src").toUpperCase();
             MyDBSession db = _dbp.getDB();
             JsOverlay mu = null;
             
             try {
-                Date dfrom = parseIsoDf(parms.value("tfrom"));
+                Date dfrom = parseIsoDf(ctx.queryParam("tfrom"));
                 Date dto = null; 
-                if (parms.value("tto").equals("-/-"))
+                if (ctx.queryParam("tto").equals("-/-"))
                     dto = new Date(); 
                 else
-                    dto = parseIsoDf(parms.value("tto"));
+                    dto = parseIsoDf(ctx.queryParam("tto"));
             
                 TrackerPoint tp = db.getItem(src, dto);           
                 /* Get tags from db */
                 setTags(db, tp, dto);
                 
-                var auth = getAuthInfo(req);
-                boolean aliasAuth = auth.sar || auth.admin;
+                var auth = getAuthInfo(ctx);
+                boolean aliasAuth = auth.operator || auth.admin;
                 
                 /* Get alias and/or icon */
                 if (aliasAuth || (auth.group != null && tp.hasTag(auth.group.getTags())))
@@ -197,48 +204,49 @@ public class HistApi extends ServerBase implements JsonPoints
           
                 mu = new JsOverlay("HISTORICAL");
                 JsPoint p = createPoint(tp, true, null);
-                if (p==null)
-                    return ABORT(resp, db, "GET /hist/*/trail: Point not found", 404,  null);
+                if (p==null) {
+                    ABORT(ctx, db, "GET /hist/*/trail: Point not found", 404,  null);
+                    return;
+                }
                 p.trail = createTrail(tp, h, null, true); 
                 mu.points = new LinkedList<JsPoint>();
                 mu.points.add(p);
                 db.commit();
-                return mu;
+                ctx.json(mu);
             }
             catch(DateTimeParseException e) { 
-                return ABORT(resp, db, "GET /hist/*/trail: Cannot parse date/time:"+e.getMessage(), 400, 
+                ABORT(ctx, db, "GET /hist/*/trail: Cannot parse date/time:"+e.getMessage(), 400, 
                   "Cannot parse date/time"); 
             } 
             catch(java.sql.SQLException e) { 
-                return ABORT(resp, db, "GET /hist/*/trail: SQL error: "+e.getMessage(), 500, 
+                ABORT(ctx, db, "GET /hist/*/trail: SQL error: "+e.getMessage(), 500, 
                    "SQL Error"); 
             }            
             catch(Exception e) { 
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET /hist/*/trail: Error: "+e.getMessage(), 500, 
+                ABORT(ctx, db, "GET /hist/*/trail: Error: "+e.getMessage(), 500, 
                    e.getMessage()); 
             }
             finally { db.close(); }
-        }, ServerBase::toJson );
+        } );
         
         
         
         
         
-        get("/hist/snapshot/*/*/*/*", "application/json", (req, resp) -> {
-            QueryParamsMap parms = req.queryMap();
+        a.get("/hist/snapshot/{x1}/{x2}/{x3}/{x4}", (ctx) -> {
             MyDBSession db = _dbp.getDB();
             JsOverlay mu = null;
             TrackerPoint tp = null;
             String curr_ident = "XXXXX";                
-            var uid = getAuthInfo(req).userid; 
-            var group = getAuthInfo(req).groupid;
+            var uid = getAuthInfo(ctx).userid; 
+            var group = getAuthInfo(ctx).groupid;
             
             try {
-                double x1 = Double.parseDouble(req.splat()[0]);
-                double x2 = Double.parseDouble(req.splat()[1]);
-                double x3 = Double.parseDouble(req.splat()[2]);
-                double x4 = Double.parseDouble(req.splat()[3]);
+                double x1 = Double.parseDouble(ctx.pathParam("x1"));
+                double x2 = Double.parseDouble(ctx.pathParam("x2"));
+                double x3 = Double.parseDouble(ctx.pathParam("x3"));
+                double x4 = Double.parseDouble(ctx.pathParam("x4"));
                 if (x1 > 180.0) x1 = 180.0; if (x1 < -180.0) x1 = -180.0;
                 if (x2 > 180.0) x2 = 180.0; if (x2 < -180.0) x2 = -180.0;
                 if (x3 > 90.0) x3 = 90.0; if (x3 < -90.0) x3 = -90.0;
@@ -246,14 +254,14 @@ public class HistApi extends ServerBase implements JsonPoints
                 LatLng uleft  = new LatLng((double) x4, (double) x1); 
                 LatLng lright = new LatLng((double) x2, (double) x3);
                 
-                Date dto = parseIsoDf(parms.value("tto"));
-                double scale = Double.parseDouble(parms.value("scale"));
-                String filt = parms.value("filter");
+                Date dto = parseIsoDf(ctx.queryParam("tto"));
+                double scale = Double.parseDouble(ctx.queryParam("scale"));
+                String filt = ctx.queryParam("filter");
                 RuleSet vfilt = ViewFilter.getFilter(filt, uid != null); 
-                boolean reset = (parms.value("reset") != null);
+                boolean reset = (ctx.queryParam("reset") != null);
                 
-                var auth = getAuthInfo(req);
-                boolean aliasAuth = auth.sar || auth.admin;
+                var auth = getAuthInfo(ctx);
+                boolean aliasAuth = auth.operator || auth.admin;
                 
                 mu = new JsOverlay("HISTORICAL");
                 mu.points = new LinkedList<JsPoint>();
@@ -300,34 +308,34 @@ public class HistApi extends ServerBase implements JsonPoints
                             processPhoto(mu, x);
                         sdb.commit();
                     }
-                    return mu;
+                    ctx.json(mu);
                 }
                 catch (Exception e) {
                     e.printStackTrace(System.out);
-                    return S_ABORT(resp, sdb, "GET /hist/snapshot: Error in searching photos: "+e.getMessage(), 500, 
+                    S_ABORT(ctx, sdb, "GET /hist/snapshot: Error in searching photos: "+e.getMessage(), 500, 
                         "Exception - check log"); 
                 }
                 finally { sdb.close(); }
             }                  
             
             catch(java.lang.NumberFormatException e) {  
-                return ABORT(resp, db, "GET /hist/snapshot: Cannot parse number", 400,  "Cannot parse number");
+                ABORT(ctx, db, "GET /hist/snapshot: Cannot parse number", 400,  "Cannot parse number");
             }
             catch(DateTimeParseException e) { 
-                return ABORT(resp, db, "GET /hist/snapshot: Cannot parse date/time:"+e.getMessage(), 400, 
+                ABORT(ctx, db, "GET /hist/snapshot: Cannot parse date/time:"+e.getMessage(), 400, 
                   "Cannot parse date/time"); 
             } 
             catch(java.sql.SQLException e) { 
-                return ABORT(resp, db, "GET /hist/snapshot: SQL error: "+e.getMessage(), 500, 
+                ABORT(ctx, db, "GET /hist/snapshot: SQL error: "+e.getMessage(), 500, 
                     "SQL Error"); 
             }            
             catch(Exception e) { 
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET /hist/snapshot: Error: "+e.getMessage(), 500, 
+                ABORT(ctx, db, "GET /hist/snapshot: Error: "+e.getMessage(), 500, 
                     "Exception - check log"); 
             }
             finally { db.close(); }
-        }, ServerBase::toJson );
+        });
         
         
         
@@ -340,15 +348,14 @@ public class HistApi extends ServerBase implements JsonPoints
          * Timespan is given as request parameters tfrom and tto 
          *************************************************************************/
          
-        get("/hist/*/hrdvia", "application/json", (req, resp) -> {
-            String src = req.splat()[0].toUpperCase();
-            QueryParamsMap parms = req.queryMap();
+        a.get("/hist/{src}/hrdvia", (ctx) -> {
+            var src = ctx.pathParam("src").toUpperCase();
             MyDBSession db = _dbp.getDB();
             JsOverlay mu = null;
             
             try {
-                String tfrom = parms.value("tfrom");
-                String tto = parms.value("tto");
+                String tfrom = ctx.queryParam("tfrom");
+                String tto = ctx.queryParam("tto");
                 Date dfrom = parseIsoDf(tfrom);
                 Date dto = null; 
                 if (tto.equals("-/-"))
@@ -369,21 +376,21 @@ public class HistApi extends ServerBase implements JsonPoints
                 for (TPoint x : h) 
                     mu.pcloud.add(new JsTPoint(x));
                 db.commit();
-                return mu;
+                ctx.json(mu);
             }
             catch(DateTimeParseException e) { 
-                return ABORT(resp, db, "GET /hist/*/hrdvia: Cannot parse date/time:"+e.getMessage(), 400, 
+                ABORT(ctx, db, "GET /hist/*/hrdvia: Cannot parse date/time:"+e.getMessage(), 400, 
                   "Cannot parse date/time"); 
             }  
             catch(java.sql.SQLException e) { 
-                return ABORT(resp, db, "GET /hist/*/hrdvia: SQL error:"+e.getMessage(), 500, "SQL error (see log)"); 
+                ABORT(ctx, db, "GET /hist/*/hrdvia: SQL error:"+e.getMessage(), 500, "SQL error (see log)"); 
             }  
             catch(Exception e) { 
                 e.printStackTrace(System.out);
-                return ABORT(resp, db, "GET /hist/*/hrdvia: Error:"+e.getMessage(), 500, null); 
+                ABORT(ctx, db, "GET /hist/*/hrdvia: Error:"+e.getMessage(), 500, null); 
             }      
             finally { db.close(); }
-        }, ServerBase::toJson );       
+        } );       
     
     }
         

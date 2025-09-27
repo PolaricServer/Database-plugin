@@ -1,40 +1,47 @@
-
+/* 
+ * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+ 
 package no.polaric.aprsdb.http;
+import no.arctic.core.*;
+import no.arctic.core.httpd.*;
+import no.arctic.core.auth.*;
+import io.javalin.Javalin;
+import io.javalin.http.Context;
+
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
-import no.polaric.aprsd.http.*;
+import no.polaric.aprsd.point.*;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import no.polaric.aprsd.filter.*;
-import spark.Request;
-import spark.Response;
-import spark.route.Routes;
-import static spark.Spark.get;
-import static spark.Spark.put;
-import static spark.Spark.*;
-import spark.QueryParamsMap;
 import java.util.stream.Collectors;
-import javax.servlet.*;
-import javax.servlet.http.*;
-import org.eclipse.jetty.server.*;
 
 
-/*
- * 
- */
+
  
 public class SignsApi extends ServerBase implements JsonPoints
 {
-    private ServerAPI _api; 
+    private ServerConfig _api; 
     private PluginApi _dbp;    
     private PubSub _psub;
     private String    _myCall;
     public java.text.DateFormat df = new java.text.SimpleDateFormat("yyyy-MM-dd/HH:mm");
        
-    public SignsApi(ServerAPI api) {
+    public SignsApi(ServerConfig api) {
         super (api); 
         _api = api;
         _dbp = (PluginApi) api.properties().get("aprsdb.plugin");
@@ -70,17 +77,17 @@ public class SignsApi extends ServerBase implements JsonPoints
     /** 
      * Return an error status message to client 
      */
-    public String ERROR(Response resp, int status, String msg)
-      { resp.status(status); return msg; }
+    public Object ERROR(Context ctx, int status, String msg)
+      { ctx.status(status); ctx.result(msg); return null;}
+    
       
       
-      
-    public String ABORT(Response resp, SignsDBSession db, String logmsg, int status, String msg) {
-        _dbp.log().warn("RestApi", logmsg);
-        db.abort();
-        return ERROR(resp, status, msg);
+    public Object ABORT(Context ctx, SignsDBSession db, String logmsg, int status, String msg) {
+        _dbp.log().warn("SignsApi", logmsg);
+        if (db!=null)
+            db.abort();
+        return ERROR(ctx, status, msg);
     }
-      
 
 
     
@@ -88,12 +95,10 @@ public class SignsApi extends ServerBase implements JsonPoints
      * Set up the webservices. 
      */
     public void start() {   
-        _api.getWebserver().corsEnable("/signs");
-        _api.getWebserver().corsEnable("/signs/*");
-        _api.getWebserver().protectUrl("/signs", "sar");
-        _api.getWebserver().protectUrl("/signs/*", "sar");
+        protect("/signs", "operator");
+        protect("/signs/*", "operator");
                 
-        _psub = (no.polaric.aprsd.http.PubSub) _api.getWebserver().getPubSub();
+        _psub = (PubSub) _api.getWebserver().pubSub();
         _psub.createRoom("sign", (Class) null); 
                 
         /**************************************************************************** 
@@ -101,7 +106,7 @@ public class SignsApi extends ServerBase implements JsonPoints
          * get a list of types (categories)
          ****************************************************************************/
          
-        get("/signs/types", "application/json", (req, resp) -> {
+        a.get("/signs/types", (ctx) -> {
             List<Sign.Category> res = new ArrayList<Sign.Category>(); 
             /* Database transaction */
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
@@ -110,16 +115,16 @@ public class SignsApi extends ServerBase implements JsonPoints
                 for (Sign.Category x : rr)
                     res.add(x);
                 db.commit(); 
-                return res;
+                ctx.json(res);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /signs/types: SQL error:"+e.getMessage(), 500, null);
+                ABORT(ctx, db, "GET /signs/types: SQL error:"+e.getMessage(), 500, null);
             }           
             finally { 
                 db.close(); 
             }
 
-        }, ServerBase::toJson );
+        });
         
         
                         
@@ -128,26 +133,29 @@ public class SignsApi extends ServerBase implements JsonPoints
          * get a specific sign
          ****************************************************************************/
          
-        get ("/signs/*", "application/json", (req, resp) -> {
-            String ident = req.splat()[0];
+        a.get ("/signs/{id}", (ctx) -> {
+            String ident = ctx.pathParam("id");
             
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 Sign x = db.getSign(ident);
-                if (x==null)
-                    return ABORT(resp, db, "GET /signs/*: Object not found: "+ident,
+                if (x==null) {
+                    ABORT(ctx, db, "GET /signs/*: Object not found: "+ident,
                         404, "Object not found: "+ident);
+                    return;
+                }
+                
                 db.commit();
                 SignInfo s = new SignInfo(x.getId(), x.getUrl(), x.getDescr(), x.getIcon(), 
                         x.getScale(), x.getCategory(), x.getGroup(), x.getPosition() ); 
-                return s;
+                ctx.json(s);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET/signs/*: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "GET/signs/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close();}  
-        }, ServerBase::toJson);
+        });
         
         
         
@@ -158,14 +166,16 @@ public class SignsApi extends ServerBase implements JsonPoints
          *    particular zoom levels to limit the amount. 
          ****************************************************************************/
          
-        get("/signs", "application/json", (req, resp) -> {
-            var type = req.queryParams("type");
-            var uid = req.queryParams("user");
+        a.get("/signs", (ctx) -> {
+            var type = ctx.queryParam("type");
+            var uid = ctx.queryParam("user");
             
             List<SignInfo> res = new ArrayList<SignInfo>(); 
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
             
             /* Database transaction */
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
@@ -178,16 +188,16 @@ public class SignsApi extends ServerBase implements JsonPoints
                 for (Sign x : sgs)
                     res.add(new SignInfo(x.getId(), x.getUrl(), x.getDescr(), x.getIcon(), 
                         x.getScale(), x.getCategory(), x.getGroup(), x.getPosition() ) );    
-                return res;
+                ctx.json(res);
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "GET /signs: SQL error:"+e.getMessage(), 500, null);
+                ABORT(ctx, db, "GET /signs: SQL error:"+e.getMessage(), 500, null);
             }
             finally { 
                 db.close(); 
             }
 
-        }, ServerBase::toJson );
+        });
         
         
         
@@ -197,33 +207,35 @@ public class SignsApi extends ServerBase implements JsonPoints
          * Add a sign.
          ****************************************************************************/
          
-        post("/signs", (req, resp) -> {
+        a.post("/signs", (ctx) -> {
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");;
-                
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }    
+            
             /* Get tracker info from request */
             SignInfo sc = (SignInfo) 
-                ServerBase.fromJson(req.body(), SignInfo.class);
+                ServerBase.fromJson(ctx.body(), SignInfo.class);
             if (sc==null) 
-                return ABORT(resp, db, "POST /signs: cannot parse input", 
+                ABORT(ctx, db, "POST /signs: cannot parse input", 
                     400, "Cannot parse input");
                         
             /* Database transaction */
-            try {
+            else try {
                 LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);
                 String id = db.addSign(_myCall, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, auth.userid);
                 sc.id=id;
                 db.commit();  
                 _psub.put("sign", null, auth.userid);
                 _dbp.getSync().localUpdate("signs", id, auth.userid, "ADD", ServerBase.toJson(sc));
-                return id; 
+                ctx.result(id); 
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "POST /signs: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "POST /signs: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close(); }
@@ -236,30 +248,35 @@ public class SignsApi extends ServerBase implements JsonPoints
          * Update a sign.
          ****************************************************************************/
          
-        put("/signs/*", (req, resp) -> {
-            String ident = req.splat()[0];
+        a.put("/signs/{id}", (ctx) -> {
+            String ident = ctx.pathParam("id");
 
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
             
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
                 Sign x = db.getSign(ident);
-                if (x==null)
-                    return ABORT(resp, db, "PUT /signs/*: Object not found: "+ident,
+                if (x==null) {
+                    ABORT(ctx, db, "PUT /signs/*: Object not found: "+ident,
                         404, "Object not found: "+ident);
+                    return;
+                }
                 
                 /* Get tracker info from request */
                 SignInfo sc = (SignInfo) 
-                    ServerBase.fromJson(req.body(), SignInfo.class);
-                if (sc==null) 
-                    return ABORT(resp, db, "PUT /signs: cannot parse input", 
+                    ServerBase.fromJson(ctx.body(), SignInfo.class);
+                if (sc==null) { 
+                    ABORT(ctx, db, "PUT /signs: cannot parse input", 
                         500, "Cannot parse input");        
-                        
-                LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);
+                    return;
+                }
                 
+                LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);
                 Sign s= db.getSign(ident);
                 String uid = s.getUser();
                 uid=(uid==null ? auth.userid : uid);
@@ -270,10 +287,10 @@ public class SignsApi extends ServerBase implements JsonPoints
                 db.commit();               
                 _psub.put("sign", null, auth.userid);
                 _dbp.getSync().localUpdate("signs", ident, uid, "UPD", ServerBase.toJson(sc));
-                return "Ok";
+                ctx.result("Ok");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "PUT /signs/*: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "PUT /signs/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close();}  
@@ -287,16 +304,17 @@ public class SignsApi extends ServerBase implements JsonPoints
          * Delete a sign. 
          **************************************************************************/
          
-        delete("/signs/*", (req, resp) -> {
-            String ident = req.splat()[0];
+        a.delete("/signs/{id}", (ctx) -> {
+            String ident = ctx.pathParam("id");
             
             /* FIXME: Only owners or superuser may delete signs */
             
             /* Get user info */
-            var auth = getAuthInfo(req); 
-            if (auth == null)
-                return ERROR(resp, 500, "No authorization info found");
-                
+            var auth = getAuthInfo(ctx); 
+            if (auth == null) {
+                ERROR(ctx, 500, "No authorization info found");
+                return;
+            }
                 
             SignsDBSession db = new SignsDBSession(_dbp.getDB());
             try {
@@ -304,10 +322,10 @@ public class SignsApi extends ServerBase implements JsonPoints
                 db.commit();          
                 _psub.put("sign", null, auth.userid);
                 _dbp.getSync().localUpdate("signs", ident, "", "DEL", "");
-                return "OK";
+                ctx.result("OK");
             }
             catch (java.sql.SQLException e) {
-                return ABORT(resp, db, "DELETE /signs/*: SQL error:"+e.getMessage(),
+                ABORT(ctx, db, "DELETE /signs/*: SQL error:"+e.getMessage(),
                     500, "SQL error: "+e.getMessage());
             }
             finally { db.close();}  
