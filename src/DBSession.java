@@ -13,7 +13,7 @@
  */
 
 package no.polaric.aprsdb;
-import no.arctic.core.*;
+import  no.polaric.core.*;
 import  no.polaric.aprsd.*;
 import  no.polaric.aprsd.point.*;
 import  java.sql.*;

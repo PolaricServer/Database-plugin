@@ -13,7 +13,7 @@
  */
  
 package no.polaric.aprsdb;
-import no.arctic.core.*;
+import  no.polaric.core.*;
 import  no.polaric.aprsd.*;
 import  no.polaric.aprsd.channel.*;
 import  no.polaric.aprsd.point.*;
@@ -517,7 +517,9 @@ public class MyDBSession extends DBSession
     
     
     
-    
+    /**
+     * Returns true if object exists in database. 
+     */
     public boolean haveJsObject(String id)
         throws java.sql.SQLException
     {
@@ -532,7 +534,14 @@ public class MyDBSession extends DBSession
             
             
             
-            
+    /** 
+     * Get JSON object identified by object identifier. 
+     * @param user Userid of owner
+     * @param group Group id of owner (currently not used)
+     * @param tag Tag used on object
+     * @param id Object unique ident
+     * @return JSON representation of the object. Null if not found or if tag/userid do not match.
+     */
     public String getJsObject(String user, String group, String tag, String id)
         throws java.sql.SQLException
     {

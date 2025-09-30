@@ -6,7 +6,7 @@
 
   <groupId>no.polaric</groupId>
   <artifactId>polaric-db-plugin</artifactId>
-  <version>4.0-pre1</version>
+  <version>4.0~pre2</version>
 
   <name>Polaric Db Plugin</name>
   
@@ -34,14 +34,14 @@
 
   <dependencies>
         <dependency>
-            <groupId>no.arctic.core</groupId>
+            <groupId>no.polaric</groupId>
             <artifactId>arctic-core</artifactId>
             <version>1.0a</version>
         </dependency>
         <dependency>
             <groupId>no.polaric</groupId>
             <artifactId>polaric-aprsd</artifactId>
-            <version>4.0~pre1</version>
+            <version>4.0~pre2</version>
         </dependency>
         <dependency>
             <groupId>net.postgis</groupId>

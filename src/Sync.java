@@ -14,7 +14,6 @@
  
 package no.polaric.aprsdb;
 import no.polaric.aprsd.*;
-
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

@@ -205,8 +205,9 @@ public class DbInstaller
         
         createClass("JsObject", null, 
                         "id      varchar not null PRIMARY KEY, " +
-                        "tag     varchar(40), " +  // ***********************
-                        "data    text" );
+            //            "parent  varchar REFERENCES \"JsObject\" (id) ON DELETE CASCADE   // ADD when ready
+                        "tag     varchar(40), " + 
+                        "data    text" ); // JSON in most cases
 
         createClass("ObjectAccess", null, 
                         "id       varchar REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
@@ -217,7 +218,7 @@ public class DbInstaller
         /* New in schema v. 4 */                
         createClass("TrTags", null, 
                         "userid  varchar(20) not null, " +
-                        "tag     varchar(40) not null" ); //************************
+                        "tag     varchar(40) not null" );
                                
          
         createClass("DbSync", null, 

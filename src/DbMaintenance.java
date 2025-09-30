@@ -17,7 +17,7 @@ import  java.sql.*;
 import  javax.sql.*;
 import  java.util.concurrent.locks.*; 
 import  no.polaric.aprsd.*;
-import no.arctic.core.*;
+import  no.polaric.core.*;
 
 
 /**
@@ -93,6 +93,13 @@ public class DbMaintenance implements Runnable
             deleted = stmt.executeUpdate();
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from ServerStats table");
+               
+            db.getCon().prepareStatement
+              ( "DELETE FROM \"JsObject\" " + 
+                "WHERE id IN (select o.id from \"JsObject\" o LEFT JOIN \"ObjectAccess\" a ON o.id=a.id WHERE a.id IS NULL) " );
+            deleted = stmt.executeUpdate();
+            if (deleted > 0) 
+               _log.info("DbMaintenance", "Deleted "+deleted+" records from JsObjects table");
                
                
             db.getCon().prepareStatement

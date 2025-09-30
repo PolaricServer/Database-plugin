@@ -13,9 +13,9 @@
  */
  
 package no.polaric.aprsdb.dbsync;
-import no.arctic.core.*;
-import no.arctic.core.httpd.*;
-import no.arctic.core.auth.*;
+import no.polaric.core.*;
+import no.polaric.core.httpd.*;
+import no.polaric.core.auth.*;
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
 import no.polaric.aprsdb.http.SignsApi;
