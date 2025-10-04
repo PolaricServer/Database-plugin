@@ -220,12 +220,15 @@ public class SignsApi extends ServerBase implements JsonPoints
             /* Get tracker info from request */
             SignInfo sc = (SignInfo) 
                 ServerBase.fromJson(ctx.body(), SignInfo.class);
-            if (sc==null) 
+            if (sc==null) {
                 ABORT(ctx, db, "POST /signs: cannot parse input", 
                     400, "Cannot parse input");
+                db.close();
+                return;
+            }
                         
             /* Database transaction */
-            else try {
+            try {
                 LatLng ref = new LatLng(sc.pos[1], sc.pos[0]);
                 String id = db.addSign(_myCall, sc.scale, sc.icon, sc.url, sc.descr, ref, sc.type, auth.userid);
                 sc.id=id;

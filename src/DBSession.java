@@ -92,6 +92,8 @@ public class DBSession
      public static DBSession getTrans(String key)
      {
         TransInfo ti = _inProgress.get(key);
+        if (ti == null)
+            return null;
         ti.cancel();
         _inProgress.remove(key);
         return ti.trans;
