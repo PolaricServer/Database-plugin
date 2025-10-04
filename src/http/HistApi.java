@@ -21,6 +21,7 @@ import io.javalin.http.Context;
 
 import no.polaric.aprsdb.*;
 import no.polaric.aprsd.*;
+import no.polaric.aprsd.aprs.*;
 import no.polaric.aprsd.point.*;
 
 import java.io.*;

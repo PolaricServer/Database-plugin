@@ -19,6 +19,7 @@ import no.polaric.core.httpd.*;
 import no.polaric.aprsdb.http.*;
 import no.polaric.aprsdb.dbsync.*;
 import no.polaric.aprsd.*;
+import no.polaric.aprsd.aprs.*;
 import no.polaric.aprsd.point.*;
 import java.util.*;
 import java.util.function.*;

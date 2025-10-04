@@ -15,6 +15,7 @@
 package no.polaric.aprsdb;
 import  no.polaric.core.*;
 import  no.polaric.aprsd.*;
+import  no.polaric.aprsd.aprs.*;
 import  no.polaric.aprsd.channel.*;
 import  no.polaric.aprsd.point.*;
 import  java.text.*;
