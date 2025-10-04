@@ -423,14 +423,15 @@ public class MyDBSession extends DBSession
  
  
 
-    public String addJsObject(String srvid, String user, String tag, String data)  
+    public String addJsObject(String srvid, String user, String tag, String data, String parent)  
             throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"JsObject\" (id, tag, data)" + 
-                " VALUES ( nextval('jsobject_seq') || '@" + srvid + "', ?, ?) RETURNING id" );
+              ( " INSERT INTO \"JsObject\" (id, tag, data, parent)" + 
+                " VALUES ( nextval('jsobject_seq') || '@" + srvid + "', ?, ?, ?) RETURNING id" );
          stmt.setString(1, tag);
          stmt.setString(2, data);
+         stmt.setString(3, parent);
          ResultSet rs = stmt.executeQuery(); 
          rs.next();
          String objid = rs.getString("id");       
@@ -447,15 +448,24 @@ public class MyDBSession extends DBSession
     
     
     
-    public void addJsObjectIdent(String id, String user, String tag, String data)  
+    public String addJsObject(String srvid, String user, String tag, String data)  
+            throws java.sql.SQLException
+    {
+        return addJsObject(srvid, user, tag, data, null);
+    }
+    
+    
+    
+    public void addJsObjectIdent(String id, String user, String tag, String data, String parent)  
             throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-              ( " INSERT INTO \"JsObject\" (id, tag, data)" + 
-                " VALUES (?, ?, ?) " );
+              ( " INSERT INTO \"JsObject\" (id, tag, data, parent)" + 
+                " VALUES (?, ?, ?, ?) " );
          stmt.setString(1, id);
          stmt.setString(2, tag);
          stmt.setString(3, data);
+         stmt.setString(4, parent);
          stmt.executeUpdate(); 
        
          /* Add user access to the object */
@@ -465,6 +475,14 @@ public class MyDBSession extends DBSession
          stmt2.setString(1, id);
          stmt2.setString(2, user);
          stmt2.executeUpdate();
+    }
+    
+    
+    
+    public void addJsObjectIdent(String id, String user, String tag, String data)  
+            throws java.sql.SQLException
+    {
+        addJsObjectIdent(id, user, tag, data, null);
     }
     
     
@@ -498,7 +516,7 @@ public class MyDBSession extends DBSession
           throws java.sql.SQLException
     {
          PreparedStatement stmt = getCon().prepareStatement
-            ( " SELECT DISTINCT ON (id) id, userid, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
+            ( " SELECT DISTINCT ON (id) id, parent, userid, data, readonly FROM \"JsObject\" NATURAL JOIN \"ObjectAccess\" " +
               " WHERE (userid=? OR userid='#ALL' OR userid=?) AND tag=? ORDER BY id, readonly ASC, userid DESC, data ASC", 
               ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
          stmt.setString(1, (user==null ? "_NO-USER_" : user));
@@ -511,7 +529,7 @@ public class MyDBSession extends DBSession
                     ro = true;
                 boolean nr = rs.getString("userid").matches("(#ALL)|(@.*)");
                 
-                return new JsObject(rs.getString("id"), ro, nr, rs.getString("data"));  
+                return new JsObject(rs.getString("id"), rs.getString("parent"), ro, nr, rs.getString("data"));  
             }
         );
     }

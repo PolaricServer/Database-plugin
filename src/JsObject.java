@@ -31,6 +31,7 @@ public class JsObject implements Serializable {
     
 
     public String id; 
+    public String parent;
     public boolean readOnly=false;
     public boolean noRemove=false; 
     
@@ -44,7 +45,10 @@ public class JsObject implements Serializable {
        { this.id=id; this.data=data; this.readOnly=ro; }
        
     public JsObject(String id, boolean ro, boolean nr, String data)
-       { this.id=id; this.data=data; this.readOnly=ro; this.noRemove=nr; }   
+       { this.id=id; this.data=data; this.readOnly=ro; this.noRemove=nr; }
+       
+    public JsObject(String id, String parent, boolean ro, boolean nr, String data)
+       { this.id=id; this.parent=parent; this.data=data; this.readOnly=ro; this.noRemove=nr; }   
 }
 
 

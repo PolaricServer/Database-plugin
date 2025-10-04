@@ -205,7 +205,7 @@ public class DbInstaller
         
         createClass("JsObject", null, 
                         "id      varchar not null PRIMARY KEY, " +
-            //            "parent  varchar REFERENCES \"JsObject\" (id) ON DELETE CASCADE   // ADD when ready
+                        "parent  varchar REFERENCES \"JsObject\" (id) ON DELETE CASCADE, " +
                         "tag     varchar(40), " + 
                         "data    text" ); // JSON in most cases
 
