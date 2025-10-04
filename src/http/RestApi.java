@@ -350,9 +350,11 @@ public class RestApi extends ServerBase implements JsonPoints
             MyDBSession db = _dbp.getDB();
             try {
                 String a =  db.getJsObject(null, null, tag, id);            
-                if (a == null)
+                if (a == null) {
                     ABORT(ctx, db, "GET /open/objects/"+tag+"/"+id+": Item not found: ",
                         404, "Item not found: "+tag+": "+id);
+                    return;
+                }
                 db.commit();
                 ctx.json(a);
             }
