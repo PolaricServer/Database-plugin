@@ -266,6 +266,16 @@ fi
 
 
 
+if ((VERSION < 13)); then
+    echo "Upgrading schema to version 13"
+    psql -t -c "BEGIN;  \
+    ALTER TABLE \"JsObject\" ADD COLUMN parent varchar REFERENCES \"JsObject\" (id) ON DELETE CASCADE; \
+    UPDATE \"MetaData\" SET version=13; \
+    COMMIT " polaric
+fi 
+
+
+
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then
     echo "Adding classes/icons in \"SignClass\""

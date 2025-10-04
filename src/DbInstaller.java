@@ -29,7 +29,7 @@ public class DbInstaller
      private static Connection _db;
      
      /* Schema version - increase when changing schema and provide upgrade method */
-     private static final int _VERSION = 9; 
+     private static final int _VERSION = 13; 
      
          
      static {
