@@ -265,6 +265,15 @@ if ((VERSION < 12)); then
 fi 
 
 
+if ((VERSION < 13)); then
+    echo "Upgrading schema to version 13"
+    psql -t -c "BEGIN;  \
+    CREATE INDEX IF NOT EXISTS posreport_src_time_idx ON \"PosReport\" (src, time); \
+    UPDATE \"MetaData\" SET version=13; \
+    COMMIT " polaric
+fi 
+
+
 
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then
