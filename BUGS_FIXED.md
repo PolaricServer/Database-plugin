@@ -93,16 +93,65 @@ db.commit();
 ctx.json(a);
 ```
 
+## 4. Slow Performance in /hist/snapshot Query - MEDIUM
+
+**Location:** `src/MyDBSession.java`, lines 282-310
+
+**Severity:** Medium - Performance issue
+
+**Description:**
+The `/hist/snapshot/{x1}/{x2}/{x3}/{x4}` REST endpoint was slow due to an inefficient database query in `getTrailsAt()`. The query had three main performance issues:
+
+1. Used `ST_Contains()` instead of the faster `&&` (overlaps) operator for spatial filtering
+2. Time filter `pr.time + INTERVAL '2 hour' > ?` prevented PostgreSQL from using the time index
+3. Missing composite index on `PosReport(src, time)` for efficient ORDER BY
+
+**Impact:**
+- Slow response times for historical snapshot queries
+- Poor user experience when viewing historical map data
+- Increased database load and resource consumption
+- Potential timeout issues on large geographic areas
+
+**Fix:**
+Applied three optimizations:
+
+1. **Replaced ST_Contains with && operator:**
+```sql
+-- Before: ST_Contains(ST_MakeEnvelope(...), position)
+-- After:  position && ST_MakeEnvelope(...)
+```
+The `&&` operator uses the GiST index more efficiently and only checks bounding box overlap, which is sufficient for this use case.
+
+2. **Rewrote time filter to enable index usage:**
+```sql
+-- Before: pr.time <= ? AND pr.time + INTERVAL '2 hour' > ?
+-- After:  pr.time <= ? AND pr.time > ? - INTERVAL '2 hour'
+```
+Moving the calculation to the parameter side allows PostgreSQL to use the time index.
+
+3. **Added composite index:**
+```sql
+CREATE INDEX posreport_src_time_idx ON "PosReport" (src, time);
+```
+This index significantly speeds up the `ORDER BY pr.src, pr.time DESC` clause.
+
+**Schema Changes:**
+- Updated schema version from 9 to 13
+- Added new index in `DbInstaller.java` for fresh installations
+- Added upgrade path in `scripts/polaric-dbupgrade-pguser` for existing databases
+
 ## Summary
 
-All three bugs have been fixed with minimal code changes:
+All four issues have been fixed with minimal code changes:
 - **Bug 1:** 2 lines added (null check and early return)
 - **Bug 2:** 3 lines modified (added explicit cleanup and return)
 - **Bug 3:** 2 lines modified (added braces and return statement)
+- **Bug 4:** 3 lines modified in query, 1 index added
 
 These fixes prevent:
 - Application crashes from NullPointerException
 - Database connection leaks that degrade performance over time
 - Logic errors that cause incorrect behavior
+- Poor query performance and slow response times
 
-The fixes are surgical and minimal, addressing only the specific bugs without changing the overall architecture or behavior of the application.
+The fixes are surgical and minimal, addressing only the specific issues without changing the overall architecture or behavior of the application.
