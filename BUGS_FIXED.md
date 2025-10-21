@@ -125,9 +125,9 @@ The `&&` operator uses the GiST index more efficiently and only checks bounding 
 2. **Rewrote time filter to enable index usage:**
 ```sql
 -- Before: pr.time <= ? AND pr.time + INTERVAL '2 hour' > ?
--- After:  pr.time <= ? AND pr.time > ? - INTERVAL '2 hour'
+-- After:  pr.time <= ? AND pr.time > ?
 ```
-Moving the calculation to the parameter side allows PostgreSQL to use the time index.
+The calculation is now done in Java (tto - 2 hours) rather than in SQL, allowing PostgreSQL to use the time index efficiently.
 
 3. **Added composite index:**
 ```sql
