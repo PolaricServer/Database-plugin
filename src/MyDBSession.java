@@ -287,16 +287,17 @@ public class MyDBSession extends DBSession
              " FROM \"PosReport\" AS pr" +
              " LEFT JOIN \"AprsPacket\" AS ap ON pr.src = ap.src AND pr.rtime = ap.time " +
              " WHERE position && ST_MakeEnvelope(?, ?, ?, ?, 4326) "+
-             " AND pr.time <= ? AND pr.time > ? - INTERVAL '2 hour' " + 
+             " AND pr.time <= ? AND pr.time > ? " + 
              " ORDER BY pr.src, pr.time DESC",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
              
+        java.util.Date tfrom = new java.util.Date(tto.getTime() - 2 * 3600 * 1000); // 2 hours before tto
         stmt.setDouble( 1, uleft.getLng() );  // xmin
         stmt.setDouble( 2, lright.getLat() ); // ymin
         stmt.setDouble( 3, lright.getLng() ); // xmax
         stmt.setDouble( 4, uleft.getLat() );  // ymax
         stmt.setTimestamp(5, date2ts(tto));
-        stmt.setTimestamp(6, date2ts(tto));
+        stmt.setTimestamp(6, date2ts(tfrom));
         
         return new DbList<TrailItem>(stmt.executeQuery(), rs -> 
             {
