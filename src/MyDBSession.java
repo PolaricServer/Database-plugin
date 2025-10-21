@@ -286,9 +286,8 @@ public class MyDBSession extends DBSession
            ( " SELECT pr.src as ident, pr.channel as channel, pr.time, position, symbol, symtab, path, ipath, nopkt " +
              " FROM \"PosReport\" AS pr" +
              " LEFT JOIN \"AprsPacket\" AS ap ON pr.src = ap.src AND pr.rtime = ap.time " +
-             " WHERE ST_Contains( " +
-             "    ST_MakeEnvelope(?, ?, ?, ?, 4326), position) "+
-             " AND pr.time <= ? AND pr.time + INTERVAL '2 hour' > ? " + 
+             " WHERE position && ST_MakeEnvelope(?, ?, ?, ?, 4326) "+
+             " AND pr.time <= ? AND pr.time > ? - INTERVAL '2 hour' " + 
              " ORDER BY pr.src, pr.time DESC",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY );
              
