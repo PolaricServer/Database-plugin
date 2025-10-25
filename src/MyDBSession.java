@@ -114,7 +114,7 @@ public class MyDBSession extends DBSession
   
   
     /**
-     * Get points that were transmitted via a certain digipeater during a certain time span. 
+     * Get points that were transmitted via a certain digipeater as the first hop during a certain time span. 
      */
     public DbList<TPoint> getPointsVia(String digi, LatLng uleft, LatLng lright, java.util.Date from, java.util.Date to)
        throws java.sql.SQLException
@@ -125,7 +125,7 @@ public class MyDBSession extends DBSession
              " FROM \"AprsPacket\" p " +
              " INNER JOIN \"PosReport\" r ON p.src=r.src AND p.time=r.rtime " +
              " WHERE  p.time > ? AND p.time < ? " + 
-             " AND  (p.path LIKE '%' || ? || '*%' OR " +
+             " AND  (p.path LIKE ? || '*%' OR " +
                      " ((p.ipath LIKE 'qAO,' || ? || '%' OR p.ipath LIKE 'qAR,' || ? || '%') AND p.path NOT LIKE '%*%')) " +
              (uleft==null ? "": " AND  r.position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
              " LIMIT 15000",
