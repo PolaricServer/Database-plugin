@@ -125,7 +125,7 @@ public class MyDBSession extends DBSession
              " FROM \"AprsPacket\" p " +
              " INNER JOIN \"PosReport\" r ON p.src=r.src AND p.time=r.rtime " +
              " WHERE  p.time > ? AND p.time < ? " + 
-             " AND  (p.path LIKE '%' || ? || '*%' OR " +
+             " AND  (p.path LIKE ? || '*%' OR " +
                      " ((p.ipath LIKE 'qAO,' || ? || '%' OR p.ipath LIKE 'qAR,' || ? || '%') AND p.path NOT LIKE '%*%')) " +
              (uleft==null ? "": " AND  r.position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
              " LIMIT 15000",

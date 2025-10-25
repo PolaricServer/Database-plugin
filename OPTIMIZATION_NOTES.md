@@ -30,9 +30,13 @@ substring(p.path, '([^,\*]+).*\*.*')=? OR
 
 **Optimized:**
 ```sql
-p.path LIKE '%' || ? || '*%' OR 
+p.path LIKE ? || '*%' OR 
 ((p.ipath LIKE 'qAO,' || ? || '%' OR p.ipath LIKE 'qAR,' || ? || '%') AND p.path NOT LIKE '%*%')
 ```
+
+**Note:** The pattern was further refined to match only when the digipeater is the first in the path 
+by removing the leading wildcard (`'%' || ? || '*%'` → `? || '*%'`). This ensures packets are only 
+included when the specified digipeater is the first hop.
 
 **Benefits:**
 - LIKE operations are significantly faster than regex pattern matching
