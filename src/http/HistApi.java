@@ -256,7 +256,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 if (x3 > 90.0) x3 = 90.0; if (x3 < -90.0) x3 = -90.0;
                 if (x4 > 90.0) x4 = 90.0; if (x4 < -90.0) x4 = -90.0;
                 LatLng uleft  = new LatLng((double) x4, (double) x1); 
-                LatLng lright = new LatLng((double) x2, (double) x3);
+                LatLng lright = new LatLng((double) x3, (double) x2);
                 
                 Date dto = parseIsoDf(ctx.queryParam("tto"));
                 double scale = Double.parseDouble(ctx.queryParam("scale"));
@@ -377,7 +377,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 if (x3 > 90.0) x3 = 90.0; if (x3 < -90.0) x3 = -90.0;
                 if (x4 > 90.0) x4 = 90.0; if (x4 < -90.0) x4 = -90.0;
                 LatLng uleft  = new LatLng((double) x4, (double) x1); 
-                LatLng lright = new LatLng((double) x2, (double) x3);
+                LatLng lright = new LatLng((double) x3, (double) x2);
 
                 Station s = (Station) db.getItem(src, dto);
                 DbList<TPoint> h = db.getPointsVia(src, uleft, lright, dfrom, dto);          
