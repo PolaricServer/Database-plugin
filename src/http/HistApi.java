@@ -347,12 +347,13 @@ public class HistApi extends ServerBase implements JsonPoints
      
         /************************************************************************* 
          * REST service:  
-         * /hist/<callsign>/hrdvia?tfrom=...&tto=...   
-         * Get heard points for a given callsign. 
+         * /hist/<callsign>/hrdvia/<x1>/<x2>/<x3>/<x4>?tfrom=...&tto=...   
+         * Get heard points for a given callsign within a geographical area. 
          * Timespan is given as request parameters tfrom and tto 
+         * Geographical bounding box is given as path parameters x1, x2, x3, x4
          *************************************************************************/
          
-        a.get("/hist/{src}/hrdvia", (ctx) -> {
+        a.get("/hist/{src}/hrdvia/{x1}/{x2}/{x3}/{x4}", (ctx) -> {
             var src = ctx.pathParam("src").toUpperCase();
             MyDBSession db = _dbp.getDB();
             JsOverlay mu = null;
@@ -367,8 +368,19 @@ public class HistApi extends ServerBase implements JsonPoints
                 else
                     dto = parseIsoDf(tto);
 
+                double x1 = Double.parseDouble(ctx.pathParam("x1"));
+                double x2 = Double.parseDouble(ctx.pathParam("x2"));
+                double x3 = Double.parseDouble(ctx.pathParam("x3"));
+                double x4 = Double.parseDouble(ctx.pathParam("x4"));
+                if (x1 > 180.0) x1 = 180.0; if (x1 < -180.0) x1 = -180.0;
+                if (x2 > 180.0) x2 = 180.0; if (x2 < -180.0) x2 = -180.0;
+                if (x3 > 90.0) x3 = 90.0; if (x3 < -90.0) x3 = -90.0;
+                if (x4 > 90.0) x4 = 90.0; if (x4 < -90.0) x4 = -90.0;
+                LatLng uleft  = new LatLng((double) x4, (double) x1); 
+                LatLng lright = new LatLng((double) x2, (double) x3);
+
                 Station s = (Station) db.getItem(src, dto);
-                DbList<TPoint> h = db.getPointsVia(src, null, null, dfrom, dto);          
+                DbList<TPoint> h = db.getPointsVia(src, uleft, lright, dfrom, dto);          
                 mu = new JsOverlay("HEARD-VIA");
                 
                 /* 
@@ -381,6 +393,9 @@ public class HistApi extends ServerBase implements JsonPoints
                     mu.pcloud.add(new JsTPoint(x));
                 db.commit();
                 ctx.json(mu);
+            }
+            catch(java.lang.NumberFormatException e) {  
+                ABORT(ctx, db, "GET /hist/*/hrdvia: Cannot parse number", 400,  "Cannot parse number");
             }
             catch(DateTimeParseException e) { 
                 ABORT(ctx, db, "GET /hist/*/hrdvia: Cannot parse date/time:"+e.getMessage(), 400, 
