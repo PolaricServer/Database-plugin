@@ -274,6 +274,16 @@ if ((VERSION < 13)); then
 fi 
 
 
+if ((VERSION < 14)); then
+    echo "Upgrading schema to version 14"
+    psql -t -c "BEGIN;  \
+    CREATE INDEX IF NOT EXISTS aprspacket_time_idx ON \"AprsPacket\" (time); \
+    CREATE INDEX IF NOT EXISTS aprspacket_src_time_idx ON \"AprsPacket\" (src, time); \
+    UPDATE \"MetaData\" SET version=14; \
+    COMMIT " polaric
+fi 
+
+
 
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then
