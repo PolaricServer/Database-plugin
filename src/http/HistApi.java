@@ -74,8 +74,11 @@ public class HistApi extends ServerBase implements JsonPoints
     /** 
      * Return an error status message to client 
      */
-    public Object ERROR(Context ctx, int status, String msg)
-      { ctx.status(status); ctx.result(msg); return null;}
+    public Object ERROR(Context ctx, int status, String msg) { 
+        if (msg==null) msg = "Error";
+        ctx.status(status); ctx.result(msg); 
+        return null;
+    }
     
       
       
@@ -206,7 +209,7 @@ public class HistApi extends ServerBase implements JsonPoints
                 mu = new JsOverlay("HISTORICAL");
                 JsPoint p = createPoint(tp, true, null);
                 if (p==null) {
-                    ABORT(ctx, db, "GET /hist/*/trail: Point not found", 404,  null);
+                    ABORT(ctx, db, "GET /hist/*/trail: Point not found", 404,  "Point not found");
                     return;
                 }
                 p.trail = createTrail(tp, h, null, true); 
@@ -388,7 +391,7 @@ public class HistApi extends ServerBase implements JsonPoints
             }  
             catch(Exception e) { 
                 e.printStackTrace(System.out);
-                ABORT(ctx, db, "GET /hist/*/hrdvia: Error:"+e.getMessage(), 500, null); 
+                ABORT(ctx, db, "GET /hist/*/hrdvia: Error:"+e.getMessage(), 500, "Error: "+e.getMessage()); 
             }      
             finally { db.close(); }
         } );       
