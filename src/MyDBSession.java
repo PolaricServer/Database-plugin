@@ -121,33 +121,29 @@ public class MyDBSession extends DBSession
     {
         _log.debug("MyDbSession", "getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
         PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT position "+ 
-             " FROM \"AprsPacket\" p, \"PosReport\" r " +
-             " WHERE  p.src=r.src " +
-             " AND  p.time=r.rtime " + 
-             " AND  (substring(p.path, '([^,\\*]+).*\\*.*')=? OR " +
-                     " (substring(p.ipath, 'qA[OR],([^,\\*]+).*')=? AND p.path !~ '.*\\*.*')) " +
-             (uleft==null ? "": " AND  position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
-             
-             " AND  p.time > ? AND p.time < ? LIMIT 15000",
+           ( " SELECT r.position "+ 
+             " FROM \"AprsPacket\" p " +
+             " INNER JOIN \"PosReport\" r ON p.src=r.src AND p.time=r.rtime " +
+             " WHERE  p.time > ? AND p.time < ? " + 
+             " AND  (p.path LIKE '%' || ? || '*%' OR " +
+                     " ((p.ipath LIKE 'qAO,' || ? || '%' OR p.ipath LIKE 'qAR,' || ? || '%') AND p.path NOT LIKE '%*%')) " +
+             (uleft==null ? "": " AND  r.position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
+             " LIMIT 15000",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY 
         );
-        stmt.setString(1, digi);
-        stmt.setString(2, digi);
+        stmt.setTimestamp(1, date2ts(from));
+        stmt.setTimestamp(2, date2ts(to));
+        stmt.setString(3, digi);
+        stmt.setString(4, digi);
+        stmt.setString(5, digi);
 
         if (uleft != null) {
             LatLng ul = uleft;
             LatLng lr = lright;
-            stmt.setDouble(3, ul.getLng());
-            stmt.setDouble(4, ul.getLat());
-            stmt.setDouble(5, lr.getLng());
-            stmt.setDouble(6, lr.getLat());
-            stmt.setTimestamp(7, date2ts(from));
-            stmt.setTimestamp(8, date2ts(to));
-        }
-        else {
-            stmt.setTimestamp(3, date2ts(from));
-            stmt.setTimestamp(4, date2ts(to));
+            stmt.setDouble(6, ul.getLng());
+            stmt.setDouble(7, ul.getLat());
+            stmt.setDouble(8, lr.getLng());
+            stmt.setDouble(9, lr.getLat());
         }
         stmt.setMaxRows(15000);
         
