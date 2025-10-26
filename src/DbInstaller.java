@@ -29,7 +29,7 @@ public class DbInstaller
      private static Connection _db;
      
      /* Schema version - increase when changing schema and provide upgrade method */
-     private static final int _VERSION = 13; 
+     private static final int _VERSION = 14; 
      
          
      static {
@@ -293,6 +293,7 @@ public class DbInstaller
         updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");
         updateQuery("CREATE INDEX posreport_time_src_idx on \"PosReport\" (time,src);");
         updateQuery("CREATE INDEX posreport_src_time_idx on \"PosReport\" (src, time);");
+        updateQuery("CREATE INDEX aprspacket_time_idx on \"AprsPacket\" (time);");
         updateQuery("CREATE INDEX aprspacket_src_time_idx on \"AprsPacket\" (src, time);");
         
         updateQuery("CREATE SEQUENCE signs_seq START WITH 2000 owned by \"Signs\".id;");
