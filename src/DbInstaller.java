@@ -28,7 +28,7 @@ public class DbInstaller
      private static String _url, _login, _passwd;
      private static Connection _db;
      
-     /* Schema version - increase when changing schema and provide upgrade method */
+     /* Schema version - when changing schema with a release, inccrease and provide upgrade method */
      private static final int _VERSION = 13; 
      
          
@@ -290,10 +290,13 @@ public class DbInstaller
         updateQuery("CREATE INDEX ON \"Annotation\" (src,tstart);");
         updateQuery("CREATE INDEX geoindex ON \"PosReport\" USING GIST (position);");
         updateQuery("CREATE INDEX geoindex_s ON \"Signs\" USING GIST (position);");
+        
         updateQuery("CREATE INDEX posreport_rtime_idx on \"PosReport\" (rtime);");
-        updateQuery("CREATE INDEX posreport_time_src_idx on \"PosReport\" (time,src);");
         updateQuery("CREATE INDEX posreport_src_time_idx on \"PosReport\" (src, time);");
+        updateQuery("CREATE INDEX posreport_time_idx on \"PosReport\" (time);");
+         
         updateQuery("CREATE INDEX aprspacket_src_time_idx on \"AprsPacket\" (src, time);");
+        updateQuery("CREATE INDEX aprspacket_time_idx on \"AprsPacket\" (time);");
         
         updateQuery("CREATE SEQUENCE signs_seq START WITH 2000 owned by \"Signs\".id;");
         updateQuery("CREATE SEQUENCE jsobject_seq START WITH 5000 owned by \"JsObject\".id;");

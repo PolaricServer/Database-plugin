@@ -269,17 +269,10 @@ if ((VERSION < 13)); then
     echo "Upgrading schema to version 13"
     psql -t -c "BEGIN;  \
     CREATE INDEX IF NOT EXISTS posreport_src_time_idx ON \"PosReport\" (src, time); \
-    UPDATE \"MetaData\" SET version=13; \
-    COMMIT " polaric
-fi 
-
-
-if ((VERSION < 14)); then
-    echo "Upgrading schema to version 14"
-    psql -t -c "BEGIN;  \
     CREATE INDEX IF NOT EXISTS aprspacket_time_idx ON \"AprsPacket\" (time); \
     CREATE INDEX IF NOT EXISTS aprspacket_src_time_idx ON \"AprsPacket\" (src, time); \
-    UPDATE \"MetaData\" SET version=14; \
+    DROP INDEX IF EXISTS posreport_time_src_idx;
+    UPDATE \"MetaData\" SET version=13; \
     COMMIT " polaric
 fi 
 
