@@ -125,7 +125,7 @@ public class MyDBSession extends DBSession
              " FROM \"AprsPacket\" p " +
              " INNER JOIN \"PosReport\" r ON p.src=r.src AND p.time=r.rtime " +
              " WHERE  p.time > ? AND p.time < ? " + 
-             " AND  (p.path LIKE ? || '*%' OR " +
+             " AND  (p.path LIKE ? || '*%' OR p.path LIKE ? || ',WIDE%*%' OR " +
                      " ((p.ipath LIKE 'qAO,' || ? || '%' OR p.ipath LIKE 'qAR,' || ? || '%') AND p.path NOT LIKE '%*%')) " +
              (uleft==null ? "": " AND  r.position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
              " LIMIT 15000",
@@ -136,14 +136,15 @@ public class MyDBSession extends DBSession
         stmt.setString(3, digi);
         stmt.setString(4, digi);
         stmt.setString(5, digi);
+        stmt.setString(6, digi);
 
         if (uleft != null) {
             LatLng ul = uleft;
             LatLng lr = lright;
-            stmt.setDouble(6, ul.getLng());
-            stmt.setDouble(7, ul.getLat());
-            stmt.setDouble(8, lr.getLng());
-            stmt.setDouble(9, lr.getLat());
+            stmt.setDouble(7, ul.getLng());
+            stmt.setDouble(8, ul.getLat());
+            stmt.setDouble(9, lr.getLng());
+            stmt.setDouble(10, lr.getLat());
         }
         stmt.setMaxRows(15000);
         
