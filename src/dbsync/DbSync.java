@@ -20,6 +20,7 @@ import no.polaric.core.*;
 import no.polaric.core.httpd.*;
 import no.polaric.core.auth.*;
 import java.io.*;
+import java.nio.channels.ClosedChannelException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -671,12 +672,11 @@ public class DbSync implements Sync
                 }
                 db.commit();
             }
-                            
             catch (Exception e) {
                 db.abort();
                 _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
                 e.printStackTrace(System.out);
-                continue;
+                _pending.put(node, new Retry(120));
             }     
             finally {
                 if (db != null) db.close();
