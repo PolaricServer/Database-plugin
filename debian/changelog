@@ -1,9 +1,11 @@
-polaric-db-plugin (4.0~pre1) UNRELEASED; urgency=medium
+polaric-db-plugin (4.0) stable; urgency=medium
 
-  * Base on aprsd4 
-  * Use maven to build, etc.. 
+  * Move to 4.0 platform and maven, source code structure
+  * Optimize snapshot search and hrdvia queries
+  * Postrm to deactivate plugin
+  * Varius fixes, 
 
- -- Oyvind Hanssen <ohanssen@acm.org>  Tue, 16 Sep 2025 21:19:28 +0200
+ -- Oyvind Hanssen <ohanssen@acm.org>  Sun, 26 Oct 2025 20:39:33 +0100
 
 polaric-db-plugin (3.2) stable; urgency=medium
 

@@ -8,14 +8,14 @@ Homepage: http://aprs.no/polaricserver
 
 Package: polaric-db-plugin
 Architecture: all
-Depends: polaric-aprsd (>= 4.0~pre1), postgresql-client, libpostgresql-jdbc-java, libpostgis-java (>= 2021.1.0), libhikaricp-java ${misc:Depends}
+Depends: polaric-aprsd (>= 4.0), postgresql-client, libpostgresql-jdbc-java, libpostgis-java (>= 2021.1.0), libhikaricp-java ${misc:Depends}
 Recommends: postgresql, postgis
 Description: Polaric Server: APRS daemon part. 
- The "Polaric Server" is mainly a web based service to present APRS 
- tracking information on maps and where the information is updated 
- in real-time. It is originally targeted for use by radio amateurs 
- in voluntary search and rescue service in Norway. It consists of a 
- web application and a server-program (APRS daemon). 
+ The "Polaric Server" is mainly a web based service to present tracking 
+ information (mainly APRS) on maps and where the information is updated at real-
+ time. It is originally targeted for use by radio amateurs in voluntary search
+ and rescue service in Norway. It consists of a web application and a server 
+ program (APRS daemon). It can function as an offline service if required. 
  .
  This is a plugin that adds database storage using PostgreSQL 
  (with PostGIS). It stores APRS positions (spatiotemporal data) and 
