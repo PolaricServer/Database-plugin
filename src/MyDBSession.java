@@ -120,32 +120,50 @@ public class MyDBSession extends DBSession
        throws java.sql.SQLException
     {
         _log.debug("MyDbSession", "getPointsVia: "+digi+", "+df.format(from)+" - "+df.format(to));
+        
+        /* Optimized query: Flip join order to filter PosReport first by time and geo,
+         * then join with AprsPacket using EXISTS subquery. This allows better use of
+         * indexes on PosReport(rtime) and position, and AprsPacket path indexes.
+         * DISTINCT is needed because multiple AprsPacket rows may match the same PosReport
+         * (e.g., if position reports were duplicated or retransmitted).
+         */
         PreparedStatement stmt = getCon().prepareStatement
-           ( " SELECT r.position "+ 
-             " FROM \"AprsPacket\" p " +
-             " INNER JOIN \"PosReport\" r ON p.src=r.src AND p.time=r.rtime " +
-             " WHERE  p.time > ? AND p.time < ? " + 
-             " AND  (p.path LIKE ? || '*%' OR p.path LIKE ? || ',WIDE%*%' OR " +
-                     " ((p.ipath LIKE 'qAO,' || ? || '%' OR p.ipath LIKE 'qAR,' || ? || '%') AND p.path NOT LIKE '%*%')) " +
+           ( " SELECT DISTINCT r.position "+ 
+             " FROM \"PosReport\" r " +
+             " WHERE r.rtime > ? AND r.rtime < ? " +
              (uleft==null ? "": " AND  r.position && ST_MakeEnvelope(?, ?, ?, ?, 4326) ") +
+             " AND EXISTS ( " +
+             "   SELECT 1 FROM \"AprsPacket\" p " +
+             "   WHERE p.src = r.src AND p.time = r.rtime " +
+             "   AND ( " +
+             "     p.path LIKE ? || '*%' OR " +
+             "     p.path LIKE ? || ',WIDE%*%' OR " +
+             "     ((p.ipath LIKE 'qAO,' || ? || '%' OR p.ipath LIKE 'qAR,' || ? || '%') " +
+             "      AND p.path NOT LIKE '%*%') " +
+             "   ) " +
+             " ) " +
              " LIMIT 15000",
              ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY 
         );
-        stmt.setTimestamp(1, date2ts(from));
-        stmt.setTimestamp(2, date2ts(to));
-        stmt.setString(3, digi);
-        stmt.setString(4, digi);
-        stmt.setString(5, digi);
-        stmt.setString(6, digi);
-
+        
+        int paramIndex = 1;
+        stmt.setTimestamp(paramIndex++, date2ts(from));
+        stmt.setTimestamp(paramIndex++, date2ts(to));
+        
         if (uleft != null) {
             LatLng ul = uleft;
             LatLng lr = lright;
-            stmt.setDouble(7, ul.getLng());
-            stmt.setDouble(8, ul.getLat());
-            stmt.setDouble(9, lr.getLng());
-            stmt.setDouble(10, lr.getLat());
+            stmt.setDouble(paramIndex++, ul.getLng());
+            stmt.setDouble(paramIndex++, ul.getLat());
+            stmt.setDouble(paramIndex++, lr.getLng());
+            stmt.setDouble(paramIndex++, lr.getLat());
         }
+        
+        stmt.setString(paramIndex++, digi);
+        stmt.setString(paramIndex++, digi);
+        stmt.setString(paramIndex++, digi);
+        stmt.setString(paramIndex++, digi);
+        
         stmt.setMaxRows(15000);
         
         return new DbList<TPoint>(stmt.executeQuery(), rs ->
