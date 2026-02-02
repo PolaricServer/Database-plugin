@@ -277,6 +277,18 @@ if ((VERSION < 13)); then
 fi 
 
 
+if ((VERSION < 14)); then
+    echo "Upgrading schema to version 14"
+    echo "Adding indexes to optimize getPointsVia query performance"
+    psql -t -c "BEGIN;  \
+    CREATE INDEX IF NOT EXISTS posreport_src_rtime_idx ON \"PosReport\" (src, rtime); \
+    CREATE INDEX IF NOT EXISTS aprspacket_path_idx ON \"AprsPacket\" (path text_pattern_ops); \
+    CREATE INDEX IF NOT EXISTS aprspacket_ipath_idx ON \"AprsPacket\" (ipath text_pattern_ops); \
+    UPDATE \"MetaData\" SET version=14; \
+    COMMIT " polaric
+fi 
+
+
 
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then
