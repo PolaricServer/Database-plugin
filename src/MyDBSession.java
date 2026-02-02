@@ -124,6 +124,8 @@ public class MyDBSession extends DBSession
         /* Optimized query: Flip join order to filter PosReport first by time and geo,
          * then join with AprsPacket using EXISTS subquery. This allows better use of
          * indexes on PosReport(rtime) and position, and AprsPacket path indexes.
+         * DISTINCT is needed because multiple AprsPacket rows may match the same PosReport
+         * (e.g., if position reports were duplicated or retransmitted).
          */
         PreparedStatement stmt = getCon().prepareStatement
            ( " SELECT DISTINCT r.position "+ 
@@ -133,7 +135,6 @@ public class MyDBSession extends DBSession
              " AND EXISTS ( " +
              "   SELECT 1 FROM \"AprsPacket\" p " +
              "   WHERE p.src = r.src AND p.time = r.rtime " +
-             "   AND p.time > ? AND p.time < ? " +
              "   AND ( " +
              "     p.path LIKE ? || '*%' OR " +
              "     p.path LIKE ? || ',WIDE%*%' OR " +
@@ -158,8 +159,6 @@ public class MyDBSession extends DBSession
             stmt.setDouble(paramIndex++, lr.getLat());
         }
         
-        stmt.setTimestamp(paramIndex++, date2ts(from));
-        stmt.setTimestamp(paramIndex++, date2ts(to));
         stmt.setString(paramIndex++, digi);
         stmt.setString(paramIndex++, digi);
         stmt.setString(paramIndex++, digi);

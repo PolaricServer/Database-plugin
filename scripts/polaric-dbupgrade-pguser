@@ -280,6 +280,8 @@ fi
 if ((VERSION < 14)); then
     echo "Upgrading schema to version 14"
     echo "Adding indexes to optimize getPointsVia query performance"
+    # Note: Using transaction for atomicity. For very large databases, consider running
+    # CREATE INDEX CONCURRENTLY outside transaction during a maintenance window.
     psql -t -c "BEGIN;  \
     CREATE INDEX IF NOT EXISTS posreport_src_rtime_idx ON \"PosReport\" (src, rtime); \
     CREATE INDEX IF NOT EXISTS aprspacket_path_idx ON \"AprsPacket\" (path text_pattern_ops); \
