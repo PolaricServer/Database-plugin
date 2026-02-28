@@ -2,7 +2,7 @@ Source: polaric-db-plugin
 Section: hamradio
 Priority: optional
 Maintainer: Øyvind Hanssen <ohanssen@acm.org>
-Build-Depends: debhelper-compat (= 13), maven-debian-helper (>= 2.6), default-jdk (>= 1.17), libhikaricp-java
+Build-Depends: debhelper-compat (= 13), maven-debian-helper (>= 2.6), default-jdk-headless (>= 1.21), libhikaricp-java
 Standards-Version: 3.9.8
 Homepage: http://aprs.no/polaricserver
 
