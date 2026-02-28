@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2026 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -287,7 +287,7 @@ public class HistApi extends ServerBase implements JsonPoints
                         curr_ident = it.ident;
                     }
                     else {
-                        String path = it.path; 
+                        String path = it.path + (it.ipath!=null && !it.ipath.equals("") ? ","+it.ipath : "");
                         if (it.channel.equals("(ext)") || it.channel.equals("(int)"))
                             path = "(ext)";
                         else if (tp instanceof AprsPoint p) {
