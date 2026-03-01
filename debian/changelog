@@ -1,3 +1,11 @@
+polaric-db-plugin (4.1) stable; urgency=medium
+
+  * Base on aprsd 4.1
+  * Move to Java 21
+  * Optimize getPointsVia query
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Sun, 01 Mar 2026 20:50:13 +0100
+
 polaric-db-plugin (4.0) stable; urgency=medium
 
   * Move to 4.0 platform and maven, source code structure

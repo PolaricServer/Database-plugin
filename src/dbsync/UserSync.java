@@ -17,7 +17,7 @@ import no.polaric.core.*;
 import no.polaric.core.httpd.*;
 import no.polaric.core.auth.*;
 import no.polaric.aprsdb.*;
-import no.polaric.aprsd.*;
+import no.polaric.aprsd.api.*;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

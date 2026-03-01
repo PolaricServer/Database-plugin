@@ -6,7 +6,7 @@
 
   <groupId>no.polaric</groupId>
   <artifactId>polaric-db-plugin</artifactId>
-  <version>4.0</version>
+  <version>4.1</version>
 
   <name>Polaric Db Plugin</name>
   
@@ -21,8 +21,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
   </properties>
 
   <repositories>
@@ -35,13 +35,8 @@
   <dependencies>
         <dependency>
             <groupId>no.polaric</groupId>
-            <artifactId>polaric-core</artifactId>
-            <version>1.0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>no.polaric</groupId>
             <artifactId>polaric-aprsd</artifactId>
-            <version>4.0</version>
+            <version>4.1</version>
         </dependency>
         <dependency>
             <groupId>net.postgis</groupId>
