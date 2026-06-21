@@ -291,6 +291,15 @@ if ((VERSION < 14)); then
 fi 
 
 
+if ((VERSION < 15)); then
+    echo "Upgrading schema to version 15"
+    psql -t -c "BEGIN; \
+    alter table \"DbSyncPeers\" add column ts timestamp without time zone default null; \
+    UPDATE \"MetaData\" SET version=15; \
+    COMMIT " polaric
+fi
+
+
 
 NSCLASS=$(psql -t -c 'select count(*) from "SignClass"' polaric | xargs)
 if ((NSCLASS == 0)); then

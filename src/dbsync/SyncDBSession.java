@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2025-2026 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -48,16 +48,18 @@ public class SyncDBSession extends DBSession
    
    public static class SyncPeer  { 
         public String nodeid, url, items;
+        public java.util.Date ts; 
         public boolean active = false;
         
         public void setActive() {
             active = true;
         }
         
-        public SyncPeer(String id, String u, String it) {
+        public SyncPeer(String id, String u, String it, java.util.Date t) {
             nodeid=id; 
             url=u; 
             items=it;
+            ts=t;
         }
    }
    
@@ -365,7 +367,20 @@ public class SyncDBSession extends DBSession
         stmt.executeUpdate();
     }
     
-    
+
+
+    public void updateSyncPeer(String nodeid, java.util.Date ts)
+                throws java.sql.SQLException
+    {
+        PreparedStatement stmt = getCon().prepareStatement
+              ( " UPDATE \"DbSyncPeers\"  " +
+                " SET ts=? WHERE nodeid=?" );
+        stmt.setTimestamp(1, new Timestamp(ts.getTime()) );
+        stmt.setString(2,nodeid);
+        stmt.executeUpdate();
+    }
+
+
     
     public void removeSyncPeer(String nodeid)
                 throws java.sql.SQLException
@@ -388,7 +403,8 @@ public class SyncDBSession extends DBSession
         stmt.setString(1, nodeid);
         ResultSet rs = stmt.executeQuery();
         if (rs.next())
-            return new SyncPeer(nodeid, rs.getString("url"), rs.getString("item")); ;
+            return new SyncPeer(nodeid, rs.getString("url"), rs.getString("item"), 
+                DBSession.ts2date( rs.getTimestamp("ts"))); ;
         return null;
     }
         
@@ -403,7 +419,8 @@ public class SyncDBSession extends DBSession
                 ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY  );
         return new DbList<SyncPeer>( stmt.executeQuery(), rs ->
             { return new SyncPeer
-               (rs.getString("nodeid"), rs.getString("url"), rs.getString("item"));  }); 
+               (rs.getString("nodeid"), rs.getString("url"), rs.getString("item"), 
+                   DBSession.ts2date(rs.getTimestamp("ts")));  }); 
     }
     
 }

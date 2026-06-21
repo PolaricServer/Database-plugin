@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2026 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -95,30 +95,59 @@ public class DbSync implements Sync
         _ident = api.getProperty("db.sync.ident", mycall);
         
 
-        /* Setup of servers for websocket comm. */
+        /* Setup of server for websocket comm. */
         NodeWs ws = new NodeWs(_api, null);
         ws.start("ws/dbsync");
         
         /* Set up websocket api and handler for item updates  
          */
         _wsNodes = new NodeWsApi<Message>(_api, _ident, ws, Message.class);
-        _wsNodes.setHandler( (nodeid, msg)-> {
-                if (msg==null)
+        _wsNodes.setHandler( new NodeWsApi.Handler<Message>() {
+
+            public void recv(String nodeid, Message msg) {
+
+                if (msg==null) {
                     _dbp.log().warn("DbSync", "Received Message: "+nodeid+", NULL");
-                    
-                else if (msg.mtype == MsgType.UPDATE) {
+                    return;
+                }
+                if (msg.mtype == MsgType.UPDATE) {
+                    if (msg.update == null) {
+                        _dbp.log().warn("DbSync", "Received Message: "+nodeid+", update=NULL");
+                        return;
+                    }
                     _dbp.log().info("DbSync", "Received ItemUpdate: "+nodeid+", "
-                      +msg.update.cid+", "+msg.update.itemid+", "+msg.update.cmd+", "+ TS(msg.update.ts));
+                       +msg.update.cid+", "+msg.update.itemid+", "+msg.update.cmd+", "+ TS(msg.update.ts));
+
                     msg.update.sender = msg.sender;
                     doUpdate(msg.update, msg.sender);
                 }
-                
                 else if (msg.mtype == MsgType.ACK) {
                     _dbp.log().info("DbSync", "Received Ack: "+nodeid+", "+msg.ack.origin+", "+msg.ack.ts);
                     doAck(msg.ack, msg.sender);
                 }
-            } 
-        );
+            }
+
+            public void subs(String nodeid) {
+                _dbp.log().info("DbSync", "Connect/Subscribe: "+nodeid);
+                SyncDBSession db = null;
+                try {           
+                    db = new SyncDBSession(_dbp.getDB(false));
+                    db.updateSyncPeer(nodeid, new java.util.Date());
+                    db.commit();
+                }
+                catch (Exception e) {
+                    db.abort();
+                    _dbp.log().error("DbSync", "Exception: "+e.getMessage());  
+                    e.printStackTrace(System.out);
+                    return;
+                }     
+                finally {
+                    if (db != null) db.close();
+                }
+            }
+
+
+        });
         setupNodes();
     }
     
@@ -256,7 +285,7 @@ public class DbSync implements Sync
         throws URISyntaxException, IOException, InterruptedException
     {
         var url = _parent.get(id);
-        if (url==null)
+        if (url==null || "".equals(url))
             return true; 
         RestClient parentapi = new RestClient(_api, url, "dbsync");
         HttpResponse res = parentapi.DELETE("/nodes/"+_ident);
@@ -277,6 +306,7 @@ public class DbSync implements Sync
              */
             NodeWsClient srv = new NodeWsClient(_api, nodeid, wsUrl(url), true);
             srv.setUserid("dbsync");
+            srv.open();
             _wsNodes.addServer(nodeid, srv);
             _parent.put(nodeid, url);
             _dbp.log().info("DbSync", "Parent (server) node registered: "+nodeid+", "+url);

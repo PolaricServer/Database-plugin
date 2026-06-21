@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2025-2026 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -137,10 +137,18 @@ public class DBSession
                    
      public static Timestamp date2ts(java.util.Date d, int offset)
        { return new Timestamp ( (long) ( (long) (d.getTime()+offset)    /100)*100 ); }
-       
+    
+    
      public static Timestamp date2ts(java.util.Date d)
        { return date2ts(d, 0); }
     
+    
+     public static java.util.Date ts2date(Timestamp ts) {
+        if (ts == null)
+            return null;
+        return new java.util.Date(ts.getTime());
+     }
+     
     
      /**
        * Encode and add a position to a PostGIS SQL statement.

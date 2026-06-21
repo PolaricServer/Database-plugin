@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2025-2026 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -105,7 +105,7 @@ public class DbSyncApi extends ServerBase
                 List<SyncDBSession.SyncPeer> trl = tr.toList();
                 
                 for (SyncDBSession.SyncPeer x : trl) 
-                    if ( _dbsync.isConnected(x.nodeid))
+                    if (x != null && _dbsync.isConnected(x.nodeid))
                         x.setActive();
                 ctx.json(trl);
             }
