@@ -79,7 +79,7 @@ public class DbMaintenance implements Runnable
                _log.info("DbMaintenance","Deleted "+deleted+" old records from AprsMesssage table");
            
             /* Also delete data where time is in the future (because of bugs) */
-            db.getCon().prepareStatement
+            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"PosReport\" " + 
                 "WHERE time > now() + INTERVAL '2 hours'" );
             deleted = stmt.executeUpdate();
@@ -87,22 +87,29 @@ public class DbMaintenance implements Runnable
                _log.info("DbMaintenance", "Deleted "+deleted+" records from AprsMesssage table with timestamps in future");
                
             /* Serverstats is kept for 5 years */
-            db.getCon().prepareStatement
+            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"ServerStats\" " + 
                 "WHERE time + INTERVAL '5 years' < 'now'" );
             deleted = stmt.executeUpdate();
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from ServerStats table");
                
-            db.getCon().prepareStatement
+            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"JsObject\" " + 
                 "WHERE id IN (select o.id from \"JsObject\" o LEFT JOIN \"ObjectAccess\" a ON o.id=a.id WHERE a.id IS NULL) " );
             deleted = stmt.executeUpdate();
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from JsObjects table");
                
+            stmt = db.getCon().prepareStatement
+              ( "DELETE FROM \"Annotation\" " + 
+                "WHERE tend + INTERVAL '2 years' < 'now'");
+            deleted = stmt.executeUpdate();
+            if (deleted > 0) 
+               _log.info("DbMaintenance", "Deleted "+deleted+" records from Annotation table");
                
-            db.getCon().prepareStatement
+               
+            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"DbSync\" " + 
                 "WHERE ts + INTERVAL '2 years' < 'now'" );
             deleted = stmt.executeUpdate();
@@ -110,7 +117,7 @@ public class DbMaintenance implements Runnable
                _log.info("DbMaintenance", "Deleted "+deleted+" records from DbSync table");
                
                
-            db.getCon().prepareStatement
+            stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"DbSync\" " + 
                 "WHERE stable = 'true' AND ts + INTERVAL '3 months' < 'now'" );
             deleted = stmt.executeUpdate();
