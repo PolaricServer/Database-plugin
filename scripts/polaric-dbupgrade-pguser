@@ -295,6 +295,7 @@ if ((VERSION < 15)); then
     echo "Upgrading schema to version 15"
     psql -t -c "BEGIN; \
     alter table \"DbSyncPeers\" add column ts timestamp without time zone default null; \
+    alter table \"Tracker\" add column ts timestamp without time zone default 'now';
     UPDATE \"MetaData\" SET version=15; \
     COMMIT " polaric
 fi

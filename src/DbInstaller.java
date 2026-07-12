@@ -172,7 +172,8 @@ public class DbInstaller
                         "id      varchar(20) not null PRIMARY KEY, " +
                         "userid  varchar(20), " +
                         "alias   varchar(30), " +
-                        "icon    varchar " );
+                        "icon    varchar " +
+                        "ts      timestamp without time zone default 'now'" );
 
         createClass("SignClass", null, 
                         "id      SERIAL PRIMARY KEY, "+
@@ -268,7 +269,8 @@ public class DbInstaller
          createClass("DbSyncPeers", null, 
                         "nodeid  varchar NOT NULL PRIMARY KEY, " +
                         "url     varchar, " +
-                        "item    varchar NOT NULL " );
+                        "item    varchar NOT NULL " +
+                        "ts timestamp without time zone default null ");
                         
          
         /* new in schema v. 6 */

@@ -108,6 +108,12 @@ public class DbMaintenance implements Runnable
             if (deleted > 0) 
                _log.info("DbMaintenance", "Deleted "+deleted+" records from Annotation table");
                
+            stmt = db.getCon().prepareStatement
+              ( "DELETE FROM \"Tracker\" " + 
+                "WHERE ts + INTERVAL '12 months' < 'now'");
+            deleted = stmt.executeUpdate();
+            if (deleted > 0) 
+               _log.info("DbMaintenance", "Deleted "+deleted+" records from Tracker table");  
                
             stmt = db.getCon().prepareStatement
               ( "DELETE FROM \"DbSync\" " + 

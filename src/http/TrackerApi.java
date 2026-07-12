@@ -441,13 +441,14 @@ public class TrackerApi extends ServerBase implements JsonPoints
 
     /* Set alias and/or icon on specific item (if active) */
     public TrackerPoint updateItem(String id, String alias, String icon, Context ctx) {
+        var auth = getAuthInfo(ctx);
         TrackerPoint pt = _api.getDB().getItem(id, null, false);
-        if (pt != null) {
+        if (pt != null && auth != null) {
             boolean mgd = pt.hasTag("MANAGED"); 
             boolean setItem = (alias!=null || icon!=null); 
             boolean changed = pt.setAlias(alias);
             changed |= pt.setIcon(icon);
-            pt.setTag("MANAGED");
+            pt.setTag("MANAGED", auth.userid);
             
             /* Send RMAN message to other servers but only if alias or icon was 
              * set when adding item to myTrackers OR
