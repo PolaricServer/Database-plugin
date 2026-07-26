@@ -384,7 +384,7 @@ public class PhotoApi extends ServerBase
         
         
         
-        a.put("/photos/*/descr", (ctx) -> {
+        a.put("/photos/{id}/descr", (ctx) -> {
             var ident = ctx.pathParam("id");
             
             /* Get user info */
