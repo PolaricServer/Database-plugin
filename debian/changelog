@@ -1,3 +1,11 @@
+polaric-db-plugin (4.2) stable; urgency=medium
+
+  * Dbsync work
+  * Database cleaning fixes.. 
+  * Various fixes..
+
+ -- Oyvind Hanssen <ohanssen@acm.org>  Mon, 27 Jul 2026 13:49:42 +0200
+
 polaric-db-plugin (4.1) stable; urgency=medium
 
   * Base on aprsd 4.1
