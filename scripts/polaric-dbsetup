@@ -2,7 +2,7 @@
 
    INIFILE=/etc/polaric-aprsd/config.d/database.ini   
 JDBCDRIVER="/usr/share/java/postgresql-jdbc4.jar"
- CLASSPATH=/usr/share/polaric/java/polaric-aprsd.jar:/usr/share/polaric/plugins/polaric-db.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/commons-pool.jar:/usr/share/java/commons-collections.jar:$JDBCDRIVER
+ CLASSPATH=/usr/share/polaric/java/polaric-aprsd.jar:/usr/share/polaric/plugins/polaric-db-plugin.jar:/usr/share/java/commons-dbcp.jar:/usr/share/java/commons-pool.jar:/usr/share/java/commons-collections.jar:$JDBCDRIVER
  
 
    
@@ -31,9 +31,9 @@ fi
 # Install packages
 echo 
 echo "Installing software packages..."
-apt-get remove postgresql postgis postgresql-postgis
+apt remove postgresql postgis postgresql-postgis
 sleep 1
-apt-get -q -y install postgresql postgis postgresql-postgis
+apt -q -y install postgresql postgis postgresql-postgis
 [ $? -eq 0 ] || exit 1  
 
 #

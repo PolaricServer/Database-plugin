@@ -28,10 +28,15 @@ if [ "$PGIS" = "" ]; then
     exit 1
 fi
 
+# Remove the database and the user (if they exist)
+dropdb $DBNAME
+dropuser $USERNAME
+
+
 # Create the user (allowed to log in and with password)
 createuser $USERNAME -l -e
 
-# create database ownqed by user 
+# create database owned by user 
 createdb $DBNAME -O $USERNAME
 
 

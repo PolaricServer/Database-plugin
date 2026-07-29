@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2026 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -172,7 +172,7 @@ public class DbInstaller
                         "id      varchar(20) not null PRIMARY KEY, " +
                         "userid  varchar(20), " +
                         "alias   varchar(30), " +
-                        "icon    varchar " +
+                        "icon    varchar, " +
                         "ts      timestamp without time zone default 'now'" );
 
         createClass("SignClass", null, 
@@ -269,7 +269,7 @@ public class DbInstaller
          createClass("DbSyncPeers", null, 
                         "nodeid  varchar NOT NULL PRIMARY KEY, " +
                         "url     varchar, " +
-                        "item    varchar NOT NULL " +
+                        "item    varchar NOT NULL, " +
                         "ts timestamp without time zone default null ");
                         
          
