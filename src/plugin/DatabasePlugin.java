@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2025 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
+ * Copyright (C) 2026 by LA7ECA, Øyvind Hanssen (ohanssen@acm.org)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -96,7 +96,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
            conf.properties().put("aprsdb.plugin", this); 
            
            _isOwner = conf.getBoolProperty("db.isowner", true);
-           _log = new Logfile(conf, "db", "database.log");
+           String logdir = conf.getProperty("logdir", "/var/log/polaric");   
+           _log = new Logfile(conf, "db", logdir+"/database.log");
            _conf.log().info("DatabasePlugin", "Activate...");
            
            
@@ -189,8 +190,8 @@ public class DatabasePlugin implements PluginManager.Plugin,  ReportHandler, Sta
      public void startWebservice(AprsServerConfig conf) {
         
         boolean active = conf.getBoolProperty("db.plugin.on", false);
-            if (!active)
-               return; 
+        if (!active)
+            return; 
         if (!_isActive)
             return; 
         RestApi api1     = new RestApi(conf);
